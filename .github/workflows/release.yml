@@ -16,16 +16,13 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install dependencies
+      - name: Semantic Release
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           pip install uv
           uv venv
           source .venv/bin/activate
           uv pip install python-semantic-release
+          semantic-release publish
 
-      - name: Run semantic release
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          source .venv/bin/activate
-          semantic-release publish -vv
