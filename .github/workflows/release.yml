@@ -20,6 +20,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install uv
+          uv venv
+          source .venv/bin/activate
           uv pip install python-semantic-release
 
       - name: Run semantic release
