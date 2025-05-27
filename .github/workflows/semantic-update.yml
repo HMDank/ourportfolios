@@ -28,4 +28,5 @@ jobs:
           uv venv
           source .venv/bin/activate
           uv pip install python-semantic-release
+          semantic-release -vv version --no-commit --no-tag
           semantic-release publish
