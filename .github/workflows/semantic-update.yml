@@ -5,6 +5,10 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to push tags and commits
+      issues: write    # Required for GitHub releases
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,5 +28,4 @@ jobs:
           uv venv
           source .venv/bin/activate
           uv pip install python-semantic-release
-          semantic-release version || echo "Version command failed, trying publish"
           semantic-release publish
