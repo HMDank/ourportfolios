@@ -24,4 +24,5 @@ jobs:
           uv venv
           source .venv/bin/activate
           uv pip install python-semantic-release
-          semantic-release publish --force-publish
+          semantic-release version || echo "Version command failed, trying publish"
+          semantic-release publish
