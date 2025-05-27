@@ -28,4 +28,4 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           source .venv/bin/activate
-          semantic-release publish
+          semantic-release publish -vv
