@@ -20,6 +20,7 @@ allow_zero_version = false
 version_toml = ["pyproject.toml:project.version"]
 upload_to_release = true
 upload_to_pypi = false
+tag_format = "{version}"
 
 [tool.semantic_release.branches.main]
 match = "(main|master)"
