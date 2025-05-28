@@ -30,3 +30,7 @@ jobs:
           uv pip install python-semantic-release
           semantic-release -vv version --no-commit --no-tag
           semantic-release publish
+      - name: Python Semantic Release
+        uses: python-semantic-release/python-semantic-release@v10.0.2
+        with:
+          github_token: ${{ secrets.GH_TOKEN }}
