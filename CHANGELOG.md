@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.0.2 (2025-05-28)
+
+### Bug Fixes
+
+- Remove env token
+  ([`92218ae`](https://github.com/HMDank/ourportfolios/commit/92218ae1bcd3409be689a3e6eea2e76d143f6506))
+
+
 ## v0.0.1 (2025-05-28)
 
 ### Bug Fixes
