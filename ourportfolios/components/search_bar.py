@@ -7,5 +7,6 @@ def search_bar():
         placeholder="Search for a ticker here!",
         type="search",
         size="2",
+        width="16vw",
         justify="end",
     )
