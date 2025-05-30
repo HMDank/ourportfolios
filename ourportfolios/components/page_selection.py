@@ -2,20 +2,20 @@ import reflex as rx
 
 cards = [
     {"title": "Recommend", "details": "Card 1 details",
-        "link": "https://example.com/1"},
+        "link": "/recommend"},
     {"title": "Select", "details": "Card 2 details",
-        "link": "https://example.com/2"},
-    {"title": "Analyze", "details": "Card 3 details", "link": "https://example.com/3"},
+        "link": "/select"},
+    {"title": "Analyze", "details": "Card 3 details", "link": "/analyze"},
     {"title": "Simulate", "details": "Card 4 details",
-        "link": "https://example.com/4"},
+        "link": "/simulate"},
 ]
 
 
 def get_card_position_size(idx, total):
-    spread_x = 60  # percent of parent width; lower for more overlap
-    spread_y = 50  # vertical spread
-    width = 30     # percent of parent width; adjust for desired overlap
-    height = 38    # percent of parent height
+    spread_x = 55  # percent of parent width; lower for more overlap
+    spread_y = 15  # vertical spread
+    width = 32     # percent of parent width; adjust for desired overlap
+    height = 48    # percent of parent height
 
     if total > 1:
         center = (idx / (total - 1)) * spread_x + (50 - spread_x / 2)
