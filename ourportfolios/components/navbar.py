@@ -1,4 +1,6 @@
 import reflex as rx
+from .graph import VniGraph
+from .search_bar import search_bar
 
 
 def navbar_link(text: str, url: str) -> rx.Component:
@@ -12,20 +14,22 @@ def navbar() -> rx.Component:
         rx.desktop_only(
             rx.hstack(
                 rx.hstack(
-                    rx.heading(
-                        "OurPortfolios", size="5", weight="bold"
-                    ),
+                    rx.heading("OurPortfolios", size="5", weight="bold"),
+                    VniGraph(),
                     align_items="center",
+                    spacing="7",
                 ),
                 rx.hstack(
+                    search_bar(),
                     rx.button(
                         "Sign Up",
-                        size="3",
+                        size="2",
                         variant="outline",
                     ),
-                    rx.button("Log In", size="3"),
+                    rx.button("Log In", size="2"),
                     spacing="4",
                     justify="end",
+                    align_items="center"
                 ),
                 justify="between",
                 align_items="center",
@@ -35,7 +39,7 @@ def navbar() -> rx.Component:
             rx.hstack(
                 rx.hstack(
                     rx.heading(
-                        "Reflex", size="6", weight="bold"
+                        "OurPortfolios", size="6", weight="bold"
                     ),
                     align_items="center",
                 ),
@@ -59,7 +63,7 @@ def navbar() -> rx.Component:
             ),
         ),
         bg=rx.color("accent", 3),
-        padding="1em",
+        padding="0.4em 1em",
         # position="fixed",
         # top="0px",
         # z_index="5",
