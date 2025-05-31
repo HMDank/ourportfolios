@@ -6,9 +6,12 @@ def side_card(content, style):
         content,
         padding="1.2em 1.5em",
         width="16em",
+        height="6.5em",
         background_color="transparent",
         style=style,
         align_items="center",
+        display="flex",
+        justify_content="center",
     )
 
 
@@ -48,9 +51,9 @@ def card_roller(left_content, center_content, right_content):
     }
     # Wrap side cards in boxes for horizontal slide on hover only
     left = rx.box(
-        side_card(left_content, {**side_card_style, "left": "-2.5em"}),
+        side_card(left_content, {**side_card_style, "left": "-4em"}),
         _hover={
-            "transform": "translateX(-3em) scale(1.09)",
+            "transform": "translateX(-2em) scale(1.09)",
         },
         transition="transform 0.2s, z-index 0.2s",
         position="absolute",
@@ -61,9 +64,9 @@ def card_roller(left_content, center_content, right_content):
         style={"pointerEvents": "auto"},
     )
     right = rx.box(
-        side_card(right_content, {**side_card_style, "right": "-2.5em"}),
+        side_card(right_content, {**side_card_style, "right": "-4em"}),
         _hover={
-            "transform": "translateX(3em) scale(1.09)",
+            "transform": "translateX(2em) scale(1.09)",
         },
         transition="transform 0.2s, z-index 0.2s",
         position="absolute",
