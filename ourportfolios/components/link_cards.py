@@ -14,7 +14,7 @@ cards = [
 def get_card_position_size(idx, total):
     spread_x = 65  # percent of parent width; lower for more overlap
     spread_y = 15  # vertical spread
-    width = 24     # percent of parent width; adjust for desired overlap
+    width = 23     # percent of parent width; adjust for desired overlap
     height = 48    # percent of parent height
 
     if total > 1:

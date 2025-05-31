@@ -46,6 +46,7 @@ def navbar() -> rx.Component:
                     spacing="7",
                 ),
                 rx.hstack(
+                    rx.color_mode.button(),
                     search_bar(),
                     rx.button(
                         "Sign Up",
@@ -57,6 +58,7 @@ def navbar() -> rx.Component:
                     justify="end",
                     align_items="center"
                 ),
+
                 justify="between",
                 align_items="center",
             ),

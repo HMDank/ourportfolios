@@ -21,7 +21,6 @@ class State(rx.State):
 def landing() -> rx.Component:
     return rx.fragment(
         navbar(),
-        rx.color_mode.button(position="bottom-right"),
         rx.vstack(
             rx.center(
                 rx.vstack(
