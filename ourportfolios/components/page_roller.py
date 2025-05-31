@@ -22,6 +22,9 @@ def main_card(content, style):
         style=style,
         spacing="4",
         align_items="center",
+        _hover={
+            "transform": "scale(1.09)",
+        },
     )
 
 
@@ -41,14 +44,13 @@ def card_roller(left_content, center_content, right_content):
         "backdropFilter": "blur(14px)",
         "zIndex": 2,
         "position": "relative",
-        "transform" : "scale(1.09)",
         "transition": "transform 0.2s, box-shadow 0.2s, z-index 0.2s",
     }
     # Wrap side cards in boxes for horizontal slide on hover only
     left = rx.box(
-        side_card(left_content, {**side_card_style, "left": "-2em"}),
+        side_card(left_content, {**side_card_style, "left": "-2.5em"}),
         _hover={
-            "transform": "translateX(-2.5em) scale(1.09)",
+            "transform": "translateX(-3em) scale(1.09)",
         },
         transition="transform 0.2s, z-index 0.2s",
         position="absolute",
@@ -59,9 +61,9 @@ def card_roller(left_content, center_content, right_content):
         style={"pointerEvents": "auto"},
     )
     right = rx.box(
-        side_card(right_content, {**side_card_style, "right": "-2em"}),
+        side_card(right_content, {**side_card_style, "right": "-2.5em"}),
         _hover={
-            "transform": "translateX(2.5em) scale(1.09)",
+            "transform": "translateX(3em) scale(1.09)",
         },
         transition="transform 0.2s, z-index 0.2s",
         position="absolute",
