@@ -1,6 +1,16 @@
 import reflex as rx
 from ..components.navbar import navbar
-from ..components.page_selection import page_selection
+from ..components.link_cards import portfolio_card
+
+cards = [
+    {"title": "Recommend", "details": "Card 1 details",
+        "link": "/recommend"},
+    {"title": "Select", "details": "Card 2 details",
+        "link": "/select"},
+    {"title": "Analyze", "details": "Card 3 details", "link": "/analyze"},
+    {"title": "Simulate", "details": "Card 4 details",
+        "link": "/simulate"},
+]
 
 
 class State(rx.State):
@@ -30,7 +40,16 @@ def landing() -> rx.Component:
                 align="center",
             ),
             rx.center(
-                page_selection(),
+                rx.box(
+                    *[portfolio_card(card, idx, len(cards))
+                      for idx, card in enumerate(cards)],
+                    width="100vw",
+                    height="60vh",
+                    min_height="40vh",
+                    position="relative",
+                    overflow="visible",
+                    padding_x="7vw",
+                ),
                 width="100%",
                 height="50vh",
             ),
