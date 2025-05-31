@@ -14,7 +14,33 @@ def navbar() -> rx.Component:
         rx.desktop_only(
             rx.hstack(
                 rx.hstack(
-                    rx.heading("OurPortfolios", size="5", weight="bold"),
+                    rx.box(
+                        rx.heading("OurPortfolios", size="5", weight="bold"),
+                        rx.link(
+                            "",
+                            href="/",
+                            style={
+                                "position": "absolute",
+                                "top": 0,
+                                "left": 0,
+                                "right": 0,
+                                "bottom": 0,
+                                "width": "100%",
+                                "height": "100%",
+                                "zIndex": 1,
+                                "textDecoration": "none",
+                                "color": "inherit",
+                                "background": "transparent",
+                                "pointerEvents": "auto",
+                                "_hover": {
+                                    "textDecoration": "none",
+                                    "color": "inherit",
+                                    "background": "transparent",
+                                },
+                            },
+                        ),
+                        position="relative",
+                    ),
                     VniGraph(),
                     align_items="center",
                     spacing="7",
@@ -38,8 +64,16 @@ def navbar() -> rx.Component:
         rx.mobile_and_tablet(
             rx.hstack(
                 rx.hstack(
-                    rx.heading(
-                        "OurPortfolios", size="6", weight="bold"
+                    rx.link(
+                        rx.heading(
+                            "OurPortfolios", size="6", weight="bold"
+                        ),
+                        href="/",
+                        style={
+                            "pointerEvents": "none",
+                            "textDecoration": "none"
+                        },
+                        _hover={"background": "none"},
                     ),
                     align_items="center",
                 ),
