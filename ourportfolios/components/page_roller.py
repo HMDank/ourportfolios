@@ -4,7 +4,6 @@ import reflex as rx
 def side_card(content, style):
     return rx.card(
         content,
-        padding="1.2em 1.5em",
         width="16em",
         height="6.5em",
         background_color="transparent",
@@ -26,7 +25,7 @@ def main_card(content, style):
         spacing="4",
         align_items="center",
         _hover={
-            "transform": "scale(1.09)",
+            "transform": "scale(1.05)",
         },
     )
 
@@ -53,7 +52,7 @@ def card_roller(left_content, center_content, right_content):
     left = rx.box(
         side_card(left_content, {**side_card_style, "left": "-4em"}),
         _hover={
-            "transform": "translateX(-2em) scale(1.09)",
+            "transform": "translateX(-1em) scale(1.05)",
         },
         transition="transform 0.2s, z-index 0.2s",
         position="absolute",
@@ -66,7 +65,7 @@ def card_roller(left_content, center_content, right_content):
     right = rx.box(
         side_card(right_content, {**side_card_style, "right": "-4em"}),
         _hover={
-            "transform": "translateX(2em) scale(1.09)",
+            "transform": "translateX(1em) scale(1.05)",
         },
         transition="transform 0.2s, z-index 0.2s",
         position="absolute",
@@ -83,7 +82,7 @@ def card_roller(left_content, center_content, right_content):
         center,
         position="relative",
         width="38em",
-        height="15em",
+        height="10em",
         display="flex",
         align_items="center",
         justify_content="center",
