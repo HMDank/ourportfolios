@@ -1,6 +1,25 @@
 import reflex as rx
 
 
+def card_link(content, href, selected=False):
+    style = {
+        "color": "inherit",
+        "textDecoration": "none",
+        "width": "100%",
+        "transition": "color 0.2s",
+        "cursor": "pointer",
+    }
+    if selected:
+        # Optionally, you can add a style to highlight the selected card
+        style["fontWeight"] = "bold"
+    return rx.link(
+        content,
+        href=href,
+        style=style,
+        class_name="card-link",
+    )
+
+
 def side_card(content, style):
     return rx.card(
         content,
@@ -82,7 +101,7 @@ def card_roller(left_content, center_content, right_content):
         center,
         position="relative",
         width="38em",
-        height="10em",
+        height="11em",
         display="flex",
         align_items="center",
         justify_content="center",
