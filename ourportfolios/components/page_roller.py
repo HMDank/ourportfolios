@@ -3,11 +3,7 @@ import reflex as rx
 
 def side_card(content, style):
     return rx.card(
-        rx.center(
-            content,
-            width="100%",
-            height="100%",
-        ),
+        content,
         padding="1.2em 1.5em",
         width="16em",
         background_color="transparent",
@@ -18,11 +14,7 @@ def side_card(content, style):
 
 def main_card(content, style):
     return rx.card(
-        rx.center(
-            content,
-            width="100%",
-            height="100%",
-        ),
+        content,
         padding="2em 2.5em",
         width="22em",
         border="none",
@@ -43,15 +35,43 @@ def card_roller(left_content, center_content, right_content):
         "position": "absolute",
         "top": "50%",
         "transform": "translateY(-50%)",
+        "transition": "transform 0.2s, box-shadow 0.2s, z-index 0.2s",
     }
     main_card_style = {
         "backdropFilter": "blur(14px)",
         "zIndex": 2,
         "position": "relative",
+        "transform" : "scale(1.09)",
+        "transition": "transform 0.2s, box-shadow 0.2s, z-index 0.2s",
     }
-    left = side_card(left_content, {**side_card_style, "left": "-2em"})
-    right = side_card(right_content, {**side_card_style, "right": "-2em"})
-    center = main_card(center_content, main_card_style)
+    # Wrap side cards in boxes for horizontal slide on hover only
+    left = rx.box(
+        side_card(left_content, {**side_card_style, "left": "-2em"}),
+        _hover={
+            "transform": "translateX(-2.5em) scale(1.09)",
+        },
+        transition="transform 0.2s, z-index 0.2s",
+        position="absolute",
+        left="-2em",
+        top="0",
+        height="100%",
+        width="16em",
+        style={"pointerEvents": "auto"},
+    )
+    right = rx.box(
+        side_card(right_content, {**side_card_style, "right": "-2em"}),
+        _hover={
+            "transform": "translateX(2.5em) scale(1.09)",
+        },
+        transition="transform 0.2s, z-index 0.2s",
+        position="absolute",
+        right="-2em",
+        top="0",
+        height="100%",
+        width="16em",
+        style={"pointerEvents": "auto"},
+    )
+    center = main_card(center_content, main_card_style, )
     return rx.box(
         left,
         right,
