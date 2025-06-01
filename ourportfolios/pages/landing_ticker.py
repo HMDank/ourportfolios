@@ -18,7 +18,7 @@ class State(rx.State):
         return {"ticker": self.ticker, "name": "Unknown", "sector": "Unknown"}
 
 
-@rx.page(route="/select/[ticker]")
+@rx.page(route="/[ticker]")
 def landing_ticker():
     return rx.vstack(
         rx.heading(f"Ticker: {State.ticker_info['ticker']}"),
