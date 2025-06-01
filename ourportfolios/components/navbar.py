@@ -1,6 +1,15 @@
 import reflex as rx
-from .graph import VniGraph
+from .graph import mini_price_graph
 from .search_bar import search_bar
+
+
+class VniState(rx.State):
+    users_for_graph = [
+        {"name": "A", "value": 10},
+        {"name": "B", "value": 25},
+        {"name": "C", "value": 15},
+        {"name": "D", "value": 30},
+    ]
 
 
 def navbar_link(text: str, url: str) -> rx.Component:
@@ -41,7 +50,7 @@ def navbar() -> rx.Component:
                         ),
                         position="relative",
                     ),
-                    VniGraph(),
+                    mini_price_graph(VniState.users_for_graph),
                     align_items="center",
                     spacing="7",
                 ),
