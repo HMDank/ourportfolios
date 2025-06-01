@@ -1,7 +1,7 @@
 import reflex as rx
 
 
-def card_link(content, href, selected=False):
+def card_link(content, href):
     style = {
         "color": "inherit",
         "textDecoration": "none",
@@ -9,9 +9,6 @@ def card_link(content, href, selected=False):
         "transition": "color 0.2s",
         "cursor": "pointer",
     }
-    if selected:
-        # Optionally, you can add a style to highlight the selected card
-        style["fontWeight"] = "bold"
     return rx.link(
         content,
         href=href,
