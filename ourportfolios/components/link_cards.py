@@ -39,7 +39,7 @@ def portfolio_card(card, idx, total):
             position="absolute", top=top, left=left,
             transition="transform 0.15s, box-shadow 0.2s, z-index 0.2s",
             _hover={
-                "transform": "scale(1.09)",
+                "transform": "scale(1.05)",
                 "z_index": "10",
                 "box_shadow": "0 8px 32px rgba(0,0,0,0.25)",
             },
