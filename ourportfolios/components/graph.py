@@ -1,16 +1,8 @@
 import reflex as rx
 
 
-class VniState(rx.State):
-    users_for_graph = [
-        {"name": "A", "value": 10},
-        {"name": "B", "value": 25},
-        {"name": "C", "value": 15},
-        {"name": "D", "value": 30},
-    ]
-
-
-def VniGraph():
+def mini_price_graph(data, label="VNINDEX", size=(80, 40)):
+    width, height = size
     return rx.hstack(
         rx.vstack(
             rx.recharts.area_chart(
@@ -21,12 +13,12 @@ def VniGraph():
                 ),
                 rx.recharts.x_axis(data_key="name", hide=True),
                 rx.recharts.y_axis(hide=True),
-                data=VniState.users_for_graph,
-                width=80,
-                height=40,
+                data=data,
+                width=width,
+                height=height,
             ),
             rx.hstack(
-                rx.text("VNINDEX", size="1", font_size="0.75rem"),
+                rx.text(label, size="1", font_size="0.75rem"),
                 rx.badge(
                     rx.flex(
                         rx.icon(tag="arrow_up", size=10),
@@ -41,8 +33,6 @@ def VniGraph():
                 )
             ),
             spacing="1",
-            align_items="center",
-            width="100%",
+            align_items="flex-start",
         ),
-        width="100%",
     )
