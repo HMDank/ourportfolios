@@ -6,12 +6,12 @@ def mini_price_graph(data, label="VNINDEX", size=(80, 40)):
     return rx.vstack(
         rx.recharts.area_chart(
             rx.recharts.area(
-                data_key="value",
+                data_key="scaled_close",
                 stroke=rx.color("accent", 9),
                 fill=rx.color("accent", 8),
             ),
             rx.recharts.x_axis(data_key="name", hide=True),
-            rx.recharts.y_axis(hide=True),
+            rx.recharts.y_axis(domain=[0, 1], hide=True),
             data=data,
             width=width,
             height=height,

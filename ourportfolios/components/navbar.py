@@ -1,21 +1,23 @@
 import reflex as rx
+import pandas as pd
 from .graph import mini_price_graph
 from .search_bar import search_bar
+from ..utils.load_data import load_historical_data
 
 
 class VniState(rx.State):
-    users_for_graph = [
-        {"name": "A", "value": 10},
-        {"name": "B", "value": 25},
-        {"name": "C", "value": 15},
-        {"name": "D", "value": 30},
-    ]
+    def scale_close(data):
+        df = pd.DataFrame(data)
+        min_val = df['close'].min()
+        max_val = df['close'].max()
+        range_val = max_val - min_val if max_val != min_val else 1  # avoid division by zero
 
+        df = df.copy()
+        df['scaled_close'] = (df['close'] - min_val) / range_val
+        return df
 
-def navbar_link(text: str, url: str) -> rx.Component:
-    return rx.link(
-        rx.text(text, size="4", weight="medium"), href=url
-    )
+    vnindex_data = load_historical_data("VNINDEX").tail(5).to_dict("records")
+    scaled_vnindex_data = scale_close(vnindex_data).to_dict(orient="records")
 
 
 def navbar() -> rx.Component:
@@ -50,7 +52,7 @@ def navbar() -> rx.Component:
                         ),
                         position="relative",
                     ),
-                    mini_price_graph(VniState.users_for_graph),
+                    mini_price_graph(VniState.scaled_vnindex_data),
                     align_items="center",
                     spacing="7",
                 ),
