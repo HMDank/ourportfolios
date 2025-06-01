@@ -6,6 +6,13 @@ from ..components.page_roller import card_roller, card_link
 from ..components.graph import mini_price_graph  # <-- import mini_price_graph
 
 
+class IndustryScrollState(rx.State):
+    show_arrow: bool = True
+
+    def update_arrow(self, scroll_position: int, max_scroll: int):
+        self.show_arrow = scroll_position < max_scroll - 10
+
+
 class SegmentedState(rx.State):
     control: str = "home"
 
@@ -75,7 +82,7 @@ def page_selection():
             card_link(
                 rx.hstack(
                     rx.vstack(
-                        rx.heading("Simulate", weight="bold", size="6"),
+                        rx.heading("Analyze", weight="bold", size="6"),
                         rx.text("caijdo", size="1"),
                         align="center",
                         justify="center",
@@ -99,7 +106,7 @@ def card_with_scrollable_area():
         rx.segmented_control.root(
             rx.segmented_control.item("Markets", value="markets"),
             rx.segmented_control.item("Coin", value="coin"),
-            rx.segmented_control.item("Test", value="test"),
+            rx.segmented_control.item("qqjdos", value="test"),
             on_change=SegmentedState.setvar("control"),
             value=SegmentedState.control,
             size="1",
@@ -112,7 +119,7 @@ def card_with_scrollable_area():
                     lambda item: mini_price_graph(
                         item["data"],
                         label=item["label"],
-                        size=(120, 100)
+                        size=(120, 80)
                     )
                 ),
                 spacing="2",
@@ -120,7 +127,6 @@ def card_with_scrollable_area():
                 width="100%",
                 align_items="flex-start",
             ),
-            style={"height": 400, "width": 250, "display": "flex"},
             scrollbars="vertical",
             type="auto",
         ),
@@ -137,12 +143,111 @@ def card_with_scrollable_area():
 def three_part_layout():
     return rx.box(
         rx.hstack(
-            rx.spacer(),
-            rx.spacer(),
+            rx.vstack(
+                rx.text("asdjfkhsdjf"),
+                industry_roller(),
+                rx.hstack(
+                    rx.button("Filter", variant="solid"),
+                    width="100%",
+                    padding_top="1em"
+                ),
+                rx.card(
+                    rx.foreach(
+                        range(10),
+                        lambda i: rx.card(
+                            rx.text("ABC", weight="bold"),
+                            width="100%",
+                        )
+                    ),
+                ),
+            ),
             card_with_scrollable_area(),
             width="100%",
+            justify="center",
+            spacing="6",
         ),
         width="100%",
         padding="2em",
         padding_top="5em"
     )
+
+
+def industry_roller():
+    industries = [
+        {"name": "Technology", "desc": "Software, hardware, and IT services", "img": ""},
+        {"name": "Finance", "desc": "Banking, investment, and insurance", "img": ""},
+        {"name": "Healthcare", "desc": "Pharmaceuticals, hospitals, and biotech", "img": ""},
+        {"name": "Energy", "desc": "Oil, gas, and renewables", "img": ""},
+        {"name": "Consumer Goods", "desc": "Food, beverages, and retail", "img": ""},
+        {"name": "Industrials", "desc": "Manufacturing and infrastructure", "img": ""},
+        {"name": "Utilities", "desc": "Electric, water, and gas utilities", "img": ""},
+        {"name": "Telecommunications ",
+            "desc": "Mobile, broadband, and satellite", "img": ""},
+        {"name": "Real Estate", "desc": "Commercial and residential properties", "img": ""},
+        {"name": "Materials", "desc": "Mining, chemicals, and forestry", "img": ""},
+    ]
+
+    return rx.box(
+        rx.box(
+            rx.scroll_area(
+                rx.hstack(
+                    rx.foreach(
+                        industries,
+                        lambda item: rx.card(
+                            rx.inset(
+                                rx.image(
+                                    src=item["img"],
+                                    width="40px",
+                                    height="40px",
+                                    style={"marginBottom": "0.5em"},
+                                ),
+                                item["name"],
+                                style={
+                                    "height": "120px",
+                                    "minWidth": "200px",
+                                    "padding": "1em",
+                                    "display": "flex",
+                                    "flexDirection": "column",
+                                    "justifyContent": "center",
+                                    "alignItems": "flex-start",
+                                    "whiteSpace": "normal",
+                                    "overflow": "visible",
+                                },
+                                side="right",
+                            )
+                        )
+                    ),
+                    spacing="2",
+                    height="100%",
+                    align_items="flex-start",
+                ),
+                style={"height": 140, "width": 1000, "position": "relative"},
+                scrollbars="horizontal",
+                type="scroll",
+            ),
+            rx.cond(
+                IndustryScrollState.show_arrow,
+                rx.box(
+                    rx.icon("chevron_right", size=36, color="white"),
+                    style={
+                        "position": "absolute",
+                        "top": "46%",
+                        "right": "0",
+                        "transform": "translateY(-50%)",
+                        "height": "100%",
+                        "width": "60px",
+                        "display": "flex",
+                        "alignItems": "center",
+                        "justifyContent": "center",
+                        "pointerEvents": "none",
+                        "zIndex": 2,
+                    },
+                ),
+            ),
+            style={"position": "relative"},
+        ),
+    )
+
+
+# def ticker_card():
+    
