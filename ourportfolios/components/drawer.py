@@ -2,10 +2,7 @@ import reflex as rx
 
 
 class CartState(rx.State):
-    cart_items: list[dict] = [
-        {"name": "Apple"},
-        {"name": "Banana"},
-    ]
+    cart_items: list[dict] = []
     is_open: bool = False
 
     @rx.event
@@ -15,6 +12,10 @@ class CartState(rx.State):
     @rx.event
     def remove_item(self, index: int):
         self.cart_items.pop(index)
+
+    @rx.event
+    def add_item(self, name: str):
+        self.cart_items.append({"name": name})
 
 
 def cart_drawer_content():

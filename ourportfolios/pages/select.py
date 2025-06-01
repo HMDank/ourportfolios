@@ -1,7 +1,7 @@
 from turtle import width
 import reflex as rx
 from ..components.navbar import navbar
-from ..components.drawer import drawer_button
+from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
 from ..components.graph import mini_price_graph  # <-- import mini_price_graph
 
@@ -140,38 +140,6 @@ def card_with_scrollable_area():
     )
 
 
-def three_part_layout():
-    return rx.box(
-        rx.hstack(
-            rx.vstack(
-                rx.text("asdjfkhsdjf"),
-                industry_roller(),
-                rx.hstack(
-                    rx.button("Filter", variant="solid"),
-                    width="100%",
-                    padding_top="1em"
-                ),
-                rx.card(
-                    rx.foreach(
-                        range(10),
-                        lambda i: rx.card(
-                            rx.text("ABC", weight="bold"),
-                            width="100%",
-                        )
-                    ),
-                ),
-            ),
-            card_with_scrollable_area(),
-            width="100%",
-            justify="center",
-            spacing="6",
-        ),
-        width="100%",
-        padding="2em",
-        padding_top="5em"
-    )
-
-
 def industry_roller():
     industries = [
         {"name": "Technology", "desc": "Software, hardware, and IT services", "img": ""},
@@ -181,7 +149,7 @@ def industry_roller():
         {"name": "Consumer Goods", "desc": "Food, beverages, and retail", "img": ""},
         {"name": "Industrials", "desc": "Manufacturing and infrastructure", "img": ""},
         {"name": "Utilities", "desc": "Electric, water, and gas utilities", "img": ""},
-        {"name": "Telecommunications ",
+        {"name": "Telecommunications",
             "desc": "Mobile, broadband, and satellite", "img": ""},
         {"name": "Real Estate", "desc": "Commercial and residential properties", "img": ""},
         {"name": "Materials", "desc": "Mining, chemicals, and forestry", "img": ""},
@@ -249,5 +217,61 @@ def industry_roller():
     )
 
 
-# def ticker_card():
-    
+def three_part_layout():
+    return rx.box(
+        rx.hstack(
+            rx.vstack(
+                rx.text("asdjfkhsdjf"),
+                industry_roller(),
+                rx.hstack(
+                    rx.button("Filter", variant="solid"),
+                    width="100%",
+                    padding_top="1em"
+                ),
+                rx.card(
+                    rx.foreach(
+                        ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"],
+                        lambda ticker: ticker_card(ticker)
+                    ),
+                    style={
+                        "width": "100%",
+                        "marginTop": "1em"
+                    }
+                ),
+            ),
+            card_with_scrollable_area(),
+            width="100%",
+            justify="center",
+            spacing="6",
+        ),
+        width="100%",
+        padding="2em",
+        padding_top="5em"
+    )
+
+
+def ticker_card(ticker: str):
+    return rx.card(
+        rx.hstack(
+            rx.link(
+                rx.text(ticker, weight="bold", size="4"),
+                href=f"/{ticker}",
+                style={
+                    "textDecoration": "none",
+                    "color": "inherit",
+                    "flex": 1,
+                },
+            ),
+            rx.button(
+                rx.icon("shopping-cart", size=16),
+                size="1",
+                variant="soft",
+                # Call the event handler here:
+                on_click=lambda: CartState.add_item(ticker),
+            ),
+            align_items="center",
+            width="100%"
+        ),
+        padding="1em",
+        style={"marginBottom": "0.75em", "width": "100%"}
+    )
