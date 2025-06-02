@@ -1,12 +1,12 @@
 import reflex as rx
 
 
-def mini_price_graph(data, label="VNINDEX", size=(80, 40)):
+def mini_price_graph(label, data, diff, size=(80, 40)):
     width, height = size
     return rx.vstack(
         rx.recharts.area_chart(
             rx.recharts.area(
-                data_key="scaled_close",
+                data_key="normalized_close",
                 stroke=rx.color("accent", 9),
                 fill=rx.color("accent", 8),
             ),
@@ -21,7 +21,7 @@ def mini_price_graph(data, label="VNINDEX", size=(80, 40)):
             rx.badge(
                 rx.flex(
                     rx.icon(tag="arrow_up", size=10),
-                    rx.text("8.8%", font_size="0.6rem"),
+                    rx.text(f"{diff:.2f}%", font_size="0.6rem"),
                     spacing="1",
                 ),
                 color_scheme="grass",

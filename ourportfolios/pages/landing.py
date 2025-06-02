@@ -1,7 +1,10 @@
 import reflex as rx
+import pandas as pd
+import sqlite3
 from ..components.navbar import navbar
 from ..components.link_cards import portfolio_card
-
+from ..components.graph import mini_price_graph
+from ..state.mini_graph_state import miniGraphState
 cards = [
     {"title": "Recommend", "details": "Card 1 details",
         "link": "/recommend"},
@@ -16,11 +19,28 @@ cards = [
 class State(rx.State):
     show_cards: bool = False
 
+    @rx.var
+    def data_vni(self) -> pd.DataFrame:
+        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
+        df = pd.read_sql("SELECT * FROM data_vni", conn)
+        conn.close()
+        return df
 
-@rx.page(route="/")
+
+@rx.page(route="/", on_load=miniGraphState.load_graph_data(['VNINDEX']))
 def landing() -> rx.Component:
     return rx.fragment(
-        navbar(),
+        navbar(
+            rx.foreach(
+                miniGraphState.graph_data,
+                lambda data: mini_price_graph(
+                    label=data["label"],
+                    data=data["data"],
+                    diff=data["percent_diff"],
+                ),
+            ),
+        ),
+
         rx.vstack(
             rx.center(
                 rx.vstack(
