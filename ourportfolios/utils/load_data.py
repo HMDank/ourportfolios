@@ -1,5 +1,7 @@
 from vnstock import Vnstock
 from datetime import date, timedelta
+import warnings
+warnings.filterwarnings("ignore")
 
 
 def load_historical_data(symbol,
@@ -11,6 +13,3 @@ def load_historical_data(symbol,
     stock = Vnstock().stock(symbol=symbol, source='TCBS')
     df = stock.quote.history(start=start, end=end, interval=interval)
     return df
-
-
-
