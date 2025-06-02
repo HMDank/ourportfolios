@@ -5,22 +5,7 @@ from .search_bar import search_bar
 from ..utils.load_data import load_historical_data
 
 
-class VniState(rx.State):
-    def scale_close(data):
-        df = pd.DataFrame(data)
-        min_val = df['close'].min()
-        max_val = df['close'].max()
-        range_val = max_val - min_val if max_val != min_val else 1  # avoid division by zero
-
-        df = df.copy()
-        df['scaled_close'] = (df['close'] - min_val) / range_val
-        return df
-
-    vnindex_data = load_historical_data("VNINDEX").tail(5).to_dict("records")
-    scaled_vnindex_data = scale_close(vnindex_data).to_dict(orient="records")
-
-
-def navbar() -> rx.Component:
+def navbar(*children) -> rx.Component:
     return rx.box(
         rx.desktop_only(
             rx.hstack(
@@ -52,7 +37,7 @@ def navbar() -> rx.Component:
                         ),
                         position="relative",
                     ),
-                    mini_price_graph(VniState.scaled_vnindex_data),
+                    *children,
                     align_items="center",
                     spacing="7",
                 ),
@@ -69,7 +54,6 @@ def navbar() -> rx.Component:
                     justify="end",
                     align_items="center"
                 ),
-
                 justify="between",
                 align_items="center",
             ),
@@ -111,8 +95,5 @@ def navbar() -> rx.Component:
         ),
         bg=rx.color("accent", 3),
         padding="0.4em 1em",
-        # position="fixed",
-        # top="0px",
-        # z_index="5",
         width="100%",
     )
