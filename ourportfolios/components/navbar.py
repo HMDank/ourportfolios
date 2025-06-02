@@ -1,8 +1,5 @@
 import reflex as rx
-import pandas as pd
-from .graph import mini_price_graph
 from .search_bar import search_bar
-from ..utils.load_data import load_historical_data
 
 
 def navbar(*children) -> rx.Component:
