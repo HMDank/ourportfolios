@@ -1,9 +1,48 @@
 import pandas as pd
 import numpy as np
-from vnstock import Vnstock
+import sqlite3
 from datetime import date, timedelta
+from vnstock import Vnstock, Screener
 import warnings
 warnings.filterwarnings("ignore")
+
+data_vni_loaded = False
+
+
+def populate_db() -> None:
+    global data_vni_loaded
+    if data_vni_loaded:
+        print("Data already loaded. Skipping.")
+        return
+
+    conn = sqlite3.connect("ourportfolios/data/data_vni.db")
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='data_vni'")
+    if cursor.fetchone():
+        cursor.execute("SELECT COUNT(*) FROM data_vni")
+        if cursor.fetchone()[0] > 0:
+            print("Data already loaded. Skipping.")
+            conn.close()
+            data_vni_loaded = True
+            return
+
+    screener = Screener(source='TCBS')
+    default_params = {
+        'exchangeName': 'HOSE,HNX',
+        'marketCap': (100, 99999999999),
+    }
+    df = screener.stock(default_params, limit=1700, lang='en')
+
+    df.to_sql("data_vni", conn, if_exists="replace", index=False)
+    conn.close()
+    data_vni_loaded = True
+    print("Data loaded successfully.")
+
+
+if __name__ == "__main__":
+    load_data_vni()
 
 
 def load_historical_data(symbol,
