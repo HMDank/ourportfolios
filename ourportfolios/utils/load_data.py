@@ -7,7 +7,7 @@ def load_historical_data(symbol,
                              "%Y-%m-%d"),
                          end=(date.today() + timedelta(days=1)
                               ).strftime("%Y-%m-%d"),
-                         interval="1H"):
+                         interval="15m"):
     stock = Vnstock().stock(symbol=symbol, source='TCBS')
     df = stock.quote.history(start=start, end=end, interval=interval)
     return df
