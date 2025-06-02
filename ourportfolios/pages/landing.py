@@ -29,28 +29,24 @@ class State(rx.State):
         return df
 
     @rx.event
-    async def get_graph(self, ticker_list):
-        self.loading = True
-        self.data = await fetch_data_for_symbols(ticker_list)
-        self.loading = False
+    def get_graph(self, ticker_list):
+        self.data = fetch_data_for_symbols(ticker_list)
 
 
 @rx.page(route="/", on_load=State.get_graph(['VNINDEX']))
 def landing() -> rx.Component:
     return rx.fragment(
         navbar(
-            rx.cond(
-                State.loading,
-                rx.foreach(
-                    State.data,
-                    lambda data: mini_price_graph(
-                        label=data["label"],
-                        data=data["data"],
-                        diff=data["percent_diff"],
-                    ),
+            rx.foreach(
+                State.data,
+                lambda data: mini_price_graph(
+                    label=data["label"],
+                    data=data["data"],
+                    diff=data["percent_diff"],
                 ),
             ),
         ),
+
         rx.vstack(
             rx.center(
                 rx.vstack(
