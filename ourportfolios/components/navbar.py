@@ -1,3 +1,4 @@
+from turtle import width
 import reflex as rx
 from .search_bar import search_bar
 
@@ -53,7 +54,9 @@ def navbar(*children) -> rx.Component:
                 ),
                 justify="between",
                 align_items="center",
+                height="4.1em"
             ),
+
         ),
         rx.mobile_and_tablet(
             rx.hstack(
