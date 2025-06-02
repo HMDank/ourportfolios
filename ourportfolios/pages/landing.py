@@ -1,10 +1,9 @@
 import reflex as rx
-import pandas as pd
-import sqlite3
+
 from ..components.navbar import navbar
 from ..components.link_cards import portfolio_card
 from ..components.graph import mini_price_graph
-from ..utils.load_data import fetch_data_for_symbols
+from ..utils.load_data import fetch_data_for_symbols, populate_db
 
 cards = [
     {"title": "Recommend", "details": "Card 1 details",
@@ -21,19 +20,13 @@ class State(rx.State):
     show_cards: bool = False
     data: list[dict] = []
 
-    @rx.var
-    def data_vni(self) -> pd.DataFrame:
-        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
-        df = pd.read_sql("SELECT * FROM data_vni", conn)
-        conn.close()
-        return df
-
     @rx.event
-    def get_graph(self, ticker_list):
-        self.data = fetch_data_for_symbols(ticker_list)
+    def initiate(self):
+        populate_db()
+        self.data = fetch_data_for_symbols(['VNINDEX'])
 
 
-@rx.page(route="/", on_load=State.get_graph(['VNINDEX']))
+@rx.page(route="/", on_load=State.initiate())
 def landing() -> rx.Component:
     return rx.fragment(
         navbar(
