@@ -1,52 +1,59 @@
-from turtle import width
 import reflex as rx
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
-from ..components.graph import mini_price_graph  # <-- import mini_price_graph
+from ..components.graph import mini_price_graph
+from ..utils.load_data import fetch_data_for_symbols
 
 
-class IndustryScrollState(rx.State):
+class State(rx.State):
+    control: str = "home"
     show_arrow: bool = True
+    data: list[dict] = []
 
     def update_arrow(self, scroll_position: int, max_scroll: int):
         self.show_arrow = scroll_position < max_scroll - 10
 
-
-class SegmentedState(rx.State):
-    control: str = "home"
-
-    # Use a list of dicts with a label and a data field (list of dicts)
-    graph_data: list[dict] = [
-        {"label": "VNINDEX", "data": [
-            {"name": "VNINDEX", "value": v} for v in [10, 12, 14, 13, 15, 18, 17]]},
-        {"label": "HSX", "data": [{"name": "HSX", "value": v}
-                                  for v in [20, 19, 21, 23, 22, 24, 26]]},
-        {"label": "HNX", "data": [{"name": "HNX", "value": v}
-                                  for v in [5, 7, 6, 8, 9, 11, 10]]},
-        {"label": "UPCOM", "data": [{"name": "UPCOM", "value": v}
-                                    for v in [30, 28, 29, 31, 33, 32, 34]]},
-        {"label": "VNMID", "data": [{"name": "VNMID", "value": v}
-                                    for v in [15, 16, 18, 17, 19, 20, 21]]},
-        {"label": "VN30", "data": [{"name": "VN30", "value": v}
-                                   for v in [8, 9, 10, 12, 11, 13, 14]]},
-        {"label": "VN100", "data": [{"name": "VN100", "value": v}
-                                    for v in [25, 27, 26, 28, 29, 30, 32]]},
-        {"label": "VNALL", "data": [{"name": "VNALL", "value": v}
-                                    for v in [12, 13, 15, 14, 16, 18, 17]]},
-        {"label": "VNFIN", "data": [{"name": "VNFIN", "value": v}
-                                    for v in [18, 17, 19, 21, 20, 22, 23]]},
-        {"label": "VNDIAMOND", "data": [
-            {"name": "VNDIAMOND", "value": v} for v in [22, 21, 23, 25, 24, 26, 28]]},
-    ]
+    @rx.event
+    def get_graph(self, ticker_list):
+        self.data = fetch_data_for_symbols(ticker_list)
 
 
-@rx.page(route="/select")
+@rx.page(route="/select", on_load=State.get_graph(['VNINDEX', 'UPCOMINDEX', "HNXINDEX"]))
 def index():
     return rx.vstack(
         navbar(),
         page_selection(),
-        three_part_layout(),
+        rx.box(
+            rx.hstack(
+                rx.vstack(
+                    rx.text("asdjfkhsdjf"),
+                    industry_roller(),
+                    rx.hstack(
+                        rx.button("Filter", variant="solid"),
+                        width="100%",
+                        padding_top="1em"
+                    ),
+                    rx.card(
+                        rx.foreach(
+                            ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"],
+                            lambda ticker: ticker_card(ticker)
+                        ),
+                        style={
+                            "width": "100%",
+                            "marginTop": "1em"
+                        }
+                    ),
+                ),
+                card_with_scrollable_area(),
+                width="100%",
+                justify="center",
+                spacing="6",
+            ),
+            width="100%",
+            padding="2em",
+            padding_top="5em"
+        ),
         drawer_button(),
     )
 
@@ -107,20 +114,21 @@ def card_with_scrollable_area():
             rx.segmented_control.item("Markets", value="markets"),
             rx.segmented_control.item("Coin", value="coin"),
             rx.segmented_control.item("qqjdos", value="test"),
-            on_change=SegmentedState.setvar("control"),
-            value=SegmentedState.control,
+            on_change=State.setvar("control"),
+            value=State.control,
             size="1",
             style={"height": "2em"}
         ),
         rx.scroll_area(
             rx.vstack(
                 rx.foreach(
-                    SegmentedState.graph_data,
-                    lambda item: mini_price_graph(
-                        item["data"],
-                        label=item["label"],
-                        size=(120, 80)
-                    )
+                    State.data,
+                    lambda data: mini_price_graph(
+                        label=data["label"],
+                        data=data["data"],
+                        diff=data["percent_diff"],
+                        size=(120, 80),
+                    ),
                 ),
                 spacing="2",
                 height="100%",
@@ -194,7 +202,7 @@ def industry_roller():
                 type="scroll",
             ),
             rx.cond(
-                IndustryScrollState.show_arrow,
+                State.show_arrow,
                 rx.box(
                     rx.icon("chevron_right", size=36, color="white"),
                     style={
@@ -214,39 +222,6 @@ def industry_roller():
             ),
             style={"position": "relative"},
         ),
-    )
-
-
-def three_part_layout():
-    return rx.box(
-        rx.hstack(
-            rx.vstack(
-                rx.text("asdjfkhsdjf"),
-                industry_roller(),
-                rx.hstack(
-                    rx.button("Filter", variant="solid"),
-                    width="100%",
-                    padding_top="1em"
-                ),
-                rx.card(
-                    rx.foreach(
-                        ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"],
-                        lambda ticker: ticker_card(ticker)
-                    ),
-                    style={
-                        "width": "100%",
-                        "marginTop": "1em"
-                    }
-                ),
-            ),
-            card_with_scrollable_area(),
-            width="100%",
-            justify="center",
-            spacing="6",
-        ),
-        width="100%",
-        padding="2em",
-        padding_top="5em"
     )
 
 
