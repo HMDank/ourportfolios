@@ -1,4 +1,7 @@
 import reflex as rx
+import sqlite3
+import pandas as pd
+
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
@@ -10,9 +13,37 @@ class State(rx.State):
     control: str = "home"
     show_arrow: bool = True
     data: list[dict] = []
+    offset: int = 0
+    limit: int = 8  # Number of ticker cards to show per page
 
     def update_arrow(self, scroll_position: int, max_scroll: int):
         self.show_arrow = scroll_position < max_scroll - 10
+
+    @rx.var
+    def get_all_tickers(self) -> list:
+        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
+        df = pd.read_sql("SELECT ticker FROM data_vni", conn)
+        conn.close()
+        return df["ticker"].tolist()
+
+    @rx.var
+    def paged_tickers(self) -> list:
+        tickers = self.get_all_tickers
+        return tickers[self.offset: self.offset + self.limit]
+
+    @rx.var
+    def get_all_tickers_length(self) -> int:
+        return len(self.get_all_tickers)
+
+    @rx.event
+    def next_page(self):
+        if self.offset + self.limit < len(self.get_all_tickers):
+            self.offset += self.limit
+
+    @rx.event
+    def prev_page(self):
+        if self.offset - self.limit >= 0:
+            self.offset -= self.limit
 
     @rx.event
     def get_graph(self, ticker_list):
@@ -36,13 +67,23 @@ def index():
                     ),
                     rx.card(
                         rx.foreach(
-                            ["AAPL", "GOOGL", "MSFT", "AMZN", "TSLA"],
+                            State.paged_tickers,
                             lambda ticker: ticker_card(ticker)
                         ),
                         style={
                             "width": "100%",
                             "marginTop": "1em"
                         }
+                    ),
+                    rx.hstack(
+                        rx.button("Previous", on_click=State.prev_page,
+                                  disabled=State.offset == 0),
+                        rx.button(
+                            "Next",
+                            on_click=State.next_page,
+                            disabled=State.offset + State.limit >= State.get_all_tickers_length,
+                        ),
+                        spacing="2",
                     ),
                 ),
                 card_with_scrollable_area(),
