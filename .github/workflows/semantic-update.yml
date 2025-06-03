@@ -4,6 +4,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -23,7 +24,33 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Python Semantic Release
-        uses: python-semantic-release/python-semantic-release@v10.0.2
+      - name: Install python-semantic-release
+        run: pip install python-semantic-release==10.0.2
+
+      - name: Determine next version
+        id: get_version
+        run: |
+          version=$(semantic-release version)
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Create release branch and bump version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          VERSION=${{ steps.get_version.outputs.version }}
+          RELEASE_BRANCH=release/v$VERSION
+          git checkout -b $RELEASE_BRANCH
+          semantic-release publish --no-upload-to-pypi --no-post-to-pypi --no-dry-run
+          git push --set-upstream origin $RELEASE_BRANCH
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          head: release/v${{ steps.get_version.outputs.version }}
+          title: "Release version v${{ steps.get_version.outputs.version }}"
+          commit-message: "Release version v${{ steps.get_version.outputs.version }}"
+          draft: false
