@@ -110,7 +110,7 @@ def page_selection():
                         rx.heading("Recommend", weight="bold", size="6"),
                         rx.text("caijdo", size="1"),
                         align="center",
-                        justify="center",   
+                        justify="center",
                         height="100%",
                     ),
                     align="center",
@@ -272,7 +272,7 @@ def ticker_card(ticker: str):
         rx.hstack(
             rx.link(
                 rx.text(ticker, weight="bold", size="4"),
-                href=f"/analyze/{ticker}",
+                href=f"/select/{ticker}",
                 style={
                     "textDecoration": "none",
                     "color": "inherit",
