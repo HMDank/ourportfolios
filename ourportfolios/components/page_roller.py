@@ -41,13 +41,15 @@ def card_roller(left_content, center_content, right_content):
         "position": "relative",
         "width": "22em",
         "transition": "transform 0.2s, box-shadow 0.2s, z-index 0.2s",
+        "alignItems": "center",
+        "justifyContent": "center",
         "_hover": {
             "transform": "scale(1.05)",
         },
     }
     # Wrap side cards in boxes for horizontal slide on hover only
     left = rx.box(
-        card_wrapper(left_content, {**side_card_style, "left": "-4em"}),
+        card_wrapper(left_content, style={**side_card_style, "left": "-4em"}),
         _hover={
             "transform": "translateX(-1em) scale(1.05)",
         },
@@ -60,7 +62,7 @@ def card_roller(left_content, center_content, right_content):
         style={"pointerEvents": "auto"},
     )
     right = rx.box(
-        card_wrapper(right_content, {**side_card_style, "right": "-4em"}),
+        card_wrapper(right_content, style={**side_card_style, "right": "-4em"}),
         _hover={
             "transform": "translateX(1em) scale(1.05)",
         },
@@ -72,7 +74,7 @@ def card_roller(left_content, center_content, right_content):
         width="16em",
         style={"pointerEvents": "auto"},
     )
-    center = card_wrapper(center_content, main_card_style)
+    center = card_wrapper(center_content, style=main_card_style)
     return rx.box(
         left,
         right,
