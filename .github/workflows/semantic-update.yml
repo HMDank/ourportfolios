@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Python Semantic Release
+      - name: Python Semantic Release (Force pushes)
         uses: python-semantic-release/python-semantic-release@v10.0.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
