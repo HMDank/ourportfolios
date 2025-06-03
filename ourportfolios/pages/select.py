@@ -271,7 +271,7 @@ def ticker_card(ticker: str):
         rx.hstack(
             rx.link(
                 rx.text(ticker, weight="bold", size="4"),
-                href=f"/{ticker}",
+                href=f"/analyze/{ticker}",
                 style={
                     "textDecoration": "none",
                     "color": "inherit",
@@ -282,7 +282,6 @@ def ticker_card(ticker: str):
                 rx.icon("shopping-cart", size=16),
                 size="1",
                 variant="soft",
-                # Call the event handler here:
                 on_click=lambda: CartState.add_item(ticker),
             ),
             align_items="center",
