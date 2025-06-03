@@ -1,6 +1,8 @@
 import pandas as pd
 import reflex as rx
 import sqlite3
+from sqlmodel import over
+from vnstock import Vnstock
 
 from ..components.navbar import navbar
 from ..components.cards import card_wrapper
@@ -15,37 +17,77 @@ def fetch_technical_metrics(ticker: str) -> dict:
     return df.iloc[0].to_dict() if not df.empty else {}
 
 
+def load_company_info(ticker: str):
+    stock = Vnstock().stock(symbol=ticker, source='TCBS')
+    company = stock.company
+    finance = stock.finance
+
+    overview = company.overview().iloc[0].to_dict()
+    overview['website'] = overview['website'].removeprefix(
+        'https://').removeprefix('http://').removeprefix('www.')
+
+    officers = (
+        company.officers().dropna().groupby("officer_name")
+        .agg({
+            "officer_position": lambda x: ", ".join(sorted(set(x))),
+            "officer_own_percent": "first"
+        })
+        .reset_index()
+        .sort_values(by="officer_own_percent", ascending=False)
+    )
+    events = company.events()
+
+    return overview
+
+
 class State(rx.State):
-    technical: dict = {}
+    technical_metrics: dict = {}
+    company_info: dict = {}
+    overview: dict = {}
 
     @rx.event
     def load_ticker_info(self):
         params = self.router.page.params
         ticker = params.get("ticker", "")
-        self.technical = fetch_technical_metrics(ticker)
+        self.technical_metrics = fetch_technical_metrics(ticker)
+        self.overview = load_company_info(ticker)
 
     @rx.event
     def load_company_info(self):
         return
 
 
-@rx.page(route="/analyze/[ticker]", on_load=State.load_ticker_info)
+@rx.page(route="/select/[ticker]", on_load=State.load_ticker_info)
 def index():
-    technical = State.technical
+    technical_metrics = State.technical_metrics
+    overview = State.overview
     return rx.fragment(
         navbar(),
-        rx.button(
-            rx.text("back")
+        rx.box(
+            rx.link(
+                rx.hstack(rx.icon("chevron_left", size=22),
+                          rx.text("select"), spacing="1"),
+                href='/select',
+                underline="none"
+            ),
+            position="fixed",
+            justify="center",
+            style={"paddingTop": "1em", "paddingLeft": "0.5em"},
+            z_index="1",
         ),
-
         rx.box(
             rx.vstack(
                 rx.hstack(
-                    ticker_summary(technical),
+                    ticker_summary(overview),
                     rx.card(
-                    )
+                        rx.text("graph :D"),
+                        width="100%"
+                    ),
+                    width="100%"
                 ),
-                key_metrics_card(technical),
+                rx.hstack(
+                    key_metrics_card(technical_metrics),
+                ),
                 width="100%",
                 spacing="6",
             ),
@@ -53,18 +95,43 @@ def index():
             padding="2em",
             padding_top="5em",
             style={"maxWidth": "90vw", "margin": "0 auto"},
+            position="relative",
         ),
         drawer_button(),
     )
 
 
 def ticker_summary(info):
-    return rx.box(
+    website = info.get('website', '')
+    card_style = {"width": "100%", "padding": "1em"}
+    return rx.vstack(
         card_wrapper(
-            rx.heading(info['ticker'], size='9'),
-            rx.text(f"{info['industry']} ()")
+            rx.vstack(
+                rx.hstack(
+                    rx.heading(info['symbol'], size='9'),
+                    rx.button(
+                        rx.icon("plus", size=16),
+                        size="3",
+                        variant="soft",
+                        on_click=lambda: CartState.add_item(info['symbol']),
+                    ),
+                    justify="center",
+                    align="center",
+                ),
+                rx.hstack(
+                    rx.badge(f"{info['exchange']}", variant='surface'),
+                    rx.badge(f"{info['industry']}")
+                ),
+            ),
+            style=card_style
         ),
-
+        card_wrapper(
+            rx.text(f"{info['short_name']} (Est. {info['established_year']})"),
+            rx.link(website, href=f"https://{website}", is_external=True),
+            style=card_style
+        ),
+        spacing="4",
+        width="16em",
     )
 
 
