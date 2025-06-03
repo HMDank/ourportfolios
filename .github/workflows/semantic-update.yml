@@ -26,18 +26,3 @@ jobs:
         uses: python-semantic-release/python-semantic-release@v10.0.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore(release): release new version"
-          title: "chore(release): automated release"
-          body: |
-            Automated release created by semantic-release
-
-            This PR contains version bumps and changelog updates.
-          branch: release/automated-release
-          delete-branch: true
