@@ -46,6 +46,7 @@ def card_roller(left_content, center_content, right_content):
         "_hover": {
             "transform": "scale(1.05)",
         },
+        "padding":"2em 2.5em",
     }
     # Wrap side cards in boxes for horizontal slide on hover only
     left = rx.box(
