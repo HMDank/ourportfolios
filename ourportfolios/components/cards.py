@@ -52,7 +52,6 @@ def card_wrapper(*content, style=None):
     style = style or {}
     return rx.card(
         *content,
-        padding="2em 2.5em",
         border="none",
         background_color="transparent",
         style=style,
