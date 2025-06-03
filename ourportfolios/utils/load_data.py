@@ -41,10 +41,6 @@ def populate_db() -> None:
     print("Data loaded successfully.")
 
 
-if __name__ == "__main__":
-    load_data_vni()
-
-
 def load_historical_data(symbol,
                          start=date.today().strftime(
                              "%Y-%m-%d"),
@@ -103,3 +99,7 @@ def fetch_data_for_symbols(symbols: list[str]):
             "percent_diff": percent_diff
         })
     return graph_data
+
+
+if __name__ == "__main__":
+    populate_db()
