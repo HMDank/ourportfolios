@@ -1,7 +1,7 @@
 import reflex as rx
 
 from ..components.navbar import navbar
-from ..components.link_cards import portfolio_card
+from ..components.cards import portfolio_card
 from ..components.graph import mini_price_graph
 from ..utils.load_data import fetch_data_for_symbols, populate_db
 
@@ -27,7 +27,7 @@ class State(rx.State):
 
 
 @rx.page(route="/", on_load=State.initiate())
-def landing() -> rx.Component:
+def index() -> rx.Component:
     return rx.fragment(
         navbar(
             rx.foreach(

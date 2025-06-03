@@ -48,14 +48,13 @@ def portfolio_card(card, idx, total):
     )
 
 
-def card_wrapper(content, style):
+def card_wrapper(*content, style=None):
+    style = style or {}
     return rx.card(
-        content,
+        *content,
         padding="2em 2.5em",
         border="none",
         background_color="transparent",
         style=style,
         spacing="4",
-        align_items="center",
-        justify_content="center",
     )
