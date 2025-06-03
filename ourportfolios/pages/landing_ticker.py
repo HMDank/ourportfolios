@@ -4,6 +4,7 @@ import sqlite3
 
 from ..components.navbar import navbar
 from ..components.cards import card_wrapper
+from ..components.drawer import drawer_button, CartState
 
 
 def fetch_technical_metrics(ticker: str) -> dict:
@@ -53,7 +54,7 @@ def index():
             padding_top="5em",
             style={"maxWidth": "90vw", "margin": "0 auto"},
         ),
-        width="100%",
+        drawer_button(),
     )
 
 
