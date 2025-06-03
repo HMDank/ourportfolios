@@ -15,7 +15,11 @@ class CartState(rx.State):
 
     @rx.event
     def add_item(self, name: str):
-        self.cart_items.append({"name": name})
+        if any(item["name"] == name for item in self.cart_items):
+            yield rx.toast.error(f"{name} already in cart!", )
+        else:
+            self.cart_items.append({"name": name})
+            yield rx.toast(f"{name} added to cart!")
 
 
 def cart_drawer_content():
