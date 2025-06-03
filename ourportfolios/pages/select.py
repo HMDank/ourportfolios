@@ -50,7 +50,7 @@ class State(rx.State):
         self.data = fetch_data_for_symbols(ticker_list)
 
 
-@rx.page(route="/select", on_load=State.get_graph(['VNINDEX', 'UPCOMINDEX', "HNXINDEX"]))
+@rx.page(route="/select", on_load=State.get_graph(['VNINDEX', 'UPCOMINDEX', "HNXINDEX", "VN30", "HNX30"]))
 def index():
     return rx.vstack(
         navbar(),
@@ -93,7 +93,8 @@ def index():
             ),
             width="100%",
             padding="2em",
-            padding_top="5em"
+            padding_top="5em",
+            style={"maxWidth": "90vw", "margin": "0 auto"},
         ),
         drawer_button(),
     )
@@ -109,7 +110,7 @@ def page_selection():
                         rx.heading("Recommend", weight="bold", size="6"),
                         rx.text("caijdo", size="1"),
                         align="center",
-                        justify="center",
+                        justify="center",   
                         height="100%",
                     ),
                     align="center",

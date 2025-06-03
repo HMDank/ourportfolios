@@ -6,7 +6,7 @@ from ..components.navbar import navbar
 from ..components.cards import card_wrapper
 
 
-def fetch_ticker_data(ticker: str) -> dict:
+def fetch_technical_metrics(ticker: str) -> dict:
     conn = sqlite3.connect("ourportfolios/data/data_vni.db")
     df = pd.read_sql(
         "SELECT * FROM data_vni WHERE ticker = ?", conn, params=(ticker,))
@@ -15,37 +15,45 @@ def fetch_ticker_data(ticker: str) -> dict:
 
 
 class State(rx.State):
-    ticker_info: dict = {}
+    technical: dict = {}
 
     @rx.event
     def load_ticker_info(self):
         params = self.router.page.params
         ticker = params.get("ticker", "")
-        self.ticker_info = fetch_ticker_data(ticker)
+        self.technical = fetch_technical_metrics(ticker)
+
+    @rx.event
+    def load_company_info(self):
+        return
 
 
 @rx.page(route="/analyze/[ticker]", on_load=State.load_ticker_info)
 def index():
-    info = State.ticker_info
+    technical = State.technical
     return rx.fragment(
         navbar(),
         rx.button(
             rx.text("back")
         ),
+
         rx.box(
             rx.vstack(
-                ticker_summary(info),
-                key_metrics_card(info),
+                rx.hstack(
+                    ticker_summary(technical),
+                    rx.card(
+                    )
+                ),
+                key_metrics_card(technical),
                 width="100%",
                 spacing="6",
             ),
             width="100%",
             padding="2em",
-            padding_top="5em"
+            padding_top="5em",
+            style={"maxWidth": "90vw", "margin": "0 auto"},
         ),
-        max_width="600px",
-        padding_x="4",
-        padding_y="6",
+        width="100%",
     )
 
 
@@ -93,7 +101,6 @@ def key_metrics_card(info):
                     )
                     for label, value in metrics
                 ],
-                # spacing="2"
             ),
             style={"width": "100%"}
         )
