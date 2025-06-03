@@ -11,25 +11,23 @@ cards = [
 ]
 
 
-def get_card_position_size(idx, total):
-    spread_x = 65  # percent of parent width; lower for more overlap
-    spread_y = 15  # vertical spread
-    width = 23     # percent of parent width; adjust for desired overlap
-    height = 48    # percent of parent height
-
-    if total > 1:
-        center = (idx / (total - 1)) * spread_x + (50 - spread_x / 2)
-        left = center - width / 2
-        left = max(0, min(left, 100 - width))
-        top = (idx / (total - 1)) * spread_y
-    else:
-        left = 50 - width / 2
-        top = 20
-
-    return f"{top}%", f"{left}%", f"{width}%", f"{height}%"
-
-
 def portfolio_card(card, idx, total):
+    def get_card_position_size(idx, total):
+        spread_x = 65  # percent of parent width; lower for more overlap
+        spread_y = 15  # vertical spread
+        width = 23     # percent of parent width; adjust for desired overlap
+        height = 48    # percent of parent height
+
+        if total > 1:
+            center = (idx / (total - 1)) * spread_x + (50 - spread_x / 2)
+            left = center - width / 2
+            left = max(0, min(left, 100 - width))
+            top = (idx / (total - 1)) * spread_y
+        else:
+            left = 50 - width / 2
+            top = 20
+
+        return f"{top}%", f"{left}%", f"{width}%", f"{height}%"
     top, left, width, height = get_card_position_size(idx, total)
     return rx.link(
         rx.card(
@@ -49,3 +47,15 @@ def portfolio_card(card, idx, total):
         style={"textDecoration": "none"},
     )
 
+
+def card_wrapper(content, style):
+    return rx.card(
+        content,
+        padding="2em 2.5em",
+        border="none",
+        background_color="transparent",
+        style=style,
+        spacing="4",
+        align_items="center",
+        justify_content="center",
+    )
