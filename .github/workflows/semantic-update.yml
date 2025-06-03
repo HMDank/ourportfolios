@@ -1,9 +1,9 @@
 name: semantic-update
 on:
+  pull_request:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+
 
 jobs:
   release:
@@ -17,7 +17,6 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -25,7 +24,6 @@ jobs:
           python-version: '3.13'
 
       - name: Python Semantic Release
-        run: |
-          semantic-release publish --pr
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: python-semantic-release/python-semantic-release@v10.0.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
