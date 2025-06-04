@@ -101,5 +101,39 @@ def fetch_data_for_symbols(symbols: list[str]):
     return graph_data
 
 
+def load_company_info(ticker: str):
+    stock = Vnstock().stock(symbol=ticker, source='TCBS')
+    company = stock.company
+    finance = stock.finance
+
+    overview = company.overview().iloc[0].to_dict()
+    overview['website'] = overview['website'].removeprefix(
+        'https://').removeprefix('http://')
+
+    events = company.events().to_dict("records")
+
+    return overview, events
+
+
+def load_officers_info(ticker: str):
+    stock = Vnstock().stock(symbol=ticker, source='TCBS')
+    company = stock.company
+    officers = (
+        company.officers().dropna().groupby("officer_name")
+        .agg({
+            "officer_position": lambda x: ", ".join(sorted(set(x))),
+            "officer_own_percent": "first"
+        })
+        .reset_index()
+        .sort_values(by="officer_own_percent", ascending=False)
+    )
+    officers["officer_own_percent"] = (officers["officer_own_percent"] * 100).round(2)
+
+    officers = officers.sort_values(
+        by="officer_own_percent", ascending=False).to_dict("records")
+
+    return officers
+
+
 if __name__ == "__main__":
     populate_db()

@@ -1,12 +1,16 @@
 import pandas as pd
 import reflex as rx
 import sqlite3
-from sqlmodel import over
+from typing import Any
 from vnstock import Vnstock
+
+from ourportfolios.components.loading import loading_wrapper
 
 from ..components.navbar import navbar
 from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
+# from ..components.pie_chart import pie_chart
+from ..utils.load_data import load_company_info, load_officers_info
 
 
 def fetch_technical_metrics(ticker: str) -> dict:
@@ -17,56 +21,52 @@ def fetch_technical_metrics(ticker: str) -> dict:
     return df.iloc[0].to_dict() if not df.empty else {}
 
 
-def load_company_info(ticker: str):
-    stock = Vnstock().stock(symbol=ticker, source='TCBS')
-    company = stock.company
-    finance = stock.finance
-
-    overview = company.overview().iloc[0].to_dict()
-    overview['website'] = overview['website'].removeprefix(
-        'https://').removeprefix('http://').removeprefix('www.')
-
-    officers = (
-        company.officers().dropna().groupby("officer_name")
-        .agg({
-            "officer_position": lambda x: ", ".join(sorted(set(x))),
-            "officer_own_percent": "first"
-        })
-        .reset_index()
-        .sort_values(by="officer_own_percent", ascending=False)
-    )
-    events = company.events()
-
-    return overview
-
-
 class State(rx.State):
+    control: str = "officers"
     technical_metrics: dict = {}
     company_info: dict = {}
     overview: dict = {}
+    officers: list[dict[str, Any]] = []
+    events: list[dict] = []
 
     @rx.event
     def load_ticker_info(self):
         params = self.router.page.params
         ticker = params.get("ticker", "")
         self.technical_metrics = fetch_technical_metrics(ticker)
-        self.overview = load_company_info(ticker)
+        self.overview, self.events = load_company_info(ticker)
+        self.officers = load_officers_info(ticker)
 
-    @rx.event
-    def load_company_info(self):
-        return
+    @rx.var
+    def pie_data(self) -> list[dict[str, object]]:
+
+        palettes = ["accent", "plum", "iris"]
+        indices = [6, 7, 8]
+        colors = [
+            rx.color(palette, idx)
+            for palette in palettes
+            for idx in indices
+        ]
+        data = [
+            {"name": officer["officer_name"],
+                "value": officer["officer_own_percent"]}
+            for officer in self.officers
+            if officer["officer_own_percent"] > 0
+        ]
+        for idx, d in enumerate(data):
+            d["fill"] = colors[idx % len(colors)]
+        return data
 
 
 @rx.page(route="/select/[ticker]", on_load=State.load_ticker_info)
+@loading_wrapper
 def index():
-    technical_metrics = State.technical_metrics
-    overview = State.overview
     return rx.fragment(
         navbar(),
         rx.box(
             rx.link(
                 rx.hstack(rx.icon("chevron_left", size=22),
-                          rx.text("select"), spacing="1"),
+                          rx.text("select", margin_top="-2px"), spacing="0"),
                 href='/select',
                 underline="none"
             ),
@@ -78,7 +78,7 @@ def index():
         rx.box(
             rx.vstack(
                 rx.hstack(
-                    ticker_summary(overview),
+                    ticker_summary(State.overview),
                     rx.card(
                         rx.text("graph :D"),
                         width="100%"
@@ -86,7 +86,8 @@ def index():
                     width="100%"
                 ),
                 rx.hstack(
-                    key_metrics_card(technical_metrics),
+                    key_metrics_card(State.technical_metrics),
+                    company_card(State.events)
                 ),
                 width="100%",
                 spacing="6",
@@ -111,7 +112,7 @@ def ticker_summary(info):
                     rx.heading(info['symbol'], size='9'),
                     rx.button(
                         rx.icon("plus", size=16),
-                        size="3",
+                        size="2",
                         variant="soft",
                         on_click=lambda: CartState.add_item(info['symbol']),
                     ),
@@ -136,7 +137,6 @@ def ticker_summary(info):
 
 
 def key_metrics_card(info):
-    # Group the metrics for clarity
     performance = [
         ("Alpha", f"{info['alpha']}"),
         ("Beta", f"{info['beta']}"),
@@ -183,4 +183,102 @@ def key_metrics_card(info):
             wrap="wrap"
         ),
         style={"width": "100%", "marginTop": "2em"}
+    )
+
+
+def company_card(events):
+    return rx.box(
+        rx.card(
+            rx.segmented_control.root(
+                rx.segmented_control.item("Officers", value="officers"),
+                rx.segmented_control.item("Events", value="events"),
+                on_change=State.setvar("control"),
+                value=State.control,
+                size="2",
+                style={"height": "2.5em"}
+            ),
+        ),
+        rx.cond(
+            State.control == "officers",
+            rx.card(
+                rx.vstack(
+                    rx.vstack(
+                        officers_pie_chart(),
+                        rx.card(
+                            rx.foreach(
+                                State.officers,
+                                lambda officer: rx.box(
+                                    rx.hstack(
+                                        rx.heading(
+                                            officer["officer_name"],
+                                            weight="bold",
+                                            size='3'
+                                        ),
+                                        rx.badge(
+                                            f"{officer["officer_own_percent"]}%",
+                                            color_scheme="gray",
+                                            variant="surface",
+                                            high_contrast=True
+                                        ),
+                                        align="center"
+                                    ),
+                                    rx.text(
+                                        officer["officer_position"], size='2'),
+                                    padding="1em",
+                                )
+                            ),
+                        ),
+                    ),
+                    width="100%"
+                ),
+            ),
+            rx.card(
+                rx.foreach(
+                    events,
+                    lambda event: rx.box(
+                        rx.text(event["event_desc"], weight="medium"),
+                        rx.text(
+                            f"Notify: {event['notify_date']}, Exec: {event['exer_date']}"),
+                        padding="1em",
+                        border_bottom="1px solid #eee"
+                    )
+                ),
+                width="100%"
+            )
+        ),
+        width="100%"
+    )
+
+
+def officer_box(officer):
+    return rx.box(
+        rx.text(officer["officer_name"], weight="bold"),
+        rx.text(officer["officer_position"]),
+        rx.text(f"Ownership: {officer['officer_own_percent']}%"),
+        padding="1em",
+        border_bottom="1px solid #eee"
+    )
+
+
+def officers_pie_chart():
+    return rx.center(
+        rx.vstack(
+            rx.recharts.PieChart.create(
+                rx.recharts.Pie.create(
+                    data=State.pie_data,
+                    data_key="value",
+                    name_key="name",
+                    cx="50%",
+                    cy="50%",
+                    outer_radius=100,
+                    label=True,
+                ),
+                rx.recharts.GraphingTooltip.create(),  # Add tooltip for hover effect
+                width=300,
+                height=300,
+            ),
+            spacing="1",
+        ),
+        width="100%",
+        height="100%",
     )
