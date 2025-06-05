@@ -1,12 +1,11 @@
 import reflex as rx
 import sqlite3
 import pandas as pd
-
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
 from ..components.graph import mini_price_graph
-from ..utils.load_data import fetch_data_for_symbols
+from ..utils.load_data import fetch_data_for_symbols, load_historical_data
 
 
 class State(rx.State):
@@ -15,19 +14,45 @@ class State(rx.State):
     data: list[dict] = []
     offset: int = 0
     limit: int = 8  # Number of ticker cards to show per page
+    
+    # Filter section configuration
+    selected_category: str = "All"
+    selected_filter: str = "All"
+    selected_platform: str = 'All'
+    
+    categories: list[str] = ["All", "Stock", "Warrant", "Cryptocurrency", "Commodities"]
+    filters: list[str] = ['All', 'Market Cap', 'Appreciation', 'Deppreciation']
+    platforms: list[str] = ['All', 'HSX', 'HNX', 'UPCOM']
 
     def update_arrow(self, scroll_position: int, max_scroll: int):
         self.show_arrow = scroll_position < max_scroll - 10
 
     @rx.var
-    def get_all_tickers(self) -> list:
+    def get_all_tickers(self) -> list[dict]:
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
-        df = pd.read_sql("SELECT ticker FROM data_vni", conn)
+        
+        # Isolate query & clause for dynamic filters and sorting criteria 
+        query = ["SELECT ticker, organ_name FROM data_vni WHERE 1=1"]
+        order_by_clause = ""
+        
+        # Filter by exchange platform
+        if self.selected_platform == 'HSX': query.append(f"AND exchange = 'HSX'")
+        if self.selected_platform == 'HNX': query.append(f"AND exchange = 'HNX'")
+        if self.selected_platform == 'UPCOM': query.append(f"AND exchange = 'UPCOM'")
+        
+        # Order by condition
+        if self.selected_filter == "Market Cap":    
+            order_by_clause = "ORDER BY market_cap DESC"
+        
+        full_query = " ".join(query) + f" {order_by_clause}" if order_by_clause else " ".join(query)
+        
+        df = pd.read_sql(full_query, conn)
         conn.close()
-        return df["ticker"].tolist()
+        
+        return df[["ticker", "organ_name"]].to_dict('records')
 
     @rx.var
-    def paged_tickers(self) -> list:
+    def paged_tickers(self) -> list[dict]:
         tickers = self.get_all_tickers
         return tickers[self.offset: self.offset + self.limit]
 
@@ -49,7 +74,20 @@ class State(rx.State):
     def get_graph(self, ticker_list):
         self.data = fetch_data_for_symbols(ticker_list)
 
-
+    # Filter event handlers
+    @rx.event 
+    def set_category(self, category):
+        self.selected_category = category
+        
+    @rx.event
+    def set_filter(self, filter):
+        self.selected_filter = filter
+        
+    @rx.event
+    def set_platform(self, platform):
+        self.selected_platform = platform
+        
+# Filter section
 @rx.page(route="/select", on_load=State.get_graph(['VNINDEX', 'UPCOMINDEX', "HNXINDEX"]))
 def index():
     return rx.vstack(
@@ -61,14 +99,80 @@ def index():
                     rx.text("asdjfkhsdjf"),
                     industry_roller(),
                     rx.hstack(
-                        rx.button("Filter", variant="solid"),
-                        width="100%",
-                        padding_top="1em"
+                        # Left side: Options.. 
+                        rx.foreach(State.categories,
+                                   lambda category: rx.button(category,
+                                        variant=rx.cond(category == State.selected_category, 'solid', 'outline'),
+                                        on_click=State.set_category(category))
+                                   ),
+                        
+                        rx.spacer(), # Push the following components to the right
+                        
+                        # Right side: 
+                        # Platform selector
+                        rx.dropdown_menu.root(
+                            rx.dropdown_menu.trigger(
+                                rx.button(
+                                    rx.cond(State.selected_platform != 'All', State.selected_platform, "Exchange Platform"), 
+                                    variant=rx.cond(State.selected_platform != 'All', 'solid', 'outline')
+                                )  
+                            ),
+                                
+                            rx.dropdown_menu.content(
+                                rx.foreach(
+                                    State.platforms,
+                                    lambda platform: rx.dropdown_menu.item(
+                                        rx.hstack(
+                                            rx.cond(
+                                                platform == State.selected_platform, 
+                                                rx.icon('check', size=16),
+                                                rx.box(width='16px')
+                                            ),
+                                            rx.text(platform, weight=rx.cond(platform == State.selected_platform, "bold", "normal")),
+                                            spacing="2",
+                                            align="center",
+                                        ),
+                                        on_select=State.set_platform(platform)
+                                    )
+                                )
+                            )
+                        ),
+                        # Filter
+                        rx.dropdown_menu.root(
+                            rx.dropdown_menu.trigger(
+                                rx.button(
+                                    rx.cond(State.selected_filter != 'All', State.selected_filter, "Filter"),
+                                    variant=rx.cond(State.selected_filter != 'All', 'solid', 'outline')
+                                )
+                            ),
+                            rx.dropdown_menu.content(
+                                rx.foreach(
+                                    State.filters,
+                                    lambda filter: rx.dropdown_menu.item(
+                                        rx.hstack(
+                                            rx.cond(
+                                                filter == State.selected_filter,
+                                                rx.icon("check", size=16),
+                                                rx.box(width="16px")
+                                            ),
+                                            rx.text(filter, weight=rx.cond(filter == State.selected_filter, "bold", "normal")),
+                                            spacing="2",
+                                            align="center",
+                                        ),
+                                        on_select=State.set_filter(filter)
+                                    )
+                                )
+                            )
+                        ),
+                        width="100%",  
+                        padding_top="1em",
+                        padding_x="1em", 
+                        border_radius="8px" 
                     ),
                     rx.card(
                         rx.foreach(
                             State.paged_tickers,
-                            lambda ticker: ticker_card(ticker)
+                            lambda value : ticker_card(value['ticker'], value['organ_name'])
                         ),
                         style={
                             "width": "100%",
@@ -97,7 +201,6 @@ def index():
         ),
         drawer_button(),
     )
-
 
 def page_selection():
     return rx.center(
@@ -266,18 +369,22 @@ def industry_roller():
     )
 
 
-def ticker_card(ticker: str):
+def ticker_card(ticker: str, organ_name: str):
     return rx.card(
         rx.hstack(
-            rx.link(
-                rx.text(ticker, weight="bold", size="4"),
-                href=f"/analyze/{ticker}",
-                style={
-                    "textDecoration": "none",
-                    "color": "inherit",
-                    "flex": 1,
-                },
+            rx.vstack(
+                rx.link(
+                    rx.text(ticker, weight="bold", size="4"),
+                    href=f"/analyze/{ticker}",
+                    style={
+                        "textDecoration": "none",
+                        "color": "inherit",
+                        "flex": 1,
+                    },
+                ),  
+                rx.text(organ_name, color="var(--gray-7)", size="2"),
             ),
+            rx.spacer(),
             rx.button(
                 rx.icon("shopping-cart", size=16),
                 size="1",
