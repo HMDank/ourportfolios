@@ -1,8 +1,8 @@
 import sqlite3
-from vnstock import Screener
+from vnstock import Screener, Listing
+import pandas as pd
 
 data_vni_loaded = False
-
 
 def load_data_vni() -> None:
     global data_vni_loaded
@@ -23,12 +23,15 @@ def load_data_vni() -> None:
             data_vni_loaded = True
             return
 
+    # Organization's info
+    listing = Listing(source='vci')
+    # Stocks
     screener = Screener(source='TCBS')
     default_params = {
         'exchangeName': 'HOSE,HNX',
         'marketCap': (100, 99999999999),
     }
-    df = screener.stock(default_params, limit=1700, lang='en')
+    df = pd.merge(left=screener.stock(default_params, limit=1700, lang='en'), right=listing.all_symbols(), left_on='ticker', right_on='symbol')
 
     df.to_sql("data_vni", conn, if_exists="replace", index=False)
     conn.close()
