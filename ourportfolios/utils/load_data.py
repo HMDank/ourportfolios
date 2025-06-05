@@ -1,3 +1,4 @@
+from .preprocess_texts import preprocess_events_texts, preprocess_events_to_text, process_events_for_display
 import pandas as pd
 import numpy as np
 import sqlite3
@@ -5,6 +6,7 @@ from datetime import date, timedelta
 from vnstock import Vnstock, Screener
 import warnings
 warnings.filterwarnings("ignore")
+
 
 data_vni_loaded = False
 
@@ -110,24 +112,32 @@ def load_company_info(ticker: str):
     overview['website'] = overview['website'].removeprefix(
         'https://').removeprefix('http://')
 
-    events = company.events().to_dict("records")
+    shareholders_df = company.shareholders()
+    shareholders_df["share_own_percent"] = (
+        shareholders_df["share_own_percent"] * 100).round(2)
 
-    return overview, events
+    shareholders = shareholders_df.to_dict("records")
+    events = company.events().to_dict("records")
+    processed_events = process_events_for_display(events)
+
+    return overview, shareholders, processed_events
 
 
 def load_officers_info(ticker: str):
     stock = Vnstock().stock(symbol=ticker, source='TCBS')
     company = stock.company
     officers = (
-        company.officers().dropna().groupby("officer_name")
+        company.officers().dropna(subset=["officer_name"]).fillna(
+            "").groupby("officer_name")
         .agg({
-            "officer_position": lambda x: ", ".join(sorted(set(x))),
+            "officer_position": lambda x: ", ".join(sorted(set(pos.strip() for pos in x if isinstance(pos, str) and pos.strip()))),
             "officer_own_percent": "first"
         })
         .reset_index()
         .sort_values(by="officer_own_percent", ascending=False)
     )
-    officers["officer_own_percent"] = (officers["officer_own_percent"] * 100).round(2)
+    officers["officer_own_percent"] = (
+        officers["officer_own_percent"] * 100).round(2)
 
     officers = officers.sort_values(
         by="officer_own_percent", ascending=False).to_dict("records")

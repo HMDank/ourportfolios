@@ -9,8 +9,8 @@ from ourportfolios.components.loading import loading_wrapper
 from ..components.navbar import navbar
 from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
-# from ..components.pie_chart import pie_chart
 from ..utils.load_data import load_company_info, load_officers_info
+from ..utils.preprocess_texts import preprocess_events_texts
 
 
 def fetch_technical_metrics(ticker: str) -> dict:
@@ -27,6 +27,7 @@ class State(rx.State):
     company_info: dict = {}
     overview: dict = {}
     officers: list[dict[str, Any]] = []
+    shareholders: list[dict] = []
     events: list[dict] = []
 
     @rx.event
@@ -34,7 +35,8 @@ class State(rx.State):
         params = self.router.page.params
         ticker = params.get("ticker", "")
         self.technical_metrics = fetch_technical_metrics(ticker)
-        self.overview, self.events = load_company_info(ticker)
+        self.overview, self.shareholders, self.events = load_company_info(
+            ticker)
         self.officers = load_officers_info(ticker)
 
     @rx.var
@@ -43,15 +45,15 @@ class State(rx.State):
         palettes = ["accent", "plum", "iris"]
         indices = [6, 7, 8]
         colors = [
-            rx.color(palette, idx)
+            rx.color(palette, idx, True)
             for palette in palettes
             for idx in indices
         ]
         data = [
-            {"name": officer["officer_name"],
-                "value": officer["officer_own_percent"]}
-            for officer in self.officers
-            if officer["officer_own_percent"] > 0
+            {"name": shareholder["share_holder"],
+                "value": shareholder["share_own_percent"]}
+            for shareholder in self.shareholders
+
         ]
         for idx, d in enumerate(data):
             d["fill"] = colors[idx % len(colors)]
@@ -190,7 +192,8 @@ def company_card(events):
     return rx.box(
         rx.card(
             rx.segmented_control.root(
-                rx.segmented_control.item("Officers", value="officers"),
+                rx.segmented_control.item(
+                    "Shareholders", value="shareholders"),
                 rx.segmented_control.item("Events", value="events"),
                 on_change=State.setvar("control"),
                 value=State.control,
@@ -199,11 +202,11 @@ def company_card(events):
             ),
         ),
         rx.cond(
-            State.control == "officers",
+            State.control == "shareholders",
             rx.card(
                 rx.vstack(
                     rx.vstack(
-                        officers_pie_chart(),
+                        shareholders_pie_chart(),
                         rx.card(
                             rx.foreach(
                                 State.officers,
@@ -236,11 +239,8 @@ def company_card(events):
                 rx.foreach(
                     events,
                     lambda event: rx.box(
-                        rx.text(event["event_desc"], weight="medium"),
-                        rx.text(
-                            f"Notify: {event['notify_date']}, Exec: {event['exer_date']}"),
-                        padding="1em",
-                        border_bottom="1px solid #eee"
+                        rx.heading(event["event_name"], weight="bold"),
+                        rx.text(event["event_desc"], weight="regular"),
                     )
                 ),
                 width="100%"
@@ -250,17 +250,7 @@ def company_card(events):
     )
 
 
-def officer_box(officer):
-    return rx.box(
-        rx.text(officer["officer_name"], weight="bold"),
-        rx.text(officer["officer_position"]),
-        rx.text(f"Ownership: {officer['officer_own_percent']}%"),
-        padding="1em",
-        border_bottom="1px solid #eee"
-    )
-
-
-def officers_pie_chart():
+def shareholders_pie_chart():
     return rx.center(
         rx.vstack(
             rx.recharts.PieChart.create(
@@ -273,7 +263,7 @@ def officers_pie_chart():
                     outer_radius=100,
                     label=True,
                 ),
-                rx.recharts.GraphingTooltip.create(),  # Add tooltip for hover effect
+                rx.recharts.GraphingTooltip.create(),
                 width=300,
                 height=300,
             ),
