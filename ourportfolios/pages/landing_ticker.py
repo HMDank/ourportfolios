@@ -29,13 +29,14 @@ class State(rx.State):
     officers: list[dict[str, Any]] = []
     shareholders: list[dict] = []
     events: list[dict] = []
+    news: list[dict] = []
 
     @rx.event
     def load_ticker_info(self):
         params = self.router.page.params
         ticker = params.get("ticker", "")
         self.technical_metrics = fetch_technical_metrics(ticker)
-        self.overview, self.shareholders, self.events = load_company_info(
+        self.overview, self.shareholders, self.events, self.news = load_company_info(
             ticker)
         self.officers = load_officers_info(ticker)
 
@@ -50,8 +51,10 @@ class State(rx.State):
             for idx in indices
         ]
         data = [
-            {"name": shareholder["share_holder"],
-                "value": shareholder["share_own_percent"]}
+            {
+                "name": shareholder["share_holder"],
+                "value": shareholder["share_own_percent"],
+            }
             for shareholder in self.shareholders
 
         ]
@@ -89,7 +92,7 @@ def index():
                 ),
                 rx.hstack(
                     key_metrics_card(State.technical_metrics),
-                    company_card(State.events)
+                    company_card()
                 ),
                 width="100%",
                 spacing="6",
@@ -188,65 +191,116 @@ def key_metrics_card(info):
     )
 
 
-def company_card(events):
-    return rx.box(
-        rx.card(
-            rx.segmented_control.root(
-                rx.segmented_control.item(
-                    "Shareholders", value="shareholders"),
-                rx.segmented_control.item("Events", value="events"),
-                on_change=State.setvar("control"),
-                value=State.control,
-                size="2",
-                style={"height": "2.5em"}
+def company_card():
+    return rx.card(
+        rx.vstack(
+            rx.box(
+                rx.segmented_control.root(
+                    rx.segmented_control.item(
+                        "Shares", value="shareholders"),
+                    rx.segmented_control.item("Events", value="events"),
+                    rx.segmented_control.item("News", value="news"),
+                    on_change=State.setvar("control"),
+                    value=State.control,
+                    size='3',
+                ),
+                justify_content='center',
             ),
-        ),
-        rx.cond(
-            State.control == "shareholders",
-            rx.card(
+            rx.cond(
+                State.control == "shareholders",
                 rx.vstack(
-                    rx.vstack(
-                        shareholders_pie_chart(),
-                        rx.card(
-                            rx.foreach(
-                                State.officers,
-                                lambda officer: rx.box(
-                                    rx.hstack(
-                                        rx.heading(
-                                            officer["officer_name"],
-                                            weight="bold",
-                                            size='3'
+                    shareholders_pie_chart(),
+                    rx.card(
+                        rx.scroll_area(
+                            rx.vstack(
+                                rx.foreach(
+                                    State.officers,
+                                    lambda officer: rx.box(
+                                        rx.hstack(
+                                            rx.heading(
+                                                officer["officer_name"],
+                                                weight="bold",
+                                                size='3'
+                                            ),
+                                            rx.badge(
+                                                f"{officer["officer_own_percent"]}%",
+                                                color_scheme="gray",
+                                                variant="surface",
+                                                high_contrast=True
+                                            ),
+                                            align="center"
                                         ),
-                                        rx.badge(
-                                            f"{officer["officer_own_percent"]}%",
-                                            color_scheme="gray",
-                                            variant="surface",
-                                            high_contrast=True
-                                        ),
-                                        align="center"
-                                    ),
-                                    rx.text(
-                                        officer["officer_position"], size='2'),
-                                    padding="1em",
-                                )
+                                        rx.text(
+                                            officer["officer_position"], size='2'),
+                                    )
+                                ),
+                                spacing="5",
+                                style={"height": "24.3em"},
                             ),
                         ),
                     ),
-                    width="100%"
+                    justify='center',
+                ),
+                rx.cond(
+                    State.control == "events",
+                    rx.scroll_area(
+                        rx.vstack(
+                            rx.foreach(
+                                State.events,
+                                lambda event: rx.box(
+                                    rx.card(
+                                        rx.hstack(
+                                            rx.heading(
+                                                event["event_name"],
+                                                weight="bold",
+                                                size='3'),
+                                            rx.badge(
+                                                f"{event['price_change_ratio']}%"),
+                                            align='center',
+                                        ),
+                                        rx.text(event["event_desc"],
+                                                weight="regular",
+                                                size='1'),
+                                    ),
+                                ),
+                            ),
+                            spacing="3",
+                        ),
+                        style={"height": "45.3em"},
+                    ),
+
+                    rx.scroll_area(
+                        rx.vstack(
+                            rx.foreach(
+                                State.news,
+                                lambda news: rx.card(
+                                    rx.hstack(
+                                        rx.text(f'{news["title"]} ({news["publish_date"]})',
+                                                weight="regular", size="2"),
+                                        rx.cond(
+                                            (news["price_change_ratio"] != None) & ~(
+                                                news["price_change_ratio"] != news["price_change_ratio"]),
+                                            rx.badge(
+                                                f"{news['price_change_ratio']}%"),
+                                        ),
+                                        align="center",
+                                        justify="between",
+                                        width="100%",
+                                    ),
+                                    width="100%",
+                                )
+                            ),
+                        ),
+                        spacing="2",
+                        width="100%",
+                        style={"height": "45.3em"}
+                    ),
                 ),
             ),
-            rx.card(
-                rx.foreach(
-                    events,
-                    lambda event: rx.box(
-                        rx.heading(event["event_name"], weight="bold"),
-                        rx.text(event["event_desc"], weight="regular"),
-                    )
-                ),
-                width="100%"
-            )
+            justify='center',
+            align='center',
         ),
-        width="100%"
+        width='30em',
     )
 
 
@@ -260,10 +314,11 @@ def shareholders_pie_chart():
                     name_key="name",
                     cx="50%",
                     cy="50%",
-                    outer_radius=100,
-                    label=True,
+                    outer_radius="80%",
+                    label=False,
                 ),
-                rx.recharts.GraphingTooltip.create(),
+                rx.recharts.GraphingTooltip.create(
+                    view_box={"width": 100, "height": 50},),
                 width=300,
                 height=300,
             ),
