@@ -22,7 +22,7 @@ def fetch_technical_metrics(ticker: str) -> dict:
 
 
 class State(rx.State):
-    control: str = "officers"
+    control: str = "shares"
     technical_metrics: dict = {}
     company_info: dict = {}
     overview: dict = {}
@@ -137,7 +137,8 @@ def ticker_summary(info):
             style=card_style
         ),
         spacing="4",
-        width="16em",
+        # width="22em",
+        align="center",
     )
 
 
@@ -197,7 +198,7 @@ def company_card():
             rx.box(
                 rx.segmented_control.root(
                     rx.segmented_control.item(
-                        "Shares", value="shareholders"),
+                        "Shares", value="shares"),
                     rx.segmented_control.item("Events", value="events"),
                     rx.segmented_control.item("News", value="news"),
                     on_change=State.setvar("control"),
@@ -207,7 +208,7 @@ def company_card():
                 justify_content='center',
             ),
             rx.cond(
-                State.control == "shareholders",
+                State.control == "shares",
                 rx.vstack(
                     shareholders_pie_chart(),
                     rx.card(
@@ -234,12 +235,15 @@ def company_card():
                                             officer["officer_position"], size='2'),
                                     )
                                 ),
-                                spacing="5",
-                                style={"height": "24.3em"},
+                                spacing="3",
+                                width="100%",
                             ),
+                            style={"height": "24.3em"},
                         ),
+                        width="100%",
                     ),
                     justify='center',
+                    width="100%",
                 ),
                 rx.cond(
                     State.control == "events",
