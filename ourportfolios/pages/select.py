@@ -5,7 +5,8 @@ from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
 from ..components.graph import mini_price_graph
-from ..utils.load_data import fetch_data_for_symbols, load_historical_data
+from ..utils.load_data import fetch_data_for_symbols
+from ..utils.load_instrument import calculate_price_changes
 
 
 class State(rx.State):
@@ -21,7 +22,7 @@ class State(rx.State):
     selected_platform: str = 'All'
     
     categories: list[str] = ["All", "Stock", "Warrant", "Cryptocurrency", "Commodities"]
-    filters: list[str] = ['All', 'Market Cap', 'Appreciation', 'Deppreciation']
+    filters: list[str] = ['All', 'Market Cap', 'Appreciation', 'Deppreciation', '% Increase']
     platforms: list[str] = ['All', 'HSX', 'HNX', 'UPCOM']
 
     def update_arrow(self, scroll_position: int, max_scroll: int):
@@ -32,7 +33,7 @@ class State(rx.State):
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         
         # Isolate query & clause for dynamic filters and sorting criteria 
-        query = ["SELECT ticker, organ_name FROM data_vni WHERE 1=1"]
+        query = ["SELECT ticker, organ_name, current_price, accumulated_volume, price_change, pct_price_change FROM data_vni WHERE 1=1"]
         order_by_clause = ""
         
         # Filter by exchange platform
@@ -41,15 +42,15 @@ class State(rx.State):
         if self.selected_platform == 'UPCOM': query.append(f"AND exchange = 'UPCOM'")
         
         # Order by condition
-        if self.selected_filter == "Market Cap":    
-            order_by_clause = "ORDER BY market_cap DESC"
+        if self.selected_filter == "Market Cap": order_by_clause = "ORDER BY market_cap DESC"
+        if self.selected_filter == '% Increase': order_by_clause = "ORDER BY pct_price_change DESC"
         
         full_query = " ".join(query) + f" {order_by_clause}" if order_by_clause else " ".join(query)
         
         df = pd.read_sql(full_query, conn)
         conn.close()
-        
-        return df[["ticker", "organ_name"]].to_dict('records')
+
+        return df[['ticker', 'organ_name', 'current_price', 'accumulated_volume', 'price_change', 'pct_price_change']].to_dict('records')
 
     @rx.var
     def paged_tickers(self) -> list[dict]:
@@ -87,6 +88,7 @@ class State(rx.State):
     def set_platform(self, platform):
         self.selected_platform = platform
         
+
 # Filter section
 @rx.page(route="/select", on_load=State.get_graph(['VNINDEX', 'UPCOMINDEX', "HNXINDEX"]))
 def index():
@@ -172,7 +174,14 @@ def index():
                     rx.card(
                         rx.foreach(
                             State.paged_tickers,
-                            lambda value : ticker_card(value['ticker'], value['organ_name'])
+                            lambda value : ticker_card(
+                                ticker=value.ticker,
+                                organ_name=value.organ_name,
+                                current_price=value.current_price,
+                                accumulated_volume=value.accumulated_volume,
+                                price_change=value.price_change,
+                                pct_price_change=value.pct_price_change
+                            )
                         ),
                         style={
                             "width": "100%",
@@ -369,7 +378,8 @@ def industry_roller():
     )
 
 
-def ticker_card(ticker: str, organ_name: str):
+def ticker_card(ticker: str, organ_name: str, current_price: float, accumulated_volume: int, price_change: float, pct_price_change: float):
+    
     return rx.card(
         rx.hstack(
             rx.vstack(
@@ -397,3 +407,111 @@ def ticker_card(ticker: str, organ_name: str):
         padding="1em",
         style={"marginBottom": "0.75em", "width": "100%"}
     )
+    
+# ─────────────────────────────────── In construction ───────────────────────────────────
+
+#     #color = rx.cond(price_change > 0, "var(--green-500)", rx.cond(price_change < 0, "var(--red-500)", "var(--gray-7)"))
+#     return rx.card(
+#         rx.hstack(
+#             # ───────────────────────────────────
+#             # COLUMN 1: Ticker + Company Name (left‐aligned)
+#             rx.vstack(
+#                 rx.link(
+#                     rx.text(ticker, weight="bold", size="4"),
+#                     href=f"/analyze/{ticker}",
+#                     style={
+#                         "textDecoration": "none",
+#                         "color": "inherit",
+#                     },
+#                 ),
+#                 rx.text(organ_name, color="var(--gray-7)", size="2"),
+#                 spacing="1",
+#                 align_items="flex-start",
+#                 width="20%",   # adjust column width as needed
+#             ),
+
+#             # ───────────────────────────────────
+#             # COLUMN 2: Current Price (right‐aligned)
+#             rx.vstack(
+#                 rx.text(current_price, weight="bold", size="3"),
+#                 spacing="0",
+#                 align_items="flex-end",
+#                 width="15%",
+#             ),
+
+#             # ───────────────────────────────────
+#             # COLUMN 3: ± Change / % Change (right‐aligned, colored)
+#             rx.vstack(
+#                 rx.hstack(
+#                     rx.text(price_change, size="2"), #,color=change_color)
+#                     rx.text(
+#                         pct_price_change,
+#                         size="2",
+#                         #color=change_color,
+#                         style={"marginLeft": "0.5em"},
+#                     ),
+#                     spacing="1",
+#                 ),
+#                 spacing="0",
+#                 align_items="flex-end",
+#                 width="15%",
+#             ),
+
+#             # ───────────────────────────────────
+#             # COLUMN 4: Total Volume & Add to Cart (right‐aligned)
+#             rx.vstack(
+#                 rx.text(accumulated_volume, size="2", weight="medium"),
+#                 rx.button(
+#                     rx.icon("shopping-cart", size=16),
+#                     size="1",
+#                     variant="soft",
+#                     on_click=lambda: CartState.add_item(ticker),
+#                 ),
+#                 spacing="1",
+#                 align_items="flex-end",
+#                 width="15%",
+#             ),
+#             align_items="center",
+#             spacing="2",
+#             width="100%",
+#         ),
+#         padding="1em",
+#         style={
+#             "marginBottom": "0.75em",
+#             "width": "100%",
+#         },
+#     )
+    
+    
+# def ticker_list_header():
+#     """
+#     Renders a header row with six columns:
+#       1) Mã CK        (width 20%)
+#       2) Giá          (width 15%)
+#       3) +/-          (width 15%)
+#       4) %            (width 10%)
+#       5) Tổng KL      (width 15%)
+#       6) Biểu đồ      (width 25%)
+#     """
+#     return rx.box(
+
+#         rx.hstack(
+#             # Column 1: Mã CK
+#             rx.box(rx.text("Mã CK", weight="bold", color="white", size="2"), width="30%"),
+#             # Column 2: Giá
+#             rx.box(rx.text("Giá", weight="bold", color="white", size="2"), width="20%"),
+#             # Column 3: +/-
+#             rx.box(rx.text("+/-", weight="bold", color="white", size="2"), width="20%"),
+#             # Column 4: %
+#             rx.box(rx.text("%", weight="bold", color="white", size="2"), width="15%"),
+#             # Column 5: Tổng KL
+#             rx.box(rx.text("Tổng KL", weight="bold", color="white", size="2"), width="15%"),
+#             spacing="0",
+#             width="100%",
+#         ),
+#         padding="0.75em",
+#         style={
+#             "backgroundColor": "var(--gray-9)",  
+#             "borderRadius": "4px",
+#         },
+#     )
