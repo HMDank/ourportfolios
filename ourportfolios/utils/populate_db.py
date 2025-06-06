@@ -1,8 +1,9 @@
 import sqlite3
-from vnstock import Screener, Listing
+from vnstock import Screener, Listing, Trading
 import pandas as pd
 
 data_vni_loaded = False
+price_board_loaded = False
 
 def load_data_vni() -> None:
     global data_vni_loaded
@@ -23,21 +24,36 @@ def load_data_vni() -> None:
             data_vni_loaded = True
             return
 
-    # Organization's info
-    listing = Listing(source='vci')
     # Stocks
     screener = Screener(source='TCBS')
     default_params = {
         'exchangeName': 'HOSE,HNX',
         'marketCap': (100, 99999999999),
     }
-    df = pd.merge(left=screener.stock(default_params, limit=1700, lang='en'), right=listing.all_symbols(), left_on='ticker', right_on='symbol')
+    stock_df = screener.stock(default_params, limit=1700, lang='en')
 
+    # Price board data 
+    price_board_df = Trading(source='vci',symbol='ACB').price_board(symbols_list=stock_df['ticker'].tolist())
+    price_board_df.columns = price_board_df.columns.droplevel(0) # Flatten columns
+    price_board_df = price_board_df.drop('exchange', axis=1) # Drop spare column to prevent duplicate column
+    price_board_df = price_board_df.loc[:, ~price_board_df.columns.duplicated()]
+    
+    df = pd.merge(left=stock_df, right=price_board_df, left_on='ticker', right_on='symbol')
+    
+    # Compute additional instrument
+    df = compute_instrument(df)
     df.to_sql("data_vni", conn, if_exists="replace", index=False)
     conn.close()
     data_vni_loaded = True
     print("Data loaded successfully.")
 
+
+def compute_instrument(df: pd.DataFrame) -> pd.DataFrame:
+    # Changes in price
+    df = df.rename(columns={'bid_1_price': 'current_price'}) # rename for better comprehension
+    df['price_change'] = df['current_price'] - df['ref_price'] # latest close price - close price from previous day
+    df['pct_price_change'] = round((df['price_change'] / df['ref_price']) * 100, 2)
+    return df
 
 if __name__ == "__main__":
     load_data_vni()
