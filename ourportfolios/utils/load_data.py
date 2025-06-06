@@ -117,10 +117,17 @@ def load_company_info(ticker: str):
         shareholders_df["share_own_percent"] * 100).round(2)
 
     shareholders = shareholders_df.to_dict("records")
-    events = company.events().to_dict("records")
+    events = company.events()
+    events['price_change_ratio'] = (events['price_change_ratio']*100).round(2)
+    events = events.to_dict("records")
     processed_events = process_events_for_display(events)
 
-    return overview, shareholders, processed_events
+    news = company.news()
+    news = news[~news['title'].str.contains('insider', case=False, na=False)]
+    news['price_change_ratio'] = (news['price_change_ratio']*100).round(2)
+    news = news.to_dict("records")
+
+    return overview, shareholders, processed_events, news
 
 
 def load_officers_info(ticker: str):
