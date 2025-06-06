@@ -6,8 +6,6 @@ from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
 from ..components.graph import mini_price_graph
 from ..utils.load_data import fetch_data_for_symbols
-from ..utils.load_instrument import calculate_price_changes
-
 
 class State(rx.State):
     control: str = "home"
