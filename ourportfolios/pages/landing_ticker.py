@@ -4,12 +4,13 @@ import sqlite3
 from typing import Any
 from vnstock import Vnstock
 
-from ourportfolios.components.loading import loading_wrapper
 
+# from .ourportfolios.components.loading import loading_wrapper
+from ourportfolios.components.price_chart import PriceChart, PriceChartState
 from ..components.navbar import navbar
 from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
-from ..utils.load_data import load_company_info, load_officers_info
+from ..utils.load_data import load_company_info, load_officers_info, load_historical_data
 from ..utils.preprocess_texts import preprocess_events_texts
 
 
@@ -35,10 +36,14 @@ class State(rx.State):
     def load_ticker_info(self):
         params = self.router.page.params
         ticker = params.get("ticker", "")
+        # Fetch metrics / info
         self.technical_metrics = fetch_technical_metrics(ticker)
-        self.overview, self.shareholders, self.events, self.news = load_company_info(
-            ticker)
+        self.overview, self.shareholders, self.events, self.news = load_company_info(ticker)
         self.officers = load_officers_info(ticker)
+        
+        # load_historical_data returns a pandas.DataFrame with columns [time, open, high, low, close, …]
+        stock_historical_data = load_historical_data(symbol=ticker)
+        PriceChartState.load_data(stock_historical_data)
 
     @rx.var
     def pie_data(self) -> list[dict[str, object]]:
@@ -64,7 +69,7 @@ class State(rx.State):
 
 
 @rx.page(route="/select/[ticker]", on_load=State.load_ticker_info)
-@loading_wrapper
+# @loading_wrapper
 def index():
     return rx.fragment(
         navbar(),
@@ -82,14 +87,18 @@ def index():
         ),
         rx.box(
             rx.vstack(
+                # Ticker summary & chart container
                 rx.hstack(
                     ticker_summary(State.overview),
+                    # PriceChart
                     rx.card(
-                        rx.text("graph :D"),
-                        width="100%"
+                        PriceChart.create(),  
+                        width="100%",
+                        height="100%",
                     ),
-                    width="100%"
+                    width="100%",
                 ),
+                # Key metrics & company card
                 rx.hstack(
                     key_metrics_card(State.technical_metrics),
                     company_card()
