@@ -1,3 +1,4 @@
+from turtle import width
 import pandas as pd
 import reflex as rx
 import sqlite3
@@ -5,13 +6,14 @@ from typing import Any
 from vnstock import Vnstock
 
 
-# from .ourportfolios.components.loading import loading_wrapper
-from ourportfolios.components.price_chart import PriceChart, PriceChartState
+from ..components.loading import loading_wrapper
+# from ..components.price_chart import PriceChart, PriceChartState
 from ..components.navbar import navbar
 from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
 from ..utils.load_data import load_company_info, load_officers_info, load_historical_data
 from ..utils.preprocess_texts import preprocess_events_texts
+# from ..components.chart_component import lightweight_chart
 
 
 def fetch_technical_metrics(ticker: str) -> dict:
@@ -23,7 +25,7 @@ def fetch_technical_metrics(ticker: str) -> dict:
 
 
 class State(rx.State):
-    control: str = "shares"
+    company_control: str = "shares"
     technical_metrics: dict = {}
     company_info: dict = {}
     overview: dict = {}
@@ -31,19 +33,18 @@ class State(rx.State):
     shareholders: list[dict] = []
     events: list[dict] = []
     news: list[dict] = []
+    price_data: pd.DataFrame = pd.DataFrame()
 
     @rx.event
     def load_ticker_info(self):
         params = self.router.page.params
         ticker = params.get("ticker", "")
-        # Fetch metrics / info
+
         self.technical_metrics = fetch_technical_metrics(ticker)
-        self.overview, self.shareholders, self.events, self.news = load_company_info(ticker)
+        self.overview, self.shareholders, self.events, self.news = load_company_info(
+            ticker)
         self.officers = load_officers_info(ticker)
-        
-        # load_historical_data returns a pandas.DataFrame with columns [time, open, high, low, close, …]
-        stock_historical_data = load_historical_data(symbol=ticker)
-        PriceChartState.load_data(stock_historical_data)
+        self.price_data = load_historical_data(ticker)
 
     @rx.var
     def pie_data(self) -> list[dict[str, object]]:
@@ -69,7 +70,7 @@ class State(rx.State):
 
 
 @rx.page(route="/select/[ticker]", on_load=State.load_ticker_info)
-# @loading_wrapper
+@loading_wrapper
 def index():
     return rx.fragment(
         navbar(),
@@ -87,28 +88,25 @@ def index():
         ),
         rx.box(
             rx.vstack(
-                # Ticker summary & chart container
                 rx.hstack(
-                    ticker_summary(State.overview),
-                    # PriceChart
+                    ticker_summary(),
                     rx.card(
-                        PriceChart.create(),  
-                        width="100%",
-                        height="100%",
+                        rx.text('Graph')
                     ),
                     width="100%",
                 ),
-                # Key metrics & company card
                 rx.hstack(
-                    key_metrics_card(State.technical_metrics),
+                    key_metrics_card(),
                     company_card()
                 ),
                 width="100%",
-                spacing="6",
+                justify="between",
+                align="start",
             ),
             width="100%",
             padding="2em",
             padding_top="5em",
+
             style={"maxWidth": "90vw", "margin": "0 auto"},
             position="relative",
         ),
@@ -116,7 +114,9 @@ def index():
     )
 
 
-def ticker_summary(info):
+def ticker_summary():
+    technical_metrics = State.technical_metrics
+    info = State.overview
     website = info.get('website', '')
     card_style = {"width": "100%", "padding": "1em"}
     return rx.vstack(
@@ -141,6 +141,7 @@ def ticker_summary(info):
             style=card_style
         ),
         card_wrapper(
+            rx.text(f'Market cap: {technical_metrics['market_cap']}'),
             rx.text(f"{info['short_name']} (Est. {info['established_year']})"),
             rx.link(website, href=f"https://{website}", is_external=True),
             style=card_style
@@ -151,25 +152,26 @@ def ticker_summary(info):
     )
 
 
-def key_metrics_card(info):
+def key_metrics_card():
+    technical_metrics = State.technical_metrics
     performance = [
-        ("Alpha", f"{info['alpha']}"),
-        ("Beta", f"{info['beta']}"),
-        ("EPS", f"{info['eps']}"),
-        ("Net Margin", f"{info['net_margin']}%"),
-        ("Gross Margin", f"{info['gross_margin']}%"),
+        ("Alpha", f"{technical_metrics['alpha']}"),
+        ("Beta", f"{technical_metrics['beta']}"),
+        ("EPS", f"{technical_metrics['eps']}"),
+        ("Net Margin", f"{technical_metrics['net_margin']}%"),
+        ("Gross Margin", f"{technical_metrics['gross_margin']}%"),
     ]
     growth = [
-        ("Revenue Growth 1Y", f"{info['revenue_growth_1y']}%"),
-        ("EPS Growth 1Y", f"{info['eps_growth_1y']}%"),
-        ("Price vs SMA20", f"{info.get('price_vs_sma20', '')}"),
-        ("RSI 14", f"{info['rsi14']}"),
+        ("Revenue Growth 1Y", f"{technical_metrics['revenue_growth_1y']}%"),
+        ("EPS Growth 1Y", f"{technical_metrics['eps_growth_1y']}%"),
+        ("Price vs SMA20", f"{technical_metrics.get('price_vs_sma20', '')}"),
+        ("RSI 14", f"{technical_metrics['rsi14']}"),
     ]
     sentiment = [
-        ("Foreign Transaction", f"{info['foreign_transaction']}"),
-        ("Strong Buy %", f"{info['strong_buy_pct']}%"),
-        ("Active Buy %", f"{info['active_buy_pct']}%"),
-        ("Price Near Realtime", f"{info['price_near_realtime']}"),
+        ("Foreign Transaction", f"{technical_metrics['foreign_transaction']}"),
+        ("Strong Buy %", f"{technical_metrics['strong_buy_pct']}%"),
+        ("Active Buy %", f"{technical_metrics['active_buy_pct']}%"),
+        ("Price Near Realtime", f"{technical_metrics['price_near_realtime']}"),
     ]
 
     def metric_group(title, metrics):
@@ -188,16 +190,33 @@ def key_metrics_card(info):
             style={"width": "100%"}
         )
 
-    return rx.card(
-        rx.hstack(
-            metric_group("Performance", performance),
-            metric_group("Growth & Technical", growth),
-            metric_group("Market Sentiment", sentiment),
-            spacing="2",
-            align="start",
-            wrap="wrap"
+    return rx.box(
+        rx.card(
+            rx.vstack(
+                rx.tabs.root(
+                    rx.tabs.list(
+                        rx.tabs.trigger("Performance", value="performance"),
+                        rx.tabs.trigger("Growth & Technical", value="growth"),
+                        rx.tabs.trigger("Market Sentiment", value="sentiment"),
+                    ),
+                    rx.tabs.content(
+                        metric_group("Performance", performance),
+                        value="performance",
+                    ),
+                    rx.tabs.content(
+                        metric_group("Growth & Technical", growth),
+                        value="growth",
+                    ),
+                    rx.tabs.content(
+                        metric_group("Market Sentiment", sentiment),
+                        value="sentiment",
+                    ),
+                    default_value="performance",
+                ),
+            ),
+            width="100%",
         ),
-        style={"width": "100%", "marginTop": "2em"}
+        width="100%",
     )
 
 
@@ -210,14 +229,14 @@ def company_card():
                         "Shares", value="shares"),
                     rx.segmented_control.item("Events", value="events"),
                     rx.segmented_control.item("News", value="news"),
-                    on_change=State.setvar("control"),
-                    value=State.control,
+                    on_change=State.setvar("company_control"),
+                    value=State.company_control,
                     size='3',
                 ),
                 justify_content='center',
             ),
             rx.cond(
-                State.control == "shares",
+                State.company_control == "shares",
                 rx.vstack(
                     shareholders_pie_chart(),
                     rx.card(
@@ -255,7 +274,7 @@ def company_card():
                     width="100%",
                 ),
                 rx.cond(
-                    State.control == "events",
+                    State.company_control == "events",
                     rx.scroll_area(
                         rx.vstack(
                             rx.foreach(
