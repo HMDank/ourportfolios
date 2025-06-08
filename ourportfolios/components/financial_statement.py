@@ -60,7 +60,7 @@ def preview_table(data, idx):
                             "color": rx.color("accent", 10),
                             "_hover": {"color": rx.color("accent", 7)},
                         }),
-                        rx.icon("download", on_click=lambda: State.download_table_csv(data, idx), size=1, style={
+                        rx.icon("download", on_click=lambda: State.download_table_csv(data, idx), style={
                             "cursor": "pointer",
                             "userSelect": "none",
                             "color": rx.color("accent", 10),
@@ -106,13 +106,10 @@ def preview_table(data, idx):
                     ),
                     # Control scrolling here
                     scrollbars="horizontal",
-                    type="always",
+                    type="hover",
                     style={
                         "height": "auto",
-                        "width": "100%",
-                        "maxWidth": "600px",
-                        "border": "1px solid #e5e7eb",
-                        "borderRadius": "6px",
+                        "maxWidth": "650px",
                         "position": "relative",
                         "display": "block",
                     }
