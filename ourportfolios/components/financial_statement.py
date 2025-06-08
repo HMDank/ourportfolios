@@ -50,55 +50,77 @@ def preview_table(data, idx):
     return rx.cond(
         data.length() > 0,
         rx.vstack(
-            rx.text(title, weight="bold", size="8"),
             rx.hstack(
-                rx.icon("maximize", on_click=lambda: State.expand(idx), style={
-                    "cursor": "pointer",
-                    "userSelect": "none",
-                    "color": rx.color("accent", 10),
-                    "_hover": {"color": rx.color("accent", 7)},
-                }),
-                rx.icon("download", on_click=lambda: State.download_table_csv(data, idx), size=1, style={
-                    "cursor": "pointer",
-                    "userSelect": "none",
-                    "color": rx.color("accent", 10),
-                    "_hover": {"color": rx.color("accent", 7)},
-                }),
-                spacing="2",
-            ),
-            rx.box(
-                rx.table.root(
-                    rx.table.header(
-                        rx.table.row(
-                            rx.foreach(
-                                data[0].keys(),
-                                lambda h: rx.table.column_header_cell(h)
-                            )
-                        )
+                rx.vstack(
+                    rx.text(title, weight="bold", size="8"),
+                    rx.hstack(
+                        rx.icon("maximize", on_click=lambda: State.expand(idx), style={
+                            "cursor": "pointer",
+                            "userSelect": "none",
+                            "color": rx.color("accent", 10),
+                            "_hover": {"color": rx.color("accent", 7)},
+                        }),
+                        rx.icon("download", on_click=lambda: State.download_table_csv(data, idx), size=1, style={
+                            "cursor": "pointer",
+                            "userSelect": "none",
+                            "color": rx.color("accent", 10),
+                            "_hover": {"color": rx.color("accent", 7)},
+                        }),
+                        spacing="2",
                     ),
-                    rx.table.body(
-                        rx.foreach(
-                            data[:5],
-                            lambda row: rx.table.row(
+                    width="12em",
+                    flex_shrink="0",
+                ),
+                # Use rx.scroll_area here:
+                rx.scroll_area(
+                    rx.table.root(
+                        rx.table.header(
+                            rx.table.row(
                                 rx.foreach(
                                     data[0].keys(),
-                                    lambda h: rx.table.cell(
-                                        rx.text(
-                                            row[h]) if row[h] is not None else rx.text("")
+                                    lambda h: rx.table.column_header_cell(h)
+                                )
+                            )
+                        ),
+                        rx.table.body(
+                            rx.foreach(
+                                data[:5],
+                                lambda row: rx.table.row(
+                                    rx.foreach(
+                                        data[0].keys(),
+                                        lambda h: rx.table.cell(
+                                            rx.text(
+                                                row[h]) if row[h] is not None else rx.text("")
+                                        )
                                     )
                                 )
                             )
-                        )
+                        ),
+                        size="1",
+                        variant="surface",
+                        style={
+                            "minWidth": "max-content",
+                            "width": "auto",
+                            "display": "table",
+                        }
                     ),
-                    size="1",
-                    variant="surface",
+                    # Control scrolling here
+                    scrollbars="horizontal",
+                    type="always",
+                    style={
+                        "height": "auto",
+                        "width": "100%",
+                        "maxWidth": "600px",
+                        "border": "1px solid #e5e7eb",
+                        "borderRadius": "6px",
+                        "position": "relative",
+                        "display": "block",
+                    }
                 ),
+                spacing="4",
                 style={
-                    "width": "400px",      # Fixed narrow width to force overflow
-                    "height": "200px",     # Fixed height
-                    "overflowX": "scroll",  # Force scroll
-                    "overflowY": "auto",
-                    "border": "2px solid red"  # Debug border to see the container
+                    "width": "100%",
+                    "alignItems": "flex-start"
                 }
             ),
             width="100%",
