@@ -46,13 +46,19 @@ def financial_statements(df_list):
 
 
 def preview_table(data, idx):
-    title = ["Income Statement", "Balance Sheet", "Cash Flow"][idx]
+    titles = ["Income Statement", "Balance Sheet", "Cash\nFlow"]
+    title = titles[idx]
     return rx.cond(
         data.length() > 0,
         rx.vstack(
             rx.hstack(
                 rx.vstack(
-                    rx.text(title, weight="bold", size="8"),
+                    rx.text(
+                        title,
+                        weight="bold",
+                        size="7",
+                        white_space="pre-line",
+                    ),
                     rx.hstack(
                         rx.icon("maximize", on_click=lambda: State.expand(idx), style={
                             "cursor": "pointer",
@@ -70,6 +76,8 @@ def preview_table(data, idx):
                     ),
                     width="12em",
                     flex_shrink="0",
+                    justify='center',
+                    padding_left='1em',
                 ),
                 # Use rx.scroll_area here:
                 rx.scroll_area(
@@ -117,7 +125,7 @@ def preview_table(data, idx):
                 spacing="4",
                 style={
                     "width": "100%",
-                    "alignItems": "flex-start"
+                    "alignItems": "center"
                 }
             ),
             width="100%",
