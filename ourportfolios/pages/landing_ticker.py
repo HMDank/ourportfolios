@@ -224,15 +224,20 @@ def key_metrics_card():
                     padding_top="1.5em",
                 ),
                 rx.tabs.content(
-                    financial_statements([
-                        State.income_statement,
-                        State.balance_sheet,
-                        State.cash_flow
-                    ]),
+                    rx.box(
+                        financial_statements([
+                            State.income_statement,
+                            State.balance_sheet,
+                            State.cash_flow
+                        ]),
+                        display="flex",
+                        justify_content="center",
+                        width="100%",
+                    ),
                     value="statement",
                     padding_top="1.5em",
                 ),
-                default_value="statement",
+                default_value="performance",
                 height="100%",
             ),
             spacing="0",   # Remove spacing since we're using margin_top
