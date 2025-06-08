@@ -185,54 +185,62 @@ def key_metrics_card():
                     rx.hstack(
                         rx.text(label + ":", weight="medium"),
                         rx.text(str(value)),
-                        align="baseline",
-                        style={"minWidth": "0"}
+                        spacing="2",
+                        justify="between",
+                        width="100%",
                     )
                     for label, value in metrics
                 ],
-                style={"minWidth": "0"}
+                spacing="4",
+                align="center",
+                width="100%",
+                max_width="400px",
             ),
-            style={"width": "100%", "minWidth": "0"}
+            display="flex",
+            justify_content="center",
+            align_items="center",
+            height="100%",
+            padding="8",
         )
 
-    return rx.box(
-        rx.card(
-            rx.vstack(
-                rx.tabs.root(
-                    rx.tabs.list(
-                        rx.tabs.trigger("Performance", value="performance"),
-                        rx.tabs.trigger("Growth & Technical", value="growth"),
-                        rx.tabs.trigger("Financial Statements",
-                                        value="statement"),
-                    ),
-                    rx.tabs.content(
-                        metric_group("Performance", performance),
-                        value="performance"
-                    ),
-                    rx.tabs.content(
-                        metric_group("Growth & Technical", growth),
-                        value="growth"
-                    ),
-                    rx.tabs.content(
-                        financial_statements([
-                            State.income_statement,
-                            State.balance_sheet,
-                            State.cash_flow
-                        ]),
-                        value="statement",
-                        width="100%",
-                        style={"overflow": "hidden", "minWidth": "0"},
-                    ),
-                    default_value="statement",
-                    style={"width": "100%", "height": "100%", "minWidth": "0"}
+    return rx.card(
+        rx.vstack(
+            rx.tabs.root(
+                rx.tabs.list(
+                    rx.tabs.trigger("Performance", value="performance"),
+                    rx.tabs.trigger("Growth & Technical", value="growth"),
+                    rx.tabs.trigger("Financial Statements", value="statement"),
                 ),
-                style={"minWidth": "0"}
+                rx.tabs.content(
+                    rx.box(
+                        metric_group("Performance", performance),
+                        padding_top="1.5em",
+                    ),
+                    value="performance",
+                ),
+                rx.tabs.content(
+                    metric_group("Growth & Technical", growth),
+                    value="growth",
+                    padding_top="1.5em",
+                ),
+                rx.tabs.content(
+                    financial_statements([
+                        State.income_statement,
+                        State.balance_sheet,
+                        State.cash_flow
+                    ]),
+                    value="statement",
+                    padding_top="1.5em",
+                ),
+                default_value="statement",
+                height="100%",
             ),
-            width="55em",
-            height="50em",
-            style={"overflow": "hidden", "minWidth": "0"}
+            spacing="0",   # Remove spacing since we're using margin_top
+            justify='center',
         ),
-        style={"width": "55em", "overflow": "hidden", "minWidth": "0"}
+        padding="6",
+        flex="1",
+        min_height="50em",
     )
 
 
