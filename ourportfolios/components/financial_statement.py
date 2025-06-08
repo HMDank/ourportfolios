@@ -36,74 +36,72 @@ class State(rx.State):
         )
 
 
+def financial_statements(df_list):
+    return rx.vstack(
+        *[rx.box(preview_table(tbl, i), expanded_dialog(tbl, i), style={"minWidth": "0"})
+          for i, tbl in enumerate(df_list)],
+        spacing='4',
+        style={"minWidth": "0"}
+    )
+
+
 def preview_table(data, idx):
     title = ["Income Statement", "Balance Sheet", "Cash Flow"][idx]
     return rx.cond(
         data.length() > 0,
         rx.vstack(
+            rx.text(title, weight="bold", size="8"),
             rx.hstack(
-                rx.vstack(
-                    rx.text(title, weight="bold", size="8"),
-                    rx.hstack(
-                        rx.icon("maximize", on_click=lambda: State.expand(idx), style={
-                            "cursor": "pointer",
-                            "userSelect": "none",
-                            "color": rx.color("accent", 10),
-                            "_hover": {"color": rx.color("accent", 7)},
-                        }),
-                        rx.icon("download", on_click=lambda: State.download_table_csv(data, idx), size=1, style={
-                            "cursor": "pointer",
-                            "userSelect": "none",
-                            "color": rx.color("accent", 10),
-                            "_hover": {"color": rx.color("accent", 7)},
-                        }),
-                        spacing="2",
-                        style={"minWidth": "0"}
+                rx.icon("maximize", on_click=lambda: State.expand(idx), style={
+                    "cursor": "pointer",
+                    "userSelect": "none",
+                    "color": rx.color("accent", 10),
+                    "_hover": {"color": rx.color("accent", 7)},
+                }),
+                rx.icon("download", on_click=lambda: State.download_table_csv(data, idx), size=1, style={
+                    "cursor": "pointer",
+                    "userSelect": "none",
+                    "color": rx.color("accent", 10),
+                    "_hover": {"color": rx.color("accent", 7)},
+                }),
+                spacing="2",
+            ),
+            rx.box(
+                rx.table.root(
+                    rx.table.header(
+                        rx.table.row(
+                            rx.foreach(
+                                data[0].keys(),
+                                lambda h: rx.table.column_header_cell(h)
+                            )
+                        )
                     ),
-                    width="12em",
-                    flex_shrink="0",
-                    style={"minWidth": "0"}
-                ),
-
-                rx.box(
-                    rx.scroll_area(
-                        rx.table.root(
-                            rx.table.header(
-                                rx.table.row(
-                                    rx.foreach(
-                                        data[0].keys(), lambda h: rx.table.column_header_cell(h))
-                                )
-                            ),
-                            rx.table.body(
+                    rx.table.body(
+                        rx.foreach(
+                            data[:5],
+                            lambda row: rx.table.row(
                                 rx.foreach(
-                                    data[:3],
-                                    lambda row: rx.table.row(
-                                        rx.foreach(
-                                            data[0].keys(),
-                                            lambda h: rx.table.cell(
-                                                rx.text(row[h]) if row[h] is not None else rx.text(""))
-                                        )
+                                    data[0].keys(),
+                                    lambda h: rx.table.cell(
+                                        rx.text(
+                                            row[h]) if row[h] is not None else rx.text("")
                                     )
                                 )
-                            ),
-                            size="1",
-                            variant="surface",
-                            width="max-content",
-                        ),
-                        scrollbars="horizontal",
-                        style={
-                            "overflowX": "auto",
-                            "width": "100%",
-                        }
+                            )
+                        )
                     ),
-                    style={"width": "100%",
-                           "overflow": "hidden"},
+                    size="1",
+                    variant="surface",
                 ),
-                spacing="4",
-                style={"width": "100%", "minWidth": "0"}
+                style={
+                    "width": "400px",      # Fixed narrow width to force overflow
+                    "height": "200px",     # Fixed height
+                    "overflowX": "scroll",  # Force scroll
+                    "overflowY": "auto",
+                    "border": "2px solid red"  # Debug border to see the container
+                }
             ),
             width="100%",
-            style={"minWidth": "0"},
         ),
         rx.text("No data available")
     )
@@ -200,12 +198,4 @@ def expanded_dialog(data, idx):
             on_open_change=State.handle_dialog_open,
         ),
         None
-    )
-
-
-def financial_statements(df_list):
-    return rx.vstack(
-        *[rx.box(preview_table(tbl, i), expanded_dialog(tbl, i), style={"minWidth": "0"})
-          for i, tbl in enumerate(df_list)],
-        style={"minWidth": "0"}
     )
