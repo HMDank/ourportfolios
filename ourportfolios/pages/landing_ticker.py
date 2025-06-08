@@ -11,8 +11,9 @@ from ..components.loading import loading_wrapper
 from ..components.navbar import navbar
 from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
-from ..utils.load_data import load_company_info, load_officers_info, load_historical_data
+from ..utils.load_data import load_company_info, load_officers_info, load_historical_data, load_financial_statements
 from ..utils.preprocess_texts import preprocess_events_texts
+from ..components.financial_statement import financial_statements
 # from ..components.chart_component import lightweight_chart
 
 
@@ -34,6 +35,9 @@ class State(rx.State):
     events: list[dict] = []
     news: list[dict] = []
     price_data: pd.DataFrame = pd.DataFrame()
+    income_statement: list[dict] = []
+    balance_sheet: list[dict] = []
+    cash_flow: list[dict] = []
 
     @rx.event
     def load_ticker_info(self):
@@ -45,6 +49,8 @@ class State(rx.State):
             ticker)
         self.officers = load_officers_info(ticker)
         self.price_data = load_historical_data(ticker)
+        self.income_statement, self.balance_sheet, self.cash_flow = load_financial_statements(
+            ticker)
 
     @rx.var
     def pie_data(self) -> list[dict[str, object]]:
@@ -97,11 +103,14 @@ def index():
                 ),
                 rx.hstack(
                     key_metrics_card(),
-                    company_card()
+                    company_card(),
+                    width="90vw",
+                    wrap="wrap",
                 ),
                 width="100%",
                 justify="between",
                 align="start",
+                style={"maxWidth": "90vw", "margin": "0 auto"},
             ),
             width="100%",
             padding="2em",
@@ -165,13 +174,7 @@ def key_metrics_card():
         ("Revenue Growth 1Y", f"{technical_metrics['revenue_growth_1y']}%"),
         ("EPS Growth 1Y", f"{technical_metrics['eps_growth_1y']}%"),
         ("Price vs SMA20", f"{technical_metrics.get('price_vs_sma20', '')}"),
-        ("RSI 14", f"{technical_metrics['rsi14']}"),
-    ]
-    sentiment = [
-        ("Foreign Transaction", f"{technical_metrics['foreign_transaction']}"),
-        ("Strong Buy %", f"{technical_metrics['strong_buy_pct']}%"),
-        ("Active Buy %", f"{technical_metrics['active_buy_pct']}%"),
-        ("Price Near Realtime", f"{technical_metrics['price_near_realtime']}"),
+        ("RSI 14", f"{technical_metrics['rsi14']}")
     ]
 
     def metric_group(title, metrics):
@@ -183,11 +186,13 @@ def key_metrics_card():
                         rx.text(label + ":", weight="medium"),
                         rx.text(str(value)),
                         align="baseline",
+                        style={"minWidth": "0"}
                     )
                     for label, value in metrics
                 ],
+                style={"minWidth": "0"}
             ),
-            style={"width": "100%"}
+            style={"width": "100%", "minWidth": "0"}
         )
 
     return rx.box(
@@ -197,26 +202,37 @@ def key_metrics_card():
                     rx.tabs.list(
                         rx.tabs.trigger("Performance", value="performance"),
                         rx.tabs.trigger("Growth & Technical", value="growth"),
-                        rx.tabs.trigger("Market Sentiment", value="sentiment"),
+                        rx.tabs.trigger("Financial Statements",
+                                        value="statement"),
                     ),
                     rx.tabs.content(
                         metric_group("Performance", performance),
-                        value="performance",
+                        value="performance"
                     ),
                     rx.tabs.content(
                         metric_group("Growth & Technical", growth),
-                        value="growth",
+                        value="growth"
                     ),
                     rx.tabs.content(
-                        metric_group("Market Sentiment", sentiment),
-                        value="sentiment",
+                        financial_statements([
+                            State.income_statement,
+                            State.balance_sheet,
+                            State.cash_flow
+                        ]),
+                        value="statement",
+                        width="100%",
+                        style={"overflow": "hidden", "minWidth": "0"},
                     ),
-                    default_value="performance",
+                    default_value="statement",
+                    style={"width": "100%", "height": "100%", "minWidth": "0"}
                 ),
+                style={"minWidth": "0"}
             ),
-            width="100%",
+            width="55em",
+            height="50em",
+            style={"overflow": "hidden", "minWidth": "0"}
         ),
-        width="100%",
+        style={"width": "55em", "overflow": "hidden", "minWidth": "0"}
     )
 
 
@@ -332,7 +348,7 @@ def company_card():
             justify='center',
             align='center',
         ),
-        width='30em',
+        width='24em',
     )
 
 
