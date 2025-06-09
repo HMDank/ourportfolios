@@ -22,16 +22,16 @@ class State(rx.State):
         self.show_arrow = scroll_position < max_scroll - 10
 
     @rx.var(cache=True)
-    def get_all_tickers(self) -> list:
+    def get_all_tickers(self) -> list[dict]:
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
-        df = pd.read_sql("SELECT ticker FROM data_vni", conn)
+        df = pd.read_sql("SELECT * FROM data_vni", conn)
         conn.close()
-        return df["ticker"].tolist()
+        return df[["ticker", "industry"]].to_dict('records')
 
     @rx.var(cache=True)
-    def paged_tickers(self) -> list:
+    def paged_tickers(self) -> list[dict]:
         tickers = self.get_all_tickers
-        return tickers[self.offset: self.offset + self.limit]
+        return (tickers[self.offset: self.offset + self.limit])
 
     @rx.var(cache=True)
     def get_all_tickers_length(self) -> int:
@@ -276,17 +276,30 @@ def industry_roller():
     )
 
 
-def ticker_card(ticker: str):
+def ticker_card(df: str):
+    ticker = df['ticker']
+    industry = df['industry']
     return rx.card(
         rx.hstack(
-            rx.link(
-                rx.text(ticker, weight="bold", size="4"),
-                href=f"/select/{ticker}",
-                style={
-                    "textDecoration": "none",
-                    "color": "inherit",
-                    "flex": 1,
-                },
+            rx.hstack(
+                rx.link(
+                    rx.text(ticker, weight="bold", size="4"),
+                    href=f"/select/{ticker}",
+                    style={
+                        "textDecoration": "none",
+                        "color": "inherit",
+                    },
+                ),
+                rx.badge(
+                    f"{industry}",
+                    size='2',
+                    color_scheme="gray",
+                    variant="soft",
+                    high_contrast=False,
+                ),
+                align_items="center",
+                spacing="5",
+                flex="1",
             ),
             rx.button(
                 rx.icon("shopping-cart", size=16),
