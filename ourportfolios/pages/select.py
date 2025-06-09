@@ -2,6 +2,8 @@ import reflex as rx
 import sqlite3
 import pandas as pd
 
+from ourportfolios.components.loading import loading_wrapper
+
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
@@ -19,19 +21,19 @@ class State(rx.State):
     def update_arrow(self, scroll_position: int, max_scroll: int):
         self.show_arrow = scroll_position < max_scroll - 10
 
-    @rx.var
+    @rx.var(cache=True)
     def get_all_tickers(self) -> list:
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         df = pd.read_sql("SELECT ticker FROM data_vni", conn)
         conn.close()
         return df["ticker"].tolist()
 
-    @rx.var
+    @rx.var(cache=True)
     def paged_tickers(self) -> list:
         tickers = self.get_all_tickers
         return tickers[self.offset: self.offset + self.limit]
 
-    @rx.var
+    @rx.var(cache=True)
     def get_all_tickers_length(self) -> int:
         return len(self.get_all_tickers)
 
@@ -51,6 +53,7 @@ class State(rx.State):
 
 
 @rx.page(route="/select", on_load=State.get_graph(['VNINDEX', 'UPCOMINDEX', "HNXINDEX", "VN30", "HNX30"]))
+@loading_wrapper
 def index():
     return rx.vstack(
         navbar(),
@@ -92,26 +95,27 @@ def index():
                 spacing="6",
             ),
             width="100%",
-            padding="2em",
-            padding_top="5em",
+            padding="1em",
             style={"maxWidth": "90vw", "margin": "0 auto"},
         ),
         drawer_button(),
+        spacing='0',
     )
 
 
 def page_selection():
-    return rx.center(
+    return rx.box(
         card_roller(
             card_link(
                 rx.hstack(
                     rx.icon("chevron_left", size=32),
                     rx.vstack(
-                        rx.heading("Recommend", weight="bold", size="6"),
+                        rx.heading("Recommend", weight="bold", size="5"),
                         rx.text("caijdo", size="1"),
                         align="center",
                         justify="center",
                         height="100%",
+                        spacing="1"
                     ),
                     align="center",
                     justify="center",
@@ -120,22 +124,24 @@ def page_selection():
             ),
             card_link(
                 rx.vstack(
-                    rx.heading("Select", weight="bold", size="8"),
+                    rx.heading("Select", weight="bold", size="7"),
                     rx.text("caijdo", size="3"),
                     align="center",
                     justify="center",
                     height="100%",
+                    spacing="1"
                 ),
                 href="/select",
             ),
             card_link(
                 rx.hstack(
                     rx.vstack(
-                        rx.heading("Analyze", weight="bold", size="6"),
+                        rx.heading("Analyze", weight="bold", size="5"),
                         rx.text("caijdo", size="1"),
                         align="center",
                         justify="center",
                         height="100%",
+                        spacing="1"
                     ),
                     rx.icon("chevron_right", size=32),
                     align="center",
@@ -144,9 +150,12 @@ def page_selection():
                 href="/simulate",
             ),
         ),
-        min_height="0vh",
         width="100%",
+        display="flex",
+        justify_content="center",
         align_items="center",
+        margin="0",
+        padding="0",
     )
 
 
