@@ -2,6 +2,8 @@ import reflex as rx
 import io
 import csv
 
+titles = ["Income\nStatement", "Balance\nSheet", "Cash\nFlow"]
+
 
 class State(rx.State):
     expanded_table: int = -1
@@ -21,6 +23,8 @@ class State(rx.State):
 
     @rx.event
     def download_table_csv(self, data: list, idx: int):
+        params = self.router.page.params
+        ticker = params.get("ticker", "")
         if not data:
             return
         output = io.StringIO()
@@ -32,7 +36,7 @@ class State(rx.State):
         output.close()
         return rx.download(
             data=csv_data,
-            filename=f"table_{idx}.csv"
+            filename=f"{ticker}_{titles[idx]}.csv"
         )
 
 
@@ -46,7 +50,6 @@ def financial_statements(df_list):
 
 
 def preview_table(data, idx):
-    titles = ["Income Statement", "Balance Sheet", "Cash\nFlow"]
     title = titles[idx]
     return rx.cond(
         data.length() > 0,
