@@ -1,4 +1,17 @@
+from turtle import width
 import reflex as rx
+import pandas as pd
+import sqlite3
+
+
+def get_industry(ticker: str) -> str:
+    conn = sqlite3.connect(
+        "/home/dank/Documents/Codebases/ourportfolios/ourportfolios/data/data_vni.db")
+    query = "SELECT industry FROM data_vni WHERE ticker = ?"
+    df = pd.read_sql(query, conn, params=(ticker,))
+    conn.close()
+    print(df["industry"].iloc[0])
+    return df["industry"].iloc[0]
 
 
 class CartState(rx.State):
@@ -14,12 +27,13 @@ class CartState(rx.State):
         self.cart_items.pop(index)
 
     @rx.event
-    def add_item(self, name: str):
-        if any(item["name"] == name for item in self.cart_items):
-            yield rx.toast.error(f"{name} already in cart!", )
+    def add_item(self, ticker: str):
+        if any(item["name"] == ticker for item in self.cart_items):
+            yield rx.toast.error(f"{ticker} already in cart!", )
         else:
-            self.cart_items.append({"name": name})
-            yield rx.toast(f"{name} added to cart!")
+            industry = get_industry(ticker)
+            self.cart_items.append({"name": ticker, 'industry': industry})
+            yield rx.toast(f"{ticker}, {industry} added to cart!")
 
 
 def cart_drawer_content():
@@ -59,10 +73,25 @@ def cart_drawer_content():
                             CartState.cart_items,
                             lambda item, i: rx.card(
                                 rx.hstack(
-                                    rx.text(
-                                        item["name"],
-                                        size="3",
-                                        weight="medium"
+                                    rx.hstack(
+                                        rx.link(
+                                            rx.text(
+                                                item["name"],
+                                                size="4",
+                                                weight="medium"
+                                            ),
+                                            href=f'/select/{item["name"]}',
+                                            underline='none',
+                                        ),
+                                        rx.badge(
+                                            f"{item['industry']}",
+                                            size='1',
+                                        ),
+                                        spacing="3",
+                                        width='100%',
+                                        display="flex",
+                                        align_items="center",
+                                        justify_content="between-center",
                                     ),
                                     rx.button(
                                         rx.icon("list-minus", size=16),
@@ -78,14 +107,14 @@ def cart_drawer_content():
                                             i
                                         ),
                                     ),
-                                    justify="between",
+                                    # justify="between",
                                     align_items="center",
-                                    width="100%"
+                                    width="100%",
                                 ),
                                 background_color=rx.color("accent", 2),
                                 padding="0.8em 1em",
                                 margin_bottom="0.7em",
-                                width="60%"
+                                width="85%",
                             ),
                         ),
                         width="100%",
@@ -93,9 +122,8 @@ def cart_drawer_content():
                     ),
                     rx.text(
                         "Your cart is empty.",
-                        size="5",
+                        size="2",
                         weight="medium",
-                        margin_top="2em"
                     )
                 ),
                 spacing="5",
