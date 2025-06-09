@@ -48,7 +48,7 @@ def load_historical_data(symbol,
                              "%Y-%m-%d"),
                          end=(date.today() + timedelta(days=1)
                               ).strftime("%Y-%m-%d"),
-                         interval="15m"):
+                         interval="15m") -> pd.DataFrame:
     stock = Vnstock().stock(symbol=symbol, source='TCBS')
     df = stock.quote.history(start=start, end=end, interval=interval)
     return df
@@ -106,7 +106,6 @@ def fetch_data_for_symbols(symbols: list[str]):
 def load_company_info(ticker: str):
     stock = Vnstock().stock(symbol=ticker, source='TCBS')
     company = stock.company
-    finance = stock.finance
 
     overview = company.overview().iloc[0].to_dict()
     overview['website'] = overview['website'].removeprefix(
@@ -150,6 +149,16 @@ def load_officers_info(ticker: str):
         by="officer_own_percent", ascending=False).to_dict("records")
 
     return officers
+
+
+def load_financial_statements(ticker: str):
+    stock = Vnstock().stock(symbol=ticker, source='TCBS')
+    finance = stock.finance
+    income_statement = finance.income_statement(period='year').reset_index()
+    balance_sheet = finance.balance_sheet(period='year').reset_index()
+    cash_flow = finance.cash_flow(period='year').reset_index()
+
+    return income_statement.to_dict("records"), balance_sheet.to_dict("records"), cash_flow.to_dict("records")
 
 
 if __name__ == "__main__":
