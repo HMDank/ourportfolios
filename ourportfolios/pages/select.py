@@ -147,7 +147,7 @@ def page_selection():
                     align="center",
                     justify="center",
                 ),
-                href="/simulate",
+                href="/analyze",
             ),
         ),
         width="100%",
