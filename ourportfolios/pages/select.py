@@ -2,7 +2,7 @@ import reflex as rx
 import sqlite3
 import pandas as pd
 
-from ourportfolios.components.loading import loading_wrapper
+# from ourportfolios.components.loading import loading_wrapper
 
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
@@ -53,7 +53,7 @@ class State(rx.State):
 
 
 @rx.page(route="/select", on_load=State.get_graph(['VNINDEX', 'UPCOMINDEX', "HNXINDEX", "VN30", "HNX30"]))
-@loading_wrapper
+# @loading_wrapper
 def index():
     return rx.vstack(
         navbar(),
