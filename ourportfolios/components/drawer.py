@@ -10,13 +10,16 @@ def get_industry(ticker: str) -> str:
     query = "SELECT industry FROM data_vni WHERE ticker = ?"
     df = pd.read_sql(query, conn, params=(ticker,))
     conn.close()
-    print(df["industry"].iloc[0])
     return df["industry"].iloc[0]
 
 
 class CartState(rx.State):
     cart_items: list[dict] = []
     is_open: bool = False
+
+    @rx.var
+    def should_scroll(self) -> bool:
+        return len(self.cart_items) >= 6
 
     @rx.event
     def toggle_cart(self):
@@ -33,7 +36,7 @@ class CartState(rx.State):
         else:
             industry = get_industry(ticker)
             self.cart_items.append({"name": ticker, 'industry': industry})
-            yield rx.toast(f"{ticker}, {industry} added to cart!")
+            yield rx.toast(f"{ticker} added to cart!")
 
 
 def cart_drawer_content():
@@ -68,62 +71,112 @@ def cart_drawer_content():
                 ),
                 rx.cond(
                     CartState.cart_items,
-                    rx.vstack(
-                        rx.foreach(
-                            CartState.cart_items,
-                            lambda item, i: rx.card(
-                                rx.hstack(
-                                    rx.hstack(
-                                        rx.link(
-                                            rx.text(
-                                                item["name"],
-                                                size="4",
-                                                weight="medium"
+                    rx.cond(
+                        CartState.should_scroll,
+                        rx.scroll_area(
+                            rx.vstack(
+                                rx.foreach(
+                                    CartState.cart_items,
+                                    lambda item, i: rx.card(
+                                        rx.hstack(
+                                            rx.hstack(
+                                                rx.link(
+                                                    rx.text(
+                                                        item["name"],
+                                                        size="4",
+                                                        weight="medium"
+                                                    ),
+                                                    href=f'/select/{item["name"]}',
+                                                    underline='none',
+                                                ),
+                                                rx.badge(
+                                                    f"{item['industry']}",
+                                                    size='1',
+                                                ),
+                                                spacing="3",
+                                                width='100%',
+                                                display="flex",
+                                                align_items="center",
+                                                justify_content="between-center",
                                             ),
-                                            href=f'/select/{item["name"]}',
-                                            underline='none',
+                                            rx.button(
+                                                rx.icon("list-minus", size=16),
+                                                color_scheme="ruby",
+                                                size="1",
+                                                variant="soft",
+                                                style={
+                                                    "fontWeight": "bold",
+                                                    "padding": "0.3em 0.7em",
+                                                    "fontSize": "0.9em"
+                                                },
+                                                on_click=lambda: CartState.remove_item(
+                                                    i),
+                                            ),
+                                            align_items="center",
+                                            width="100%",
                                         ),
-                                        rx.badge(
-                                            f"{item['industry']}",
-                                            size='1',
-                                        ),
-                                        spacing="3",
-                                        width='100%',
-                                        display="flex",
-                                        align_items="center",
-                                        justify_content="between-center",
+                                        background_color=rx.color("accent", 2),
+                                        padding="0.8em 1em",
+                                        margin_bottom="0.7em",
+                                        width="92%",
                                     ),
-                                    rx.button(
-                                        rx.icon("list-minus", size=16),
-                                        color_scheme="ruby",
-                                        size="1",
-                                        variant="soft",
-                                        style={
-                                            "fontWeight": "bold",
-                                            "padding": "0.3em 0.7em",
-                                            "fontSize": "0.9em"
-                                        },
-                                        on_click=lambda: CartState.remove_item(
-                                            i
-                                        ),
-                                    ),
-                                    # justify="between",
-                                    align_items="center",
-                                    width="100%",
                                 ),
-                                background_color=rx.color("accent", 2),
-                                padding="0.8em 1em",
-                                margin_bottom="0.7em",
-                                width="85%",
+                                width="100%",
+                                spacing="1"
                             ),
+                            height="400px",  # Set a fixed height for the scroll area
                         ),
-                        width="100%",
-                        spacing="1"
-                    ),
-                    rx.text(
-                        "Your cart is empty.",
-                        size="2",
-                        weight="medium",
+                        # Show without scroll area when < 6 items
+                        rx.vstack(
+                            rx.foreach(
+                                CartState.cart_items,
+                                lambda item, i: rx.card(
+                                    rx.hstack(
+                                        rx.hstack(
+                                            rx.link(
+                                                rx.text(
+                                                    item["name"],
+                                                    size="4",
+                                                    weight="medium"
+                                                ),
+                                                href=f'/select/{item["name"]}',
+                                                underline='none',
+                                            ),
+                                            rx.badge(
+                                                f"{item['industry']}",
+                                                size='1',
+                                            ),
+                                            spacing="3",
+                                            width='100%',
+                                            display="flex",
+                                            align_items="center",
+                                            justify_content="between-center",
+                                        ),
+                                        rx.button(
+                                            rx.icon("list-minus", size=16),
+                                            color_scheme="ruby",
+                                            size="1",
+                                            variant="soft",
+                                            style={
+                                                "fontWeight": "bold",
+                                                "padding": "0.3em 0.7em",
+                                                "fontSize": "0.9em"
+                                            },
+                                            on_click=lambda: CartState.remove_item(
+                                                i),
+                                        ),
+                                        align_items="center",
+                                        width="100%",
+                                    ),
+                                    background_color=rx.color("accent", 2),
+                                    padding="0.8em 1em",
+                                    margin_bottom="0.7em",
+                                    width="92%",
+                                ),
+                            ),
+                            width="100%",
+                            spacing="1"
+                        )
                     )
                 ),
                 spacing="5",
@@ -135,12 +188,10 @@ def cart_drawer_content():
             style={
                 "backdropFilter": "blur(14px)",
                 "background": "rgba(30, 27, 46, 0.7)",
-                "borderRadius": "1.2em",
-                "border": f"1px solid {rx.color('accent', 3)}"
             },
         ),
         width="28em",
-        padding="2.5em 2em 2em 2em",
+        padding="1.5em 1em 1em 1em",
         background_color="transparent",
     )
 
