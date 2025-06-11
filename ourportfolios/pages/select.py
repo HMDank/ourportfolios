@@ -19,8 +19,7 @@ class State(rx.State):
     selected_filter: str = "All"
     selected_platform: str = 'All'
     
-    categories: list[str] = ["All", "Stock", "Warrant", "Cryptocurrency", "Commodities"]
-    filters: list[str] = ['All', 'Market Cap', 'Appreciation', 'Deppreciation', '% Increase']
+    filters: list[str] = ['All', 'Market Cap', '% Increase']
     platforms: list[str] = ['All', 'HSX', 'HNX', 'UPCOM']
 
     def update_arrow(self, scroll_position: int, max_scroll: int):
@@ -31,7 +30,7 @@ class State(rx.State):
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         
         # Isolate query & clause for dynamic filters and sorting criteria 
-        query = ["SELECT ticker, organ_name, current_price, accumulated_volume, price_change, pct_price_change FROM data_vni WHERE 1=1"]
+        query = ["SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change FROM data_vni WHERE 1=1"]
         order_by_clause = ""
         
         # Filter by exchange platform
@@ -48,7 +47,7 @@ class State(rx.State):
         df = pd.read_sql(full_query, conn)
         conn.close()
 
-        return df[['ticker', 'organ_name', 'current_price', 'accumulated_volume', 'price_change', 'pct_price_change']].to_dict('records')
+        return df[['ticker', 'organ_name', 'current_price', 'accumulated_volume', 'pct_price_change']].to_dict('records')
 
     @rx.var
     def paged_tickers(self) -> list[dict]:
@@ -74,10 +73,6 @@ class State(rx.State):
         self.data = fetch_data_for_symbols(ticker_list)
 
     # Filter event handlers
-    @rx.event 
-    def set_category(self, category):
-        self.selected_category = category
-        
     @rx.event
     def set_filter(self, filter):
         self.selected_filter = filter
@@ -99,13 +94,6 @@ def index():
                     rx.text("asdjfkhsdjf"),
                     industry_roller(),
                     rx.hstack(
-                        # Left side: Options.. 
-                        rx.foreach(State.categories,
-                                   lambda category: rx.button(category,
-                                        variant=rx.cond(category == State.selected_category, 'solid', 'outline'),
-                                        on_click=State.set_category(category))
-                                   ),
-                        
                         rx.spacer(), # Push the following components to the right
                         
                         # Right side: 
@@ -169,23 +157,30 @@ def index():
                         padding_x="1em", 
                         border_radius="8px" 
                     ),
-                    rx.card(
-                        rx.foreach(
-                            State.paged_tickers,
-                            lambda value : ticker_card(
-                                ticker=value.ticker,
-                                organ_name=value.organ_name,
-                                current_price=value.current_price,
-                                accumulated_volume=value.accumulated_volume,
-                                price_change=value.price_change,
-                                pct_price_change=value.pct_price_change
-                            )
-                        ),
+                    rx.box(
+                        ticker_list_header(),
+                        rx.card(
+                            rx.foreach(
+                                State.paged_tickers,
+                                lambda value : ticker_card(
+                                    ticker=value.ticker,
+                                    organ_name=value.organ_name,
+                                    current_price=value.current_price,
+                                    accumulated_volume=value.accumulated_volume,
+                                    pct_price_change=value.pct_price_change
+                                )
+                            ),
+                            style={
+                                "width": "100%",
+                                "marginTop": "1em",
+                                "backgroundColor": "#000000",
+                            }
+                        ),   
                         style={
-                            "width": "100%",
-                            "marginTop": "1em"
-                        }
+                            "width":"100%",
+                        },
                     ),
+                    
                     rx.hstack(
                         rx.button("Previous", on_click=State.prev_page,
                                   disabled=State.offset == 0),
@@ -376,140 +371,88 @@ def industry_roller():
     )
 
 
-def ticker_card(ticker: str, organ_name: str, current_price: float, accumulated_volume: int, price_change: float, pct_price_change: float):
-    
+def ticker_card(
+    ticker: str, 
+    organ_name: str, 
+    current_price: float, 
+    accumulated_volume: int, 
+    pct_price_change: float
+):
+    color = rx.cond(pct_price_change.to(int) > 0, "#28a745", rx.cond(pct_price_change.to(int) < 0, "#CC0000", "#6B7280"))
     return rx.card(
         rx.hstack(
-            rx.vstack(
-                rx.link(
-                    rx.text(ticker, weight="bold", size="4"),
-                    href=f"/analyze/{ticker}",
-                    style={
-                        "textDecoration": "none",
-                        "color": "inherit",
-                        "flex": 1,
-                    },
-                ),  
-                rx.text(organ_name, color="var(--gray-7)", size="2"),
+            # Column 1: Ticker and organ_name
+            rx.box(
+                rx.vstack(
+                    rx.link(
+                        rx.text(ticker, weight="bold", size="4"),
+                        href=f"/analyze/{ticker}",
+                        style={"textDecoration": "none", "color": "inherit"},
+                    ),
+                    rx.text(organ_name, color="var(--gray-7)", size="2"),
+                ),
+                width="50%",
+                align="end",
+                justify="center",
             ),
-            rx.spacer(),
-            rx.button(
-                rx.icon("shopping-cart", size=16),
-                size="1",
-                variant="soft",
-                on_click=lambda: CartState.add_item(ticker),
+            # Column 2: Current price
+            rx.box(
+                rx.text(f"{current_price.to(int)*1e-3:.2f}", weight="medium", size="3", color=color),
+                width="15%",
+                align="center",
+                justify="center",
             ),
+            # Column 3: Percentage change
+            rx.box(
+                rx.text(f"{pct_price_change:.2f}%", weight="medium", size="2", color=color),
+                font_style="italic",
+                width="20%",
+                align="center",
+                justify="center",
+            ),
+            # Column 4: Accumulated volume
+            rx.box(
+                rx.text(f"{accumulated_volume:,.3f}", size="3", weight="medium"),
+                width="15%",
+                align="center",
+                justify="center",
+            ),
+            # Column 5: Cart button
+            rx.box(
+                rx.button(
+                    rx.icon("shopping-cart", size=16),
+                    size="1",
+                    variant="soft",
+                    on_click=lambda: CartState.add_item(ticker),
+                ),
+                width="auto",
+                align="center",
+                justify="center",
+            ),
+            width="100%",
             align_items="center",
-            width="100%"
+            spacing="1",
         ),
         padding="1em",
         style={"marginBottom": "0.75em", "width": "100%"}
     )
     
-# ─────────────────────────────────── In construction ───────────────────────────────────
-
-#     #color = rx.cond(price_change > 0, "var(--green-500)", rx.cond(price_change < 0, "var(--red-500)", "var(--gray-7)"))
-#     return rx.card(
-#         rx.hstack(
-#             # ───────────────────────────────────
-#             # COLUMN 1: Ticker + Company Name (left‐aligned)
-#             rx.vstack(
-#                 rx.link(
-#                     rx.text(ticker, weight="bold", size="4"),
-#                     href=f"/analyze/{ticker}",
-#                     style={
-#                         "textDecoration": "none",
-#                         "color": "inherit",
-#                     },
-#                 ),
-#                 rx.text(organ_name, color="var(--gray-7)", size="2"),
-#                 spacing="1",
-#                 align_items="flex-start",
-#                 width="20%",   # adjust column width as needed
-#             ),
-
-#             # ───────────────────────────────────
-#             # COLUMN 2: Current Price (right‐aligned)
-#             rx.vstack(
-#                 rx.text(current_price, weight="bold", size="3"),
-#                 spacing="0",
-#                 align_items="flex-end",
-#                 width="15%",
-#             ),
-
-#             # ───────────────────────────────────
-#             # COLUMN 3: ± Change / % Change (right‐aligned, colored)
-#             rx.vstack(
-#                 rx.hstack(
-#                     rx.text(price_change, size="2"), #,color=change_color)
-#                     rx.text(
-#                         pct_price_change,
-#                         size="2",
-#                         #color=change_color,
-#                         style={"marginLeft": "0.5em"},
-#                     ),
-#                     spacing="1",
-#                 ),
-#                 spacing="0",
-#                 align_items="flex-end",
-#                 width="15%",
-#             ),
-
-#             # ───────────────────────────────────
-#             # COLUMN 4: Total Volume & Add to Cart (right‐aligned)
-#             rx.vstack(
-#                 rx.text(accumulated_volume, size="2", weight="medium"),
-#                 rx.button(
-#                     rx.icon("shopping-cart", size=16),
-#                     size="1",
-#                     variant="soft",
-#                     on_click=lambda: CartState.add_item(ticker),
-#                 ),
-#                 spacing="1",
-#                 align_items="flex-end",
-#                 width="15%",
-#             ),
-#             align_items="center",
-#             spacing="2",
-#             width="100%",
-#         ),
-#         padding="1em",
-#         style={
-#             "marginBottom": "0.75em",
-#             "width": "100%",
-#         },
-#     )
     
-    
-# def ticker_list_header():
-#     """
-#     Renders a header row with six columns:
-#       1) Mã CK        (width 20%)
-#       2) Giá          (width 15%)
-#       3) +/-          (width 15%)
-#       4) %            (width 10%)
-#       5) Tổng KL      (width 15%)
-#       6) Biểu đồ      (width 25%)
-#     """
-#     return rx.box(
-
-#         rx.hstack(
-#             # Column 1: Mã CK
-#             rx.box(rx.text("Mã CK", weight="bold", color="white", size="2"), width="30%"),
-#             # Column 2: Giá
-#             rx.box(rx.text("Giá", weight="bold", color="white", size="2"), width="20%"),
-#             # Column 3: +/-
-#             rx.box(rx.text("+/-", weight="bold", color="white", size="2"), width="20%"),
-#             # Column 4: %
-#             rx.box(rx.text("%", weight="bold", color="white", size="2"), width="15%"),
-#             # Column 5: Tổng KL
-#             rx.box(rx.text("Tổng KL", weight="bold", color="white", size="2"), width="15%"),
-#             spacing="0",
-#             width="100%",
-#         ),
-#         padding="0.75em",
-#         style={
-#             "backgroundColor": "var(--gray-9)",  
-#             "borderRadius": "4px",
-#         },
-#     )
+def ticker_list_header():
+    return rx.box(
+        rx.hstack(
+            rx.box(rx.text("Mã CK", weight="bold", color="white", size="3"), width="50%", align="center", justify="center"),
+            rx.box(rx.text("Giá", weight="bold", color="white", size="3"), width="15%", align="center", justify="center"),
+            rx.box(rx.text("%", weight="bold", color="white", size="3"), width="17%", align="center", justify="center"),
+            rx.box(rx.text("Tổng KL", weight="bold", color="white", size="3"), width="18%", align="center", justify="center"),
+            padding="1em",
+            spacing="0",
+            width="100%",
+            align_items="center"
+        ),
+        style={
+            "backgroundColor": "#000000",
+            "borderRadius": "2px",
+            "width": "100%",
+        },
+    )
