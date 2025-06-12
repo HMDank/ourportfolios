@@ -52,6 +52,7 @@ def compute_instrument(df: pd.DataFrame) -> pd.DataFrame:
     # Changes in price
     df = df.rename(columns={'bid_1_price': 'current_price'}) # rename for better comprehension
     df['price_change'] = df['current_price'] - df['ref_price'] # latest close price - close price from previous day
+    df['current_price'] = round(df['current_price'] * 1e-3, 2)
     df['pct_price_change'] = round((df['price_change'] / df['ref_price']) * 100, 2)
     return df
 
