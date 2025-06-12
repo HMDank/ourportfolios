@@ -265,7 +265,6 @@ def ticker_card(df: str):
 
 
 @rx.page(route="/select", on_load=State.get_graph([]))
-@loading_wrapper
 def index():
     return rx.vstack(
         navbar(),

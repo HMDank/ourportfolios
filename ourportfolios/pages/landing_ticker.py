@@ -74,7 +74,6 @@ class State(rx.State):
 
 
 @rx.page(route="/select/[ticker]", on_load=[State.load_ticker_info, PriceChartState.load_data])
-# @loading_wrapper
 def index():
     return rx.fragment(
         navbar(),
