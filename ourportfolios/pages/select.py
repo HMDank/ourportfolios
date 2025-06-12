@@ -93,89 +93,10 @@ def index():
                 rx.vstack(
                     rx.text("asdjfkhsdjf"),
                     industry_roller(),
-                    rx.hstack(
-                        rx.spacer(), # Push the following components to the right
-                        
-                        # Right side: 
-                        # Platform selector
-                        rx.dropdown_menu.root(
-                            rx.dropdown_menu.trigger(
-                                rx.button(
-                                    rx.cond(State.selected_platform != 'All', State.selected_platform, "Exchange Platform"), 
-                                    variant=rx.cond(State.selected_platform != 'All', 'solid', 'outline')
-                                )  
-                            ),
-                                
-                            rx.dropdown_menu.content(
-                                rx.foreach(
-                                    State.platforms,
-                                    lambda platform: rx.dropdown_menu.item(
-                                        rx.hstack(
-                                            rx.cond(
-                                                platform == State.selected_platform, 
-                                                rx.icon('check', size=16),
-                                                rx.box(width='16px')
-                                            ),
-                                            rx.text(platform, weight=rx.cond(platform == State.selected_platform, "bold", "normal")),
-                                            spacing="2",
-                                            align="center",
-                                        ),
-                                        on_select=State.set_platform(platform)
-                                    )
-                                )
-                            )
-                        ),
-                        # Filter
-                        rx.dropdown_menu.root(
-                            rx.dropdown_menu.trigger(
-                                rx.button(
-                                    rx.cond(State.selected_filter != 'All', State.selected_filter, "Filter"),
-                                    variant=rx.cond(State.selected_filter != 'All', 'solid', 'outline')
-                                )
-                            ),
-                            rx.dropdown_menu.content(
-                                rx.foreach(
-                                    State.filters,
-                                    lambda filter: rx.dropdown_menu.item(
-                                        rx.hstack(
-                                            rx.cond(
-                                                filter == State.selected_filter,
-                                                rx.icon("check", size=16),
-                                                rx.box(width="16px")
-                                            ),
-                                            rx.text(filter, weight=rx.cond(filter == State.selected_filter, "bold", "normal")),
-                                            spacing="2",
-                                            align="center",
-                                        ),
-                                        on_select=State.set_filter(filter)
-                                    )
-                                )
-                            )
-                        ),
-                        width="100%",  
-                        padding_top="1em",
-                        padding_x="1em", 
-                        border_radius="8px" 
-                    ),
+                    
                     rx.box(
-                        ticker_list_header(),
-                        rx.card(
-                            rx.foreach(
-                                State.paged_tickers,
-                                lambda value : ticker_card(
-                                    ticker=value.ticker,
-                                    organ_name=value.organ_name,
-                                    current_price=value.current_price,
-                                    accumulated_volume=value.accumulated_volume,
-                                    pct_price_change=value.pct_price_change
-                                )
-                            ),
-                            style={
-                                "width": "100%",
-                                "marginTop": "1em",
-                                "backgroundColor": "#000000",
-                            }
-                        ),   
+                        ticker_filter(),
+                        ticker_list(),
                         style={
                             "width":"100%",
                         },
@@ -437,22 +358,99 @@ def ticker_card(
         style={"marginBottom": "0.75em", "width": "100%"}
     )
     
-    
-def ticker_list_header():
+def ticker_list():
     return rx.box(
-        rx.hstack(
-            rx.box(rx.text("Mã CK", weight="bold", color="white", size="3"), width="50%", align="center", justify="center"),
-            rx.box(rx.text("Giá", weight="bold", color="white", size="3"), width="15%", align="center", justify="center"),
-            rx.box(rx.text("%", weight="bold", color="white", size="3"), width="17%", align="center", justify="center"),
-            rx.box(rx.text("Tổng KL", weight="bold", color="white", size="3"), width="18%", align="center", justify="center"),
-            padding="1em",
-            spacing="0",
-            width="100%",
-            align_items="center"
-        ),
-        style={
+            rx.card(
+                rx.hstack(
+                    rx.box(rx.text("Mã CK", weight="bold", color="white", size="3"), width="50%", align="center", justify="center"),
+                    rx.box(rx.text("Giá", weight="bold", color="white", size="3"), width="15%", align="center", justify="center"),
+                    rx.box(rx.text("%", weight="bold", color="white", size="3"), width="17%", align="center", justify="center"),
+                    rx.box(rx.text("Tổng KL", weight="bold", color="white", size="3"), width="18%", align="center", justify="center"),
+                    width="100%",
+                    padding="1em",
+                    align_items="center",
+                ),
+                rx.foreach(
+                    State.paged_tickers,
+                    lambda value : ticker_card(
+                        ticker=value.ticker,
+                        organ_name=value.organ_name,
+                        current_price=value.current_price,
+                        accumulated_volume=value.accumulated_volume,
+                        pct_price_change=value.pct_price_change
+                    )
+                ),
+            ),  
+            style={
             "backgroundColor": "#000000",
-            "borderRadius": "2px",
+            "borderRadius": "4px",
             "width": "100%",
         },
+        ), 
+
+
+def ticker_filter():
+    return rx.box(
+        rx.hstack(
+            rx.spacer(), # Push the following components to the right
+            # Platform selector
+            rx.dropdown_menu.root(
+                rx.dropdown_menu.trigger(
+                    rx.button(
+                        rx.cond(State.selected_platform != 'All', State.selected_platform, "Exchange Platform"), 
+                        variant=rx.cond(State.selected_platform != 'All', 'solid', 'outline')
+                    )  
+                ),
+                    
+                rx.dropdown_menu.content(
+                    rx.foreach(
+                        State.platforms,
+                        lambda platform: rx.dropdown_menu.item(
+                            rx.hstack(
+                                rx.cond(
+                                    platform == State.selected_platform, 
+                                    rx.icon('check', size=16),
+                                    rx.box(width='16px')
+                                ),
+                                rx.text(platform, weight=rx.cond(platform == State.selected_platform, "bold", "normal")),
+                                spacing="2",
+                                align="center",
+                            ),
+                            on_select=State.set_platform(platform)
+                        )
+                    )
+                )
+            ),
+            # Filter
+            rx.dropdown_menu.root(
+                rx.dropdown_menu.trigger(
+                    rx.button(
+                        rx.cond(State.selected_filter != 'All', State.selected_filter, "Filter"),
+                        variant=rx.cond(State.selected_filter != 'All', 'solid', 'outline')
+                    )
+                ),
+                rx.dropdown_menu.content(
+                    rx.foreach(
+                        State.filters,
+                        lambda filter: rx.dropdown_menu.item(
+                            rx.hstack(
+                                rx.cond(
+                                    filter == State.selected_filter,
+                                    rx.icon("check", size=16),
+                                    rx.box(width="16px")
+                                ),
+                                rx.text(filter, weight=rx.cond(filter == State.selected_filter, "bold", "normal")),
+                                spacing="2",
+                                align="center",
+                            ),
+                            on_select=State.set_filter(filter)
+                        )
+                    )
+                )
+            ),
+            padding_bottom="1em",
+            padding_x="1em", 
+            border_radius="8px" 
+        ),
+        width='100%'
     )
