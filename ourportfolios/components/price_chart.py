@@ -31,21 +31,20 @@ class PriceChartState(rx.State):
         if not chart_data.empty: self.set_df(chart_data.to_dict("records"))
 
     @rx.event
-    def set_ma_period(self, value: int):
+    def set_ma_period(self, value: str):
         if not value: value = 0
-        self.ma_period = value
+        self.ma_period = int(value)
         self.chart_configs
         
     @rx.event
-    def set_rsi_period(self, value: int):
+    def set_rsi_period(self, value: str):
         if not value: value = 0
-        self.rsi_period = value
+        self.rsi_period = int(value)
         self.chart_configs
         
     @rx.event
     def set_selection(self, selection: str):
-        self.chart_selection  = selection
-        self.chart_configs
+        self.chart_selection = selection
 
     @rx.var
     def ohlc_data(self) -> pd.DataFrame:
@@ -60,9 +59,10 @@ class PriceChartState(rx.State):
 
     @rx.var
     def price_data(self) -> pd.DataFrame:
-        """Return a list of {time, value } from 'close'"""
+        """Return a list of {time, value} from 'close'"""
         if not self.df:
             return pd.DataFrame(columns=["time", "close"])
+        
         df = pd.DataFrame(self.df)
         if not {"time","close"}.issubset(df.columns):
             return []
@@ -71,9 +71,10 @@ class PriceChartState(rx.State):
     
     @rx.var
     def returns_data(self) -> pd.DataFrame:
-        """Return % returns as {time, value, }"""
+        """Return % returns as {time, value}"""
         if not self.df:
             return pd.DataFrame(columns=["time", "close"])
+        
         df = pd.DataFrame(self.df)
         if "time" not in df.columns: df2 = df.reset_index()
         else: df2 = df.copy()
@@ -88,6 +89,7 @@ class PriceChartState(rx.State):
         """If ma_period > 0, compute MA"""
         if not self.df or not self.ma_period:
             return []
+        
         df = pd.DataFrame(self.df)
         if self.ma_period > 0:
             df2 = df.copy()
@@ -101,6 +103,7 @@ class PriceChartState(rx.State):
         """If rsi_period > 0, compute RSI"""
         if not self.df or not self.rsi_period:
             return []
+        
         df = pd.DataFrame(self.df)
         if self.rsi_period > 0:
             df2 = df.copy()
@@ -132,6 +135,7 @@ class PriceChartState(rx.State):
             data = df[['time', 'value']].values.tolist()
             
         dates = df["time"].tolist()
+        chart_type: str = "candlestick" if self.chart_selection == "Candlestick" else 'line'
         
         options  = {
             "backgroundColor": "#0e0d14",
@@ -238,53 +242,57 @@ class PriceChartState(rx.State):
             ],
             "series": [
                 {
-                    "name": "Main-chart",
-                    "type": "candlestick" if self.chart_selection == "Candlestick" else 'line',
-                    "data": data,
-                    "itemStyle": {
-                        "color": "#26a69a",
-                        "color0": "#ef5350",
-                        "borderColor": "#26a69a",
-                        "borderColor0": "#ef5350",
-                    },
-                    "barMaxWidth": "60%",
-                    "markLine": {
-                    "symbol": ["none", "none"],
-                    "data": [
-                        [
-                            {
-                                "name": "from lowest to highest",
-                                "type": "min",
-                                "valueDim": "lowest",
-                                "symbol": "circle",
-                                "symbolSize": 10,
-                                "label": {"show": False},
-                                "emphasis": {"label": {"show": False}},
-                            },
-                            {
-                                "type": "max",
-                                "valueDim": "highest",
-                                "symbol": "circle",
-                                "symbolSize": 10,
-                                "label": {"show": False},
-                                "emphasis": {"label": {"show": False}},
-                            },
-                        ],
-                        {
-                            "name": "min line on close",
-                            "type": "min",
-                            "valueDim": "close",
-                        },
-                        {
-                            "name": "max line on close",
-                            "type": "max",
-                            "valueDim": "close",
-                        },
-                    ],
+                "name": "Main-chart",
+                "type": chart_type,
+                "data": data,
+                "itemStyle": {
+                    "color": "#26a69a",
+                    "color0": "#ef5350",
+                    "borderColor": "#26a69a",
+                    "borderColor0": "#ef5350",
                 },
+                "barMaxWidth": "60%",
+                "markLine": {},
             }
         ],
     }
+        
+        # Add markline for candlestick chart
+        if self.chart_selection == 'Candlestick':
+            options['series'][0]['markLine'].update({
+                "symbol": ["none", "none"],
+                "data": [
+                    [
+                        {
+                            "name": "from lowest to highest",
+                            "type": "min",
+                            "valueDim": "lowest",
+                            "symbol": "circle",
+                            "symbolSize": 10,
+                            "label": {"show": False},
+                            "emphasis": {"label": {"show": False}},
+                        },
+                        {
+                            "type": "max",
+                            "valueDim": "highest",
+                            "symbol": "circle",
+                            "symbolSize": 10,
+                            "label": {"show": False},
+                            "emphasis": {"label": {"show": False}},
+                        },
+                    ],
+                    {
+                        "name": "min line on close",
+                        "type": "min",
+                        "valueDim": "close",
+                    },
+                    {
+                        "name": "max line on close",
+                        "type": "max",
+                        "valueDim": "close",
+                    },
+                ]
+            })
         
         # MA period
         ma_data = self.ma_data
@@ -342,7 +350,7 @@ def render_price_chart():
                         min=0,
                         value=PriceChartState.ma_period.to(str),
                         placeholder="e.g 200",
-                        on_change=lambda value: PriceChartState.set_ma_period(rx.cond(value, value.to(int), None)),
+                        on_change=lambda value: PriceChartState.set_ma_period(rx.cond(value, value, None)),
                         style={"width": "5rem", "marginRight": "1rem"},
                     ),      
                 ),
@@ -354,7 +362,7 @@ def render_price_chart():
                         min=0,
                         value=PriceChartState.rsi_period.to(str),
                         placeholder="e.g 14",
-                        on_change=lambda value: PriceChartState.set_rsi_period(rx.cond(value, value.to(int), None)),
+                        on_change=lambda value: PriceChartState.set_rsi_period(rx.cond(value, value, None)),
                         style={"width": "5rem"},
                     ),   
                 )
