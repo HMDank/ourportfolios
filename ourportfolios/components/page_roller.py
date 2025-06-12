@@ -45,7 +45,7 @@ def card_roller(left_content, center_content, right_content):
         "alignItems": "center",
         "justifyContent": "center",
         "_hover": {
-            "transform": "scale(1.04)",
+            "transform": "scale(1.03)",
         },
         "padding": "2em 2.5em",
     }
@@ -53,7 +53,7 @@ def card_roller(left_content, center_content, right_content):
     left = rx.box(
         card_wrapper(left_content, style={**side_card_style, "left": "-2.5em"}),
         _hover={
-            "transform": "translateX(-1em) scale(1.04)",
+            "transform": "translateX(-0.6em) scale(1.03)",
         },
         transition="transform 0.2s, z-index 0.2s",
         position="absolute",
@@ -66,7 +66,7 @@ def card_roller(left_content, center_content, right_content):
     right = rx.box(
         card_wrapper(right_content, style={**side_card_style, "right": "-2.5em"}),
         _hover={
-            "transform": "translateX(1em) scale(1.04)",
+            "transform": "translateX(0.6em) scale(1.03)",
         },
         transition="transform 0.2s, z-index 0.2s",
         position="absolute",
