@@ -1,4 +1,3 @@
-from turtle import width
 import reflex as rx
 import pandas as pd
 import sqlite3
@@ -6,7 +5,9 @@ import sqlite3
 
 def get_industry(ticker: str) -> str:
     conn = sqlite3.connect(
-        "/home/dank/Documents/Codebases/ourportfolios/ourportfolios/data/data_vni.db")
+        "/home/dank/Documents/Codebases/ourportfolios/"
+        "ourportfolios/data/data_vni.db"
+    )
     query = "SELECT industry FROM data_vni WHERE ticker = ?"
     df = pd.read_sql(query, conn, params=(ticker,))
     conn.close()
@@ -28,6 +29,8 @@ class CartState(rx.State):
     @rx.event
     def remove_item(self, index: int):
         self.cart_items.pop(index)
+        from ..pages.analyze import StockComparisonState
+        yield StockComparisonState.fetch_stocks_from_cart()
 
     @rx.event
     def add_item(self, ticker: str):
@@ -37,6 +40,8 @@ class CartState(rx.State):
             industry = get_industry(ticker)
             self.cart_items.append({"name": ticker, 'industry': industry})
             yield rx.toast(f"{ticker} added to cart!")
+            from ..pages.analyze import StockComparisonState
+            yield StockComparisonState.fetch_stocks_from_cart()
 
 
 def cart_drawer_content():
@@ -86,7 +91,8 @@ def cart_drawer_content():
                                                         size="4",
                                                         weight="medium"
                                                     ),
-                                                    href=f'/select/{item["name"]}',
+                                                    href=f'/select/'
+                                                    f'{item["name"]}',
                                                     underline='none',
                                                 ),
                                                 rx.badge(
@@ -97,7 +103,8 @@ def cart_drawer_content():
                                                 width='100%',
                                                 display="flex",
                                                 align_items="center",
-                                                justify_content="between-center",
+                                                justify_content="between-"
+                                                "center",
                                             ),
                                             rx.button(
                                                 rx.icon("list-minus", size=16),
@@ -110,7 +117,8 @@ def cart_drawer_content():
                                                     "fontSize": "0.9em"
                                                 },
                                                 on_click=lambda: CartState.remove_item(
-                                                    i),
+                                                    i
+                                                ),
                                             ),
                                             align_items="center",
                                             width="100%",
@@ -139,7 +147,8 @@ def cart_drawer_content():
                                                     size="4",
                                                     weight="medium"
                                                 ),
-                                                href=f'/select/{item["name"]}',
+                                                href=f'/select/'
+                                                f'{item["name"]}',
                                                 underline='none',
                                             ),
                                             rx.badge(
@@ -150,7 +159,8 @@ def cart_drawer_content():
                                             width='100%',
                                             display="flex",
                                             align_items="center",
-                                            justify_content="between-center",
+                                            justify_content="between-"
+                                            "center",
                                         ),
                                         rx.button(
                                             rx.icon("list-minus", size=16),
@@ -163,7 +173,8 @@ def cart_drawer_content():
                                                 "fontSize": "0.9em"
                                             },
                                             on_click=lambda: CartState.remove_item(
-                                                i),
+                                                i
+                                            ),
                                         ),
                                         align_items="center",
                                         width="100%",
