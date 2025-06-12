@@ -6,15 +6,14 @@ from typing import Any
 from vnstock import Vnstock
 
 
-from ..components.loading import loading_wrapper
-# from ..components.price_chart import PriceChart, PriceChartState
+# from ..components.loading import loading_wrapper
+from ..components.price_chart import PriceChartState, render_price_chart
 from ..components.navbar import navbar
 from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
 from ..utils.load_data import load_company_info, load_officers_info, load_historical_data, load_financial_statements
 from ..utils.preprocess_texts import preprocess_events_texts
 from ..components.financial_statement import financial_statements
-# from ..components.chart_component import lightweight_chart
 
 
 def fetch_technical_metrics(ticker: str) -> dict:
@@ -54,7 +53,6 @@ class State(rx.State):
 
     @rx.var
     def pie_data(self) -> list[dict[str, object]]:
-
         palettes = ["accent", "plum", "iris"]
         indices = [6, 7, 8]
         colors = [
@@ -75,8 +73,8 @@ class State(rx.State):
         return data
 
 
-@rx.page(route="/select/[ticker]", on_load=State.load_ticker_info)
-@loading_wrapper
+@rx.page(route="/select/[ticker]", on_load=[State.load_ticker_info, PriceChartState.load_data])
+# @loading_wrapper
 def index():
     return rx.fragment(
         navbar(),
@@ -94,19 +92,22 @@ def index():
         ),
         rx.box(
             rx.vstack(
-                rx.hstack(
-                    ticker_summary(),
-                    rx.card(
-                        rx.text('Graph')
+                rx.box(
+                    rx.hstack(
+                        ticker_summary(),
+                        display_price_plot(),
+                        width="100%",
                     ),
-                    width="100%",
                 ),
-                rx.hstack(
-                    key_metrics_card(),
-                    company_card(),
-                    width="90vw",
-                    wrap="wrap",
+                rx.box(
+                    rx.hstack(
+                        key_metrics_card(),
+                        company_card(),
+                        width="90vw",
+                        wrap="wrap",
+                    ),
                 ),
+                spacing='0',
                 width="100%",
                 justify="between",
                 align="start",
@@ -388,3 +389,6 @@ def shareholders_pie_chart():
         width="100%",
         height="100%",
     )
+
+def display_price_plot():
+    return render_price_chart()
