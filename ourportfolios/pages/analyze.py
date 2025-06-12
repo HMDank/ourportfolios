@@ -1,69 +1,24 @@
 import reflex as rx
+import pandas as pd
+import sqlite3
 from typing import List, Dict, Any
 
-# Sample data structure - replace with your actual data
-sample_stocks = [
-    {
-        'ticker': 'AAPL',
-        'market_cap': 2800000000000,
-        'roe': 0.26,
-        'pe': 28.5,
-        'pb': 8.2,
-        'dividend_yield': 0.0185,
-        'revenue_growth_1y': 0.08,
-        'eps_growth_1y': 0.12,
-        'gross_margin': 0.38,
-        'net_margin': 0.23,
-        'beta': 1.2,
-        'rsi14': 55,
-        'stock_rating': 'BUY',
-        'industry': 'Technology',
-        'tcbs_recommend': 'Strong Buy'
-    },
-    {
-        'ticker': 'MSFT',
-        'market_cap': 2500000000000,
-        'roe': 0.35,
-        'pe': 32.1,
-        'pb': 12.8,
-        'dividend_yield': 0.022,
-        'revenue_growth_1y': 0.12,
-        'eps_growth_1y': 0.18,
-        'gross_margin': 0.42,
-        'net_margin': 0.31,
-        'beta': 0.9,
-        'rsi14': 62,
-        'stock_rating': 'BUY',
-        'industry': 'Technology',
-        'tcbs_recommend': 'Buy'
-    },
-    {
-        'ticker': 'GOOGL',
-        'market_cap': 1800000000000,
-        'roe': 0.28,
-        'pe': 25.3,
-        'pb': 5.4,
-        'dividend_yield': 0.0,
-        'revenue_growth_1y': 0.06,
-        'eps_growth_1y': 0.15,
-        'gross_margin': 0.56,
-        'net_margin': 0.21,
-        'beta': 1.1,
-        'rsi14': 48,
-        'stock_rating': 'HOLD',
-        'industry': 'Technology',
-        'tcbs_recommend': 'Hold'
-    }
-]
+from ..components.navbar import navbar
+from ..components.drawer import CartState, drawer_button
+from ..components.page_roller import card_roller, card_link
 
 
 class StockComparisonState(rx.State):
-    stocks: List[Dict[str, Any]] = sample_stocks
-    selected_metrics: List[str] = [
-        'market_cap', 'roe', 'pe', 'pb', 'dividend_yield',
-        'revenue_growth_1y', 'eps_growth_1y', 'gross_margin',
-        'net_margin', 'beta', 'rsi14'
-    ]
+    stocks: List[Dict[str, Any]] = []
+
+    @rx.var
+    def selected_metrics(self) -> List[str]:
+        """Default metrics to display"""
+        return [
+            'market_cap', 'roe', 'pe', 'pb', 'dividend_yield',
+            'revenue_growth_1y', 'eps_growth_1y', 'gross_margin',
+            'net_margin', 'beta', 'rsi14'
+        ]
 
     @rx.var
     def metric_labels(self) -> Dict[str, str]:
@@ -90,21 +45,26 @@ class StockComparisonState(rx.State):
         """Pre-format all stock values for display"""
         formatted = []
         for stock in self.stocks:
+            print("[DEBUG] Formatting stock:", stock)
             formatted_stock = {}
             for key, value in stock.items():
                 if key in self.selected_metrics:
                     formatted_stock[key] = self._format_value(key, value)
                 else:
                     formatted_stock[key] = value
+            print("[DEBUG] Formatted stock:", formatted_stock)
             formatted.append(formatted_stock)
+        print("[DEBUG] All formatted stocks:", formatted)
         return formatted
 
     @rx.var
     def best_performers(self) -> Dict[str, int]:
         """Get the index of best performing stock for each metric"""
         best = {}
-        higher_better = ['market_cap', 'roe', 'dividend_yield', 'revenue_growth_1y',
-                         'eps_growth_1y', 'gross_margin', 'net_margin']
+        higher_better = [
+            'market_cap', 'roe', 'dividend_yield', 'revenue_growth_1y',
+            'eps_growth_1y', 'gross_margin', 'net_margin'
+        ]
 
         for metric in self.selected_metrics:
             values = []
@@ -132,55 +92,82 @@ class StockComparisonState(rx.State):
 
         if key == 'market_cap':
             return f"${value/1e9:.1f}B"
-        elif key in ['roe', 'dividend_yield', 'revenue_growth_1y', 'eps_growth_1y', 'gross_margin', 'net_margin']:
+        elif key in [
+            'roe', 'dividend_yield', 'revenue_growth_1y',
+            'eps_growth_1y', 'gross_margin', 'net_margin'
+        ]:
             return f"{value*100:.1f}%"
         elif key in ['pe', 'pb', 'beta']:
-            return f"{value:.2f}"
+            return f"{value:.1f}"
         elif key == 'rsi14':
             return f"{value:.0f}"
         else:
             return str(value)
 
+    @rx.event
+    async def fetch_stocks_from_cart(self):
+        """Fetch stock data for tickers in the cart and store in self.stocks."""
+        cart_state = await self.get_state(CartState)
+        tickers = [item["name"] for item in cart_state.cart_items]
+        print("[DEBUG] Cart tickers:", tickers)
+        stocks = []
+        if not tickers:
+            print("[DEBUG] No tickers in cart.")
+            self.stocks = []
+            return
+        conn = sqlite3.connect(
+            "/home/dank/Documents/Codebases/ourportfolios/"
+            "ourportfolios/data/data_vni.db"
+        )
+        for ticker in tickers:
+            query = (
+                "SELECT ticker, market_cap, roe, pe, pb, dividend_yield, "
+                "revenue_growth_1y, eps_growth_1y, gross_margin, net_margin, "
+                "beta, rsi14, industry, tcbs_recommend "
+                "FROM data_vni WHERE ticker = ?"
+            )
+            df = pd.read_sql(query, conn, params=(ticker,))
+            print(f"[DEBUG] Query result for {ticker}:", df.to_dict())
+            if not df.empty:
+                stocks.append(df.iloc[0].to_dict())
+        conn.close()
+        print("[DEBUG] Stocks fetched:", stocks)
+        self.stocks = stocks
+
 
 def stock_header_card(stock: Dict[str, Any]) -> rx.Component:
     """Create header card for each stock"""
+    print("[DEBUG] stock_header_card input:", stock)
+    mc = stock.get('market_cap', None)
+    print(f"[DEBUG] market_cap raw value: {mc} type: {type(mc)}")
+    if isinstance(mc, (int, float)) and mc > 0:
+        market_cap = f"{mc/1e9:.1f}B VND"
+    elif isinstance(mc, (int, float)):
+        market_cap = f"{mc} (raw, not >0)"
+    else:
+        market_cap = "N/A"
+    print("[DEBUG] market_cap in stock_header_card (final):", market_cap)
     return rx.card(
         rx.vstack(
-            rx.text(
-                stock['ticker'],
+            rx.heading(
+                stock.get('ticker', ''),
                 size="6",
                 weight="bold",
-                color=rx.color("blue", 11)
-            ),
-            rx.text(
-                stock['industry'],
-                size="2",
-                color=rx.color("gray", 11)
             ),
             rx.badge(
-                stock['stock_rating'],
-                color_scheme=rx.cond(
-                    stock['stock_rating'] == 'BUY',
-                    'green',
-                    rx.cond(
-                        stock['stock_rating'] == 'SELL',
-                        'red',
-                        'gray'
-                    )
-                ),
-                size="2"
+                stock.get('industry', ''),
+                size="2",
             ),
             rx.text(
-                stock['tcbs_recommend'],
-                size="1",
-                color=rx.color("gray", 10)
+                market_cap,
+                size="2"
             ),
-            spacing="2",
+            spacing="1",
             align="center"
         ),
         padding="1.2em",
-        width="180px",
-        min_height="140px"
+        width="12em",
+        min_height="9em"
     )
 
 
@@ -196,7 +183,7 @@ def metric_comparison_row(metric_key: str) -> rx.Component:
                     weight="medium",
                     color=rx.color("gray", 12)
                 ),
-                width="200px",
+                width="13em",
                 padding="1em",
                 background_color=rx.color("gray", 2)
             ),
@@ -209,17 +196,21 @@ def metric_comparison_row(metric_key: str) -> rx.Component:
                             stock[metric_key],
                             size="3",
                             weight=rx.cond(
-                                StockComparisonState.best_performers[metric_key] == index,
+                                StockComparisonState.best_performers[
+                                    metric_key
+                                ] == index,
                                 "bold",
                                 "medium"
                             ),
                             color=rx.cond(
-                                StockComparisonState.best_performers[metric_key] == index,
+                                StockComparisonState.best_performers[
+                                    metric_key
+                                ] == index,
                                 rx.color("green", 11),
                                 rx.color("gray", 11)
                             )
                         ),
-                        width="180px",
+                        width="12em",
                         padding="1em",
                         text_align="center"
                     )
@@ -231,7 +222,7 @@ def metric_comparison_row(metric_key: str) -> rx.Component:
             width="100%"
         ),
         padding="0",
-        margin_bottom="2px",
+        margin_bottom="0.15em",
         width="100%"
     )
 
@@ -240,12 +231,12 @@ def stock_headers() -> rx.Component:
     """Create the header row with all stock information"""
     return rx.hstack(
         # Empty space for metric labels column
-        rx.box(width="200px"),
+        rx.box(width="13em"),
         # Stock header cards
         rx.hstack(
             rx.foreach(
-                StockComparisonState.stocks,
-                stock_header_card
+                StockComparisonState.formatted_stocks,
+                lambda stock, _: stock_header_card(stock)
             ),
             spacing="1"
         ),
@@ -272,31 +263,6 @@ def comparison_section() -> rx.Component:
     )
 
 
-def header_section() -> rx.Component:
-    """Page header with title and info"""
-    return rx.vstack(
-        rx.hstack(
-            rx.text(
-                "Stock Comparison Dashboard",
-                size="8",
-                weight="bold",
-                color=rx.color("gray", 12)
-            ),
-            rx.spacer(),
-            rx.badge(
-                "Comparing stocks",
-                color_scheme="blue",
-                size="2"
-            ),
-            width="100%"
-        ),
-        rx.separator(),
-        spacing="4",
-        margin_bottom="2em",
-        width="100%"
-    )
-
-
 def legend_section() -> rx.Component:
     """Legend explaining the color coding"""
     return rx.card(
@@ -316,17 +282,82 @@ def legend_section() -> rx.Component:
     )
 
 
+def page_selection():
+    return rx.box(
+        card_roller(
+            card_link(
+                rx.hstack(
+                    rx.icon("chevron_left", size=32),
+                    rx.vstack(
+                        rx.heading("Select", weight="bold", size="5"),
+                        rx.text("caijdo", size="1"),
+                        align="center",
+                        justify="center",
+                        height="100%",
+                        spacing="1"
+                    ),
+                    align="center",
+                    justify="center",
+                ),
+                href="/select",
+            ),
+            card_link(
+                rx.vstack(
+                    rx.heading("Analyze", weight="bold", size="7"),
+                    rx.text("caijdo", size="3"),
+                    align="center",
+                    justify="center",
+                    height="100%",
+                    spacing="1"
+                ),
+                href="/analyze",
+            ),
+            card_link(
+                rx.hstack(
+                    rx.vstack(
+                        rx.heading("Simulate", weight="bold", size="5"),
+                        rx.text("caijdo", size="1"),
+                        align="center",
+                        justify="center",
+                        height="100%",
+                        spacing="1"
+                    ),
+                    rx.icon("chevron_right", size=32),
+                    align="center",
+                    justify="center",
+                ),
+                href="/simulate",
+            ),
+        ),
+        width="100%",
+        display="flex",
+        justify_content="center",
+        align_items="center",
+        margin="0",
+        padding="0",
+    )
+
+
 @rx.page(route="/analyze")
 def index() -> rx.Component:
     """Main page component"""
-    return rx.container(
-        rx.vstack(
-            header_section(),
-            comparison_section(),
-            legend_section(),
-            spacing="4",
+    return rx.vstack(
+        navbar(),
+        page_selection(),
+        rx.box(
+            rx.vstack(
+                comparison_section(),
+                legend_section(),
+                spacing="4",
+                width="100%",
+                padding="2em"
+            ),
             width="100%",
-            padding="2em"
+            style={
+                "maxWidth": "90vw",
+                "margin": "0 auto",
+            },
         ),
-        size="4"
+        drawer_button(),
+        spacing='0',
     )
