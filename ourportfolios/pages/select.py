@@ -52,57 +52,6 @@ class State(rx.State):
         self.data = fetch_data_for_symbols(ticker_list)
 
 
-@rx.page(route="/select", on_load=State.get_graph(['VNINDEX', 'UPCOMINDEX', "HNXINDEX", "VN30", "HNX30"]))
-@loading_wrapper
-def index():
-    return rx.vstack(
-        navbar(),
-        page_selection(),
-        rx.box(
-            rx.hstack(
-                rx.vstack(
-                    rx.text("asdjfkhsdjf"),
-                    industry_roller(),
-                    rx.hstack(
-                        rx.button("Filter", variant="solid"),
-                        width="100%",
-                        padding_top="1em"
-                    ),
-                    rx.card(
-                        rx.foreach(
-                            State.paged_tickers,
-                            lambda ticker: ticker_card(ticker)
-                        ),
-                        style={
-                            "width": "100%",
-                            "marginTop": "1em"
-                        }
-                    ),
-                    rx.hstack(
-                        rx.button("Previous", on_click=State.prev_page,
-                                  disabled=State.offset == 0),
-                        rx.button(
-                            "Next",
-                            on_click=State.next_page,
-                            disabled=State.offset + State.limit >= State.get_all_tickers_length,
-                        ),
-                        spacing="2",
-                    ),
-                ),
-                card_with_scrollable_area(),
-                width="100%",
-                justify="center",
-                spacing="6",
-            ),
-            width="100%",
-            padding="1em",
-            style={"maxWidth": "90vw", "margin": "0 auto"},
-        ),
-        drawer_button(),
-        spacing='0',
-    )
-
-
 def page_selection():
     return rx.box(
         card_roller(
@@ -312,4 +261,55 @@ def ticker_card(df: str):
         ),
         padding="1em",
         style={"marginBottom": "0.75em", "width": "100%"}
+    )
+
+
+@rx.page(route="/select", on_load=State.get_graph([]))
+@loading_wrapper
+def index():
+    return rx.vstack(
+        navbar(),
+        page_selection(),
+        rx.box(
+            rx.hstack(
+                rx.vstack(
+                    rx.text("asdjfkhsdjf"),
+                    industry_roller(),
+                    rx.hstack(
+                        rx.button("Filter", variant="solid"),
+                        width="100%",
+                        padding_top="1em"
+                    ),
+                    rx.card(
+                        rx.foreach(
+                            State.paged_tickers,
+                            lambda ticker: ticker_card(ticker)
+                        ),
+                        style={
+                            "width": "100%",
+                            "marginTop": "1em"
+                        }
+                    ),
+                    rx.hstack(
+                        rx.button("Previous", on_click=State.prev_page,
+                                  disabled=State.offset == 0),
+                        rx.button(
+                            "Next",
+                            on_click=State.next_page,
+                            disabled=State.offset + State.limit >= State.get_all_tickers_length,
+                        ),
+                        spacing="2",
+                    ),
+                ),
+                card_with_scrollable_area(),
+                width="100%",
+                justify="center",
+                spacing="6",
+            ),
+            width="100%",
+            padding="1em",
+            style={"maxWidth": "90vw", "margin": "0 auto"},
+        ),
+        drawer_button(),
+        spacing='0',
     )
