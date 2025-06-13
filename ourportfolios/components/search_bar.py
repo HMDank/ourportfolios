@@ -31,13 +31,19 @@ class SearchBarState(rx.State):
         
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         query: str = f"""
-                        SELECT ticker, organ_name, current_price, price_change, pct_price_change 
+                        SELECT ticker, pct_price_change, industry
                         FROM data_vni 
                         WHERE ticker 
                         LIKE ? 
                         ORDER BY current_price DESC
                     """
         df: pd.DataFrame = pd.read_sql(query, conn, params=(f"{self.search_query}%",))
+        
+        # In-case of mistype or no ticker returned, suggest possible tickers base on the first letter
+        if df.empty:
+            df: pd.DataFrame = pd.read_sql(query, conn, params=(f"{self.search_query[0]}%",))
+        
+        
         conn.close()
         return df.to_dict('records')
 
@@ -49,7 +55,7 @@ class SearchBarState(rx.State):
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         placeholders = ', '.join(['?'] * len(self.recent_tickers))
         query = f"""
-                    SELECT ticker, organ_name, current_price, price_change, pct_price_change 
+                    SELECT ticker, organ_name, pct_price_change, industry
                     FROM data_vni 
                     WHERE ticker 
                     IN ({placeholders})
@@ -69,7 +75,7 @@ def search_bar():
             on_change=SearchBarState.set_query,
             on_blur=SearchBarState.set_display_suggestions(False),
             on_focus=SearchBarState.set_display_suggestions(True),
-            width="20vw",
+            width="24vw",
             border_radius="8px",
         ),
         rx.vstack(
@@ -77,13 +83,11 @@ def search_bar():
                 rx.cond(SearchBarState.search_query, SearchBarState.get_suggest_ticker, SearchBarState.get_recent_ticker),
                 lambda ticker_value: suggestion_card(value=ticker_value),
             ),
-            border="1px solid #444",
-            border_top="none",
-            width="20vw",
+            width="24vw",
             max_height="250px",
             overflow_y="auto",
             z_index="100",
-            background_color="#282828",
+            background_color=rx.color('gray', 2),
             color="white", 
             position="absolute",
             top="calc(100% + 5px)",
@@ -96,27 +100,46 @@ def search_bar():
     
 def suggestion_card(value: Dict[str, Any]) -> rx.Component:
     ticker = value['ticker']
-    organ_name = value['organ_name']
-    current_price: int = value['current_price'].to(int)
-    price_change: float = value['price_change'] #.to(float)
+    industry = value['industry']
     pct_price_change: float = value['pct_price_change'].to(float)
     
-    color = rx.cond(pct_price_change > 0, "#28a745", rx.cond(pct_price_change < 0, "#CC0000", "#6B7280"))
-
+    color = rx.cond(pct_price_change > 0, rx.color('jade', 11), rx.cond(pct_price_change < 0, rx.color('red', 9), rx.color('gray', 7)))
+    scheme = rx.cond(pct_price_change > 0, "green", rx.cond(pct_price_change < 0, "red", "gray"))
+    
     return rx.box(
         rx.hstack(
-            rx.vstack(
-                rx.text(ticker, size="3", weight="medium"),
-                rx.text(organ_name, size="1", weight="medium", color="#6B7280"),
-                align="start",
+            rx.badge(
+                ticker,
+                size="3",
+                weight="bold",
+                variant='solid',
+                color_scheme="violet",
+                radius='small',
             ),
+            
+            rx.badge(
+                industry,
+                size="2",
+                weight="medium",
+                variant='surface',
+                color_scheme="gray",
+                radius='medium',
+            ),
+            
             rx.spacer(),
-            rx.vstack(
-                rx.text(f"{current_price}", size="3", weight="medium"),
-                #Note:  Price change data will be available on feat/ticker-filter/ui branch
-                rx.text(f"{price_change}|{pct_price_change}%", size="2", weight="medium", color=color),
-                align="end",
+            
+            rx.badge(
+                f"{pct_price_change}%", 
+                size="1", 
+                weight="medium", 
+                color=color, 
+                variant="surface",
+                color_scheme=scheme,
+                radius='full',
             ),
+            
+            align="center",
+            spacing="2",
         ),
         on_click=[
             rx.redirect(f"/analyze/{ticker}"), 
