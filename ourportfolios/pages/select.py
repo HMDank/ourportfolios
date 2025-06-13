@@ -233,7 +233,7 @@ def ticker_card(df: str):
             rx.hstack(
                 rx.link(
                     rx.text(ticker, weight="bold", size="4"),
-                    href=f"/select/{ticker}",
+                    href=f"/analyze/{ticker}",
                     style={
                         "textDecoration": "none",
                         "color": "inherit",
