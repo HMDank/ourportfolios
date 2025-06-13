@@ -73,56 +73,6 @@ class State(rx.State):
         return data
 
 
-@rx.page(route="/select/[ticker]", on_load=[State.load_ticker_info, PriceChartState.load_data])
-def index():
-    return rx.fragment(
-        navbar(),
-        rx.box(
-            rx.link(
-                rx.hstack(rx.icon("chevron_left", size=22),
-                          rx.text("select", margin_top="-2px"), spacing="0"),
-                href='/select',
-                underline="none"
-            ),
-            position="fixed",
-            justify="center",
-            style={"paddingTop": "1em", "paddingLeft": "0.5em"},
-            z_index="1",
-        ),
-        rx.box(
-            rx.vstack(
-                rx.box(
-                    rx.hstack(
-                        ticker_summary(),
-                        display_price_plot(),
-                        width="100%",
-                    ),
-                ),
-                rx.box(
-                    rx.hstack(
-                        key_metrics_card(),
-                        company_card(),
-                        width="90vw",
-                        wrap="wrap",
-                    ),
-                ),
-                spacing='0',
-                width="100%",
-                justify="between",
-                align="start",
-                style={"maxWidth": "90vw", "margin": "0 auto"},
-            ),
-            width="100%",
-            padding="2em",
-            padding_top="5em",
-
-            style={"maxWidth": "90vw", "margin": "0 auto"},
-            position="relative",
-        ),
-        drawer_button(),
-    )
-
-
 def ticker_summary():
     technical_metrics = State.technical_metrics
     info = State.overview
@@ -389,5 +339,56 @@ def shareholders_pie_chart():
         height="100%",
     )
 
+
 def display_price_plot():
     return render_price_chart()
+
+
+@rx.page(route="/analyze/[ticker]", on_load=[State.load_ticker_info, PriceChartState.load_data])
+def index():
+    return rx.fragment(
+        navbar(),
+        rx.box(
+            rx.link(
+                rx.hstack(rx.icon("chevron_left", size=22),
+                          rx.text("select", margin_top="-2px"), spacing="0"),
+                href='/select',
+                underline="none"
+            ),
+            position="fixed",
+            justify="center",
+            style={"paddingTop": "1em", "paddingLeft": "0.5em"},
+            z_index="1",
+        ),
+        rx.box(
+            rx.vstack(
+                rx.box(
+                    rx.hstack(
+                        ticker_summary(),
+                        display_price_plot(),
+                        width="100%",
+                    ),
+                ),
+                rx.box(
+                    rx.hstack(
+                        key_metrics_card(),
+                        company_card(),
+                        width="90vw",
+                        wrap="wrap",
+                    ),
+                ),
+                spacing='0',
+                width="100%",
+                justify="between",
+                align="start",
+                style={"maxWidth": "90vw", "margin": "0 auto"},
+            ),
+            width="100%",
+            padding="2em",
+            padding_top="5em",
+
+            style={"maxWidth": "90vw", "margin": "0 auto"},
+            position="relative",
+        ),
+        drawer_button(),
+    )
