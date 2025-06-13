@@ -16,7 +16,7 @@ class SearchBarState(rx.State):
         
     @rx.event
     def set_display_suggestions(self, mode: bool):
-        yield time.sleep(0.1) # Delay the set action
+        yield time.sleep(0.15) # Delay the set action
         self.display_suggestion = mode
     
     @rx.event
