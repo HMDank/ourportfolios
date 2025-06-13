@@ -22,11 +22,10 @@ class State(rx.State):
 
     @rx.event
     def initiate(self):
-        populate_db()
         self.data = fetch_data_for_symbols(['VNINDEX'])
 
 
-@rx.page(route="/", on_load=State.initiate())
+@rx.page(route="/")
 def index() -> rx.Component:
     return rx.fragment(
         navbar(
