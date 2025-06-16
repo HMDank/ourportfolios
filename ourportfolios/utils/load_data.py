@@ -2,12 +2,13 @@ import pandas as pd
 import numpy as np
 import sqlite3
 from datetime import date, timedelta
-from vnstock import Vnstock, Screener
+from vnstock import Vnstock, Screener, Trading
 import warnings
+from typing import List
 warnings.filterwarnings("ignore")
 
-data_vni_loaded = False
 
+data_vni_loaded = False
 
 def populate_db() -> None:
     global data_vni_loaded
@@ -28,17 +29,33 @@ def populate_db() -> None:
             data_vni_loaded = True
             return
 
+    # Stocks
     screener = Screener(source='TCBS')
     default_params = {
         'exchangeName': 'HOSE,HNX',
         'marketCap': (100, 99999999999),
     }
-    df = screener.stock(default_params, limit=1700, lang='en')
+    stock_df = screener.stock(default_params, limit=1700, lang='en')
 
+    # Remove unstable columns
+    stock_df = stock_df.drop([x for x in stock_df.columns if x.startswith('price_vs')], axis=1)
+    
+    # Price board data 
+    price_board_df = load_price_board(tickers=stock_df['ticker'].tolist())
+    
+    # Result
+    df = pd.merge(left=stock_df, right=price_board_df, left_on='ticker', right_on='symbol')
+    # Add additional instrument
+    df = compute_instrument(df)
+    
     df.to_sql("data_vni", conn, if_exists="replace", index=False)
     conn.close()
     data_vni_loaded = True
     print("Data loaded successfully.")
+
+
+if __name__ == "__main__":
+    load_data_vni()
 
 
 def load_historical_data(symbol,
