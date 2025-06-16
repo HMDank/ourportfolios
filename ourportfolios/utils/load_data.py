@@ -2,12 +2,13 @@ import pandas as pd
 import numpy as np
 import sqlite3
 from datetime import date, timedelta
-from vnstock import Vnstock, Screener
+from vnstock import Vnstock, Screener, Trading
 import warnings
+from typing import List
 warnings.filterwarnings("ignore")
 
-data_vni_loaded = False
 
+data_vni_loaded = False
 
 def populate_db() -> None:
     global data_vni_loaded
@@ -28,21 +29,58 @@ def populate_db() -> None:
             data_vni_loaded = True
             return
 
+    # Stocks
     screener = Screener(source='TCBS')
     default_params = {
         'exchangeName': 'HOSE,HNX',
         'marketCap': (100, 99999999999),
     }
-    df = screener.stock(default_params, limit=1700, lang='en')
+    stock_df = screener.stock(default_params, limit=1700, lang='en')
 
+    # Remove unstable columns
+    stock_df = stock_df.drop([x for x in stock_df.columns if x.startswith('price_vs')], axis=1)
+    
+    # Price board data 
+    price_board_df = load_price_board(tickers=stock_df['ticker'].tolist())
+    
+    # Result
+    df = pd.merge(left=stock_df, right=price_board_df, left_on='ticker', right_on='symbol')
+    # Add additional instrument
+    # df = compute_instrument(df)
+    
     df.to_sql("data_vni", conn, if_exists="replace", index=False)
     conn.close()
     data_vni_loaded = True
     print("Data loaded successfully.")
 
 
-if __name__ == "__main__":
-    load_data_vni()
+def load_price_board(tickers: List[str]) -> pd.DataFrame:
+    price_board_df = Trading(source='vci', symbol='ACB').price_board(symbols_list=tickers)
+    price_board_df.columns = price_board_df.columns.droplevel(0) # Flatten columns
+    price_board_df = price_board_df.drop('exchange', axis=1) # Drop spare column to prevent duplicate column
+    price_board_df = price_board_df.loc[:, ~price_board_df.columns.duplicated()]
+
+    return price_board_df
+
+
+def compute_instrument(df: pd.DataFrame) -> pd.DataFrame:
+    # Changes in price
+    if 'bid_1_price' in df.columns:         
+        df = df.rename(columns={'bid_1_price': 'current_price'}) # Rename for better comprehension
+        
+        # latest close price - close price from previous day
+        df['price_change'] = round((df['current_price'] - df['ref_price']) * 1e-3, 2) 
+        df['current_price'] = round(df['current_price'] * 1e-3, 2)
+        df['pct_price_change'] = round((df['price_change'] / df['ref_price']) * 100, 2)
+        
+    # On the day when the market is closed
+    else:  
+        df = df.rename(columns={'ref_price': 'current_price'})
+        df['current_price'] = round(df['current_price'] * 1e-3, 2)
+        df['price_change'] = f"{0:.2f}"
+        df['pct_price_change'] = f"{0:.2f}"
+        
+    return df
 
 
 def load_historical_data(symbol,
@@ -103,3 +141,6 @@ def fetch_data_for_symbols(symbols: list[str]):
             "percent_diff": percent_diff
         })
     return graph_data
+
+if __name__ == "__main__":
+    populate_db()
