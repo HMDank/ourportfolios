@@ -16,6 +16,9 @@ from ..utils.preprocess_texts import preprocess_events_texts
 from ..components.financial_statement import financial_statements
 
 
+CHART_HEIGHT = 280
+
+
 def fetch_technical_metrics(ticker: str) -> dict:
     conn = sqlite3.connect("ourportfolios/data/data_vni.db")
     df = pd.read_sql(
@@ -280,39 +283,53 @@ class State(rx.State):
         ]
 
 
-def create_valuation_chart():
-    """Create valuation metrics chart with dropdown selector"""
-    valuation_metrics = ["P/E", "P/B", "P/S", "P/Cash Flow"]
+def graph_card(
+    title: str,
+    metric_options: list[str],
+    selected_metric: str,
+    set_metric_event,
+    chart_data,
+    data_key: str,
+    x_axis_key: str,
+):
     return rx.card(
         rx.vstack(
             rx.hstack(
-                rx.heading("Valuation Metrics", size="4", weight="bold"),
+                rx.heading(title, size="4", weight="bold"),
                 rx.spacer(),
                 rx.select(
-                    valuation_metrics,
-                    value=State.selected_valuation_metric,
-                    on_change=State.set_valuation_metric,
+                    metric_options,
+                    value=selected_metric,
+                    on_change=set_metric_event,
                     size="1"
                 ),
                 align="center",
                 justify="between",
                 width="100%"
             ),
-            rx.recharts.line_chart(
-                rx.recharts.line(
-                    data_key=State.selected_valuation_metric,
-                    stroke_width=2,
-                    type_="monotone"
+            rx.box(
+                rx.recharts.line_chart(
+                    rx.recharts.line(
+                        data_key=data_key,
+                        stroke_width=2,
+                        type_="monotone"
+                    ),
+                    rx.recharts.x_axis(data_key=x_axis_key,
+                                       angle=-45, text_anchor="end"),
+                    rx.recharts.y_axis(),
+                    rx.recharts.cartesian_grid(stroke_dasharray="3 3"),
+                    rx.recharts.tooltip(),
+                    data=chart_data,
+                    width="100%",
+                    height=260,  # Make all charts the same height
+                    margin={"top": 10, "right": 10, "left": 5, "bottom": 35},
+                    style={"flex": 1, "minWidth": 0, "width": "100%"}
                 ),
-                rx.recharts.x_axis(data_key="quarter",
-                                   angle=-45, text_anchor="end"),
-                rx.recharts.y_axis(),
-                rx.recharts.cartesian_grid(stroke_dasharray="3 3"),
-                rx.recharts.tooltip(),
-                data=State.valuation_chart_data_single,
                 width="100%",
-                height=250,
-                margin={"top": 10, "right": 10, "left": 5, "bottom": 35}
+                height=260,
+                min_height=260,
+                style={"padding": 0, "margin": 0, "overflow": "auto",
+                       "width": "100%", "minWidth": 0},
             ),
             spacing="3",
             align="stretch"
@@ -321,145 +338,61 @@ def create_valuation_chart():
         flex="1",
         min_width="0",
         max_width="100%",
+        style={"height": "auto", "padding": "1em", "minWidth": 0},
+    )
+
+
+def create_valuation_chart():
+    return graph_card(
+        title="Valuation Metrics",
+        metric_options=["P/E", "P/B", "P/S", "P/Cash Flow"],
+        selected_metric=State.selected_valuation_metric,
+        set_metric_event=State.set_valuation_metric,
+        chart_data=State.valuation_chart_data_single,
+        data_key=State.selected_valuation_metric,
+        x_axis_key="quarter"
     )
 
 
 def create_profitability_chart():
-    """Create profitability metrics chart with dropdown selector"""
-    profitability_metrics = ["ROE (%)", "ROA (%)", "EPS"]
-    return rx.card(
-        rx.vstack(
-            rx.hstack(
-                rx.heading("Profitability Metrics", size="4", weight="bold"),
-                rx.spacer(),
-                rx.select(
-                    profitability_metrics,
-                    value=State.selected_profitability_metric,
-                    on_change=State.set_profitability_metric,
-                    size="1"
-                ),
-                align="center",
-                justify="between",
-                width="100%"
-            ),
-            rx.recharts.line_chart(
-                rx.recharts.line(
-                    data_key=State.selected_profitability_metric,
-                    stroke_width=2,
-                    type_="monotone"
-                ),
-                rx.recharts.x_axis(data_key="quarter",
-                                   angle=-45, text_anchor="end"),
-                rx.recharts.y_axis(),
-                rx.recharts.cartesian_grid(stroke_dasharray="3 3"),
-                rx.recharts.tooltip(),
-                data=State.profitability_chart_data_single,
-                width="100%",
-                height=250,
-                margin={"top": 10, "right": 10, "left": 5, "bottom": 35}
-            ),
-            spacing="3",
-            align="stretch"
-        ),
-        width="100%",
-        flex="1",
-        min_width="0",
-        max_width="100%",
+    return graph_card(
+        title="Profitability Metrics",
+        metric_options=["ROE (%)", "ROA (%)", "EPS"],
+        selected_metric=State.selected_profitability_metric,
+        set_metric_event=State.set_profitability_metric,
+        chart_data=State.profitability_chart_data_single,
+        data_key=State.selected_profitability_metric,
+        x_axis_key="quarter"
     )
 
 
 def create_margin_chart():
-    """Create margin chart with dropdown selector"""
-    margin_metrics = ["gross_margin", "net_margin"]
-    return rx.card(
-        rx.vstack(
-            rx.hstack(
-                rx.heading("Profit Margins", size="4", weight="bold"),
-                rx.spacer(),
-                rx.select(
-                    margin_metrics,
-                    value=State.selected_margin_metric,
-                    on_change=State.set_margin_metric,
-                    size="1"
-                ),
-                align="center",
-                justify="between",
-                width="100%"
-            ),
-            rx.recharts.line_chart(
-                rx.recharts.line(
-                    data_key=State.selected_margin_metric,
-                    stroke_width=2,
-                    type_="monotone"
-                ),
-                rx.recharts.x_axis(data_key="quarter_index",
-                                   angle=-45, text_anchor="end"),
-                rx.recharts.y_axis(),
-                rx.recharts.cartesian_grid(stroke_dasharray="3 3"),
-                rx.recharts.tooltip(),
-                data=State.margin_data_single,
-                width="100%",
-                height=250,
-                margin={"top": 10, "right": 10, "left": 5, "bottom": 35}
-            ),
-            spacing="3",
-            align="stretch"
-        ),
-        width="100%",
-        flex="1",
-        min_width="0",
-        max_width="100%",
+    return graph_card(
+        title="Profit Margins",
+        metric_options=["gross_margin", "net_margin"],
+        selected_metric=State.selected_margin_metric,
+        set_metric_event=State.set_margin_metric,
+        chart_data=State.margin_data_single,
+        data_key=State.selected_margin_metric,
+        x_axis_key="quarter_index"
     )
 
 
 def create_dividend_chart():
-    """Create dividend chart with dropdown selector"""
-    dividend_metrics = ["dividend_vnd"]
-    return rx.card(
-        rx.vstack(
-            rx.hstack(
-                rx.heading("Dividend (VND)", size="4", weight="bold"),
-                rx.spacer(),
-                rx.select(
-                    dividend_metrics,
-                    value=State.selected_dividend_metric,
-                    on_change=State.set_dividend_metric,
-                    size="1"
-                ),
-                align="center",
-                justify="between",
-                width="100%"
-            ),
-            rx.recharts.line_chart(
-                rx.recharts.line(
-                    data_key=State.selected_dividend_metric,
-                    stroke_width=2,
-                    type_="monotone"
-                ),
-                rx.recharts.x_axis(data_key="quarter_index",
-                                   angle=-45, text_anchor="end"),
-                rx.recharts.y_axis(),
-                rx.recharts.cartesian_grid(stroke_dasharray="3 3"),
-                rx.recharts.tooltip(),
-                data=State.dividend_data_single,
-                width="100%",
-                height=250,
-                margin={"top": 10, "right": 10, "left": 5, "bottom": 35}
-            ),
-            spacing="3",
-            align="stretch"
-        ),
-        width="100%",
-        flex="1",
-        min_width="0",
-        max_width="100%",
+    return graph_card(
+        title="Dividend (VND)",
+        metric_options=["dividend_vnd"],
+        selected_metric=State.selected_dividend_metric,
+        set_metric_event=State.set_dividend_metric,
+        chart_data=State.dividend_data_single,
+        data_key=State.selected_dividend_metric,
+        x_axis_key="quarter_index"
     )
 
 
 def performance_cards():
     """Performance cards with multiple financial metrics charts"""
     return rx.vstack(
-        # First row: Valuation and Profitability metrics
         rx.hstack(
             create_valuation_chart(),
             create_profitability_chart(),
@@ -467,8 +400,9 @@ def performance_cards():
             width="100%",
             align="stretch",
             justify="between",
+            flex_wrap="wrap",
+            style={"gap": "1em"},
         ),
-        # Second row: Margins and Dividend
         rx.hstack(
             create_margin_chart(),
             create_dividend_chart(),
@@ -476,11 +410,14 @@ def performance_cards():
             width="100%",
             align="stretch",
             justify="between",
+            flex_wrap="wrap",
+            style={"gap": "1em"},
         ),
         spacing="4",
         width="100%",
         align="stretch",
         justify="between",
+        style={"minWidth": 0},
     )
 
 
@@ -568,8 +505,11 @@ def key_metrics_card():
             justify='center',
         ),
         padding="6",
-        flex="1",
+        flex=2,  # Take up more space
         min_height="50em",
+        width="100%",
+        min_width=0,
+        max_width="100%",
     )
 
 
@@ -586,12 +526,21 @@ def company_card():
                     value=State.company_control,
                     size='3',
                 ),
+                width="100%",
+                display="flex",
                 justify_content='center',
             ),
             rx.cond(
                 State.company_control == "shares",
                 rx.vstack(
-                    shareholders_pie_chart(),
+                    rx.box(
+                        shareholders_pie_chart(),
+                        width="100%",
+                        display="flex",
+                        justify_content="center",
+                        align_items="center",
+                        style={"marginTop": "2.5em", "marginBottom": "2.5em"}
+                    ),
                     rx.card(
                         rx.scroll_area(
                             rx.vstack(
@@ -605,7 +554,7 @@ def company_card():
                                                 size='3'
                                             ),
                                             rx.badge(
-                                                f"{officer["officer_own_percent"]}%",
+                                                f"{officer['officer_own_percent']}%",
                                                 color_scheme="gray",
                                                 variant="surface",
                                                 high_contrast=True
@@ -624,6 +573,7 @@ def company_card():
                         width="100%",
                     ),
                     justify='center',
+                    align='center',
                     width="100%",
                 ),
                 rx.cond(
@@ -684,33 +634,33 @@ def company_card():
             ),
             justify='center',
             align='center',
+            width="100%",
+            style={"height": "100%"},
         ),
-        width='24em',
+        width='100%',
+        flex=0.6,
+        min_width=0,
+        max_width='20em',
+        style={"height": "100%"},
     )
 
 
 def shareholders_pie_chart():
-    return rx.center(
-        rx.vstack(
-            rx.recharts.PieChart.create(
-                rx.recharts.Pie.create(
-                    data=State.pie_data,
-                    data_key="value",
-                    name_key="name",
-                    cx="50%",
-                    cy="50%",
-                    outer_radius="80%",
-                    label=False,
-                ),
-                rx.recharts.GraphingTooltip.create(
-                    view_box={"width": 100, "height": 50},),
-                width=300,
-                height=300,
-            ),
-            spacing="1",
+    return rx.recharts.PieChart.create(
+        rx.recharts.Pie.create(
+            data=State.pie_data,
+            data_key="value",
+            name_key="name",
+            cx="50%",
+            cy="50%",
+            outer_radius=90,
+            label=False,
         ),
-        width="100%",
-        height="100%",
+        rx.recharts.GraphingTooltip.create(
+            view_box={"width": 100, "height": 50},
+        ),
+        width=220,
+        height=220,
     )
 
 
