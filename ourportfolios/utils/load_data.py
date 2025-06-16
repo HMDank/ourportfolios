@@ -46,7 +46,7 @@ def populate_db() -> None:
     # Result
     df = pd.merge(left=stock_df, right=price_board_df, left_on='ticker', right_on='symbol')
     # Add additional instrument
-    # df = compute_instrument(df)
+    df = compute_instrument(df)
     
     df.to_sql("data_vni", conn, if_exists="replace", index=False)
     conn.close()
