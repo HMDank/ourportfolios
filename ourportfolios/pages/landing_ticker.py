@@ -311,25 +311,24 @@ def graph_card(
                 rx.recharts.line_chart(
                     rx.recharts.line(
                         data_key=data_key,
-                        stroke_width=2,
-                        type_="monotone"
+                        stroke_width=3,
+                        type_="monotone",
+                        dot=False,
                     ),
                     rx.recharts.x_axis(data_key=x_axis_key,
-                                       angle=-45, text_anchor="end"),
+                                       angle=-45, text_anchor="end",
+                                       padding={"left": 20, "right": 20},
+                                       ),
                     rx.recharts.y_axis(),
-                    rx.recharts.cartesian_grid(stroke_dasharray="3 3"),
                     rx.recharts.tooltip(),
                     data=chart_data,
                     width="100%",
-                    height=260,  # Make all charts the same height
+                    height=280,
                     margin={"top": 10, "right": 10, "left": 5, "bottom": 35},
-                    style={"flex": 1, "minWidth": 0, "width": "100%"}
                 ),
                 width="100%",
-                height=260,
-                min_height=260,
-                style={"padding": 0, "margin": 0, "overflow": "auto",
-                       "width": "100%", "minWidth": 0},
+                # Remove conflicting overflow settings
+                style={"overflow": "hidden"},
             ),
             spacing="3",
             align="stretch"
@@ -338,7 +337,7 @@ def graph_card(
         flex="1",
         min_width="0",
         max_width="100%",
-        style={"height": "auto", "padding": "1em", "minWidth": 0},
+        style={"padding": "1em", "minWidth": 0, "overflow": "hidden"},
     )
 
 
@@ -396,28 +395,22 @@ def performance_cards():
         rx.hstack(
             create_valuation_chart(),
             create_profitability_chart(),
-            spacing="4",
+            spacing="5",
             width="100%",
             align="stretch",
             justify="between",
-            flex_wrap="wrap",
-            style={"gap": "1em"},
         ),
         rx.hstack(
             create_margin_chart(),
             create_dividend_chart(),
-            spacing="4",
+            spacing="5",
             width="100%",
             align="stretch",
             justify="between",
-            flex_wrap="wrap",
-            style={"gap": "1em"},
         ),
-        spacing="4",
+        spacing="3",
         width="100%",
         align="stretch",
-        justify="between",
-        style={"minWidth": 0},
     )
 
 
@@ -471,9 +464,7 @@ def key_metrics_card():
                     rx.tabs.trigger("Financial Statements", value="statement"),
                 ),
                 rx.tabs.content(
-                    rx.box(
-                        performance_cards(),
-                    ),
+                    performance_cards(),
                     value="performance",
                     padding_top="1em",
                 ),
@@ -499,14 +490,14 @@ def key_metrics_card():
                     padding_top="1em",
                 ),
                 default_value="performance",
-                height="100%",
+                width="100%",
             ),
-            spacing="0",   # Remove spacing since we're using margin_top
+            spacing="0",
             justify='center',
+            width="100%",
         ),
-        padding="6",
-        flex=2,  # Take up more space
-        min_height="50em",
+        padding="1em",
+        flex=2,
         width="100%",
         min_width=0,
         max_width="100%",
