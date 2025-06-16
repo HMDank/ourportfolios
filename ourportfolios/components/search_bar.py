@@ -3,7 +3,7 @@ import pandas as pd
 import time
 import sqlite3
 from typing import List, Dict, Any
-
+import itertools
 
 class SearchBarState(rx.State):
     search_query: str = ""
@@ -29,24 +29,37 @@ class SearchBarState(rx.State):
         """Recommends tickers on user's type"""
         if not self.display_suggestion:  return []
         
+        # At first, try to fetch exact ticker
+        match_conditions = "ticker LIKE ?"
+        result: pd.DataFrame = self.fetch_ticker(match_conditions=match_conditions, params=(f"{self.search_query}%",))
+        
+        # In-case of mistype or no ticker returned, calculate all possible permutation of provided search_query with fixed length
+        if result.empty:
+            # All possible combination of ticker's letter
+            combos = list(itertools.permutations(list(self.search_query), len(self.search_query)))
+            all_combination = [f"{''.join(combo)}%" for combo in combos]
+            
+            match_conditions = " OR ".join(["ticker LIKE ?"] * len(combos))
+            result: pd.DataFrame = self.fetch_ticker(match_conditions=match_conditions, params=all_combination)
+        
+        # Suggest base of the first letter if still no ticker matched
+        if result.empty:
+            result: pd.DataFrame = self.fetch_ticker(match_conditions="ticker LIKE ?", params=(f"{self.search_query[0]}%",))
+            
+        return result.to_dict('records')
+    
+    def fetch_ticker(self, match_conditions: str, params: Any) -> pd.DataFrame:
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         query: str = f"""
                         SELECT ticker, pct_price_change, industry
                         FROM data_vni 
-                        WHERE ticker 
-                        LIKE ? 
+                        WHERE {match_conditions}
                         ORDER BY current_price DESC
                     """
-        df: pd.DataFrame = pd.read_sql(query, conn, params=(f"{self.search_query}%",))
-        
-        # In-case of mistype or no ticker returned, suggest possible tickers base on the first letter
-        if df.empty:
-            df: pd.DataFrame = pd.read_sql(query, conn, params=(f"{self.search_query[0]}%",))
-        
-        
+        result: pd.DataFrame = pd.read_sql(query, conn, params=params)
         conn.close()
-        return df.to_dict('records')
-
+        return result
+    
     @rx.var 
     def get_recent_ticker(self) -> List[Dict[str, Any]]:
         """Yields recently visited tickers"""
