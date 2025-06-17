@@ -1,6 +1,8 @@
 import reflex as rx
 import sqlite3
 import pandas as pd
+from typing import List, Dict
+
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
@@ -10,53 +12,74 @@ from ..utils.load_data import fetch_data_for_symbols
 class State(rx.State):
     control: str = "home"
     show_arrow: bool = True
-    data: list[dict] = []
+    data: List[Dict] = []
     offset: int = 0
     limit: int = 8  # Number of ticker cards to show per page
     
-    # Filter section configuration
+    # Metrics
+    pe_threshold: float = 0.00
+    pb_threshold: float = 0.00
+    roe_threshold: float = 0.00
+    alpha_threshold: float = 0.00
+    
+    # Other filter
     selected_category: str = "All"
     selected_filter: str = "All"
     selected_platform: str = 'All'
+    selected_industry: str = 'All'
     
-    filters: list[str] = ['All', 'Market Cap', '% Increase']
-    platforms: list[str] = ['All', 'HSX', 'HNX', 'UPCOM']
-
+    filters: List[str] = ['All', 'Market Cap', '% Increase']
+    platforms: List[str] = ['All', 'HSX', 'HNX']
+    industries: List[str] = []
+    
     def update_arrow(self, scroll_position: int, max_scroll: int):
         self.show_arrow = scroll_position < max_scroll - 10
 
     @rx.var
-    def get_all_tickers(self) -> list[dict]:
+    def get_all_tickers(self) -> List[Dict]:
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         
         # Isolate query & clause for dynamic filters and sorting criteria 
         query = ["SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change FROM data_vni WHERE 1=1"]
         order_by_clause = ""
         
+        # Filter by industry
+        if not self.selected_industry == 'All': query.append(f"AND industry = '{self.selected_industry}'")
+        
         # Filter by exchange platform
-        if self.selected_platform == 'HSX': query.append(f"AND exchange = 'HSX'")
-        if self.selected_platform == 'HNX': query.append(f"AND exchange = 'HNX'")
-        if self.selected_platform == 'UPCOM': query.append(f"AND exchange = 'UPCOM'")
+        if self.selected_platform != 'All': query.append(f"AND exchange = '{self.selected_platform}'")
         
         # Order by condition
         if self.selected_filter == "Market Cap": order_by_clause = "ORDER BY market_cap DESC"
         if self.selected_filter == '% Increase': order_by_clause = "ORDER BY pct_price_change DESC"
         
+        # Filter by metrics
+        if self.pe_threshold > 0: query.append(f"AND pe < {self.pe_threshold}")
+        if self.pb_threshold > 0: query.append(f"AND pb < {self.pb_threshold}")
+        if self.roe_threshold > 0: query.append(f"AND roe > {self.roe_threshold}")
+        if self.alpha_threshold > 0: query.append(f"AND alpha < {self.alpha_threshold}")
+                       
         full_query = " ".join(query) + f" {order_by_clause}" if order_by_clause else " ".join(query)
-        
         df = pd.read_sql(full_query, conn)
         conn.close()
 
         return df[['ticker', 'organ_name', 'current_price', 'accumulated_volume', 'pct_price_change']].to_dict('records')
 
     @rx.var
-    def paged_tickers(self) -> list[dict]:
+    def paged_tickers(self) -> List[Dict]:
         tickers = self.get_all_tickers
         return tickers[self.offset: self.offset + self.limit]
 
     @rx.var
     def get_all_tickers_length(self) -> int:
         return len(self.get_all_tickers)
+    
+    @rx.event
+    def get_industries(self) -> List[str]:
+        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
+        industries: pd.DataFrame = pd.read_sql("SELECT DISTINCT industry FROM data_vni", con=conn)
+        self.industries = ['All']
+        self.industries.extend(industries['industry'].tolist())
 
     @rx.event
     def next_page(self):
@@ -81,9 +104,25 @@ class State(rx.State):
     def set_platform(self, platform):
         self.selected_platform = platform
         
-
+    @rx.event 
+    def set_industry(self, industry: str):
+        self.selected_industry = industry
+    
+    @rx.event 
+    def set_metric(self, metric: str,  value: float):
+        if not value: value = float(0.00)
+        
+        if metric == "pe": self.pe_threshold = value
+        if metric == "pb": self.pb_threshold = value
+        if metric == "roe": self.roe_threshold = value
+        if metric == "alpha": self.pe_threshold = value
+        
+        
 # Filter section
-@rx.page(route="/select", on_load=State.get_graph(['VNINDEX', 'UPCOMINDEX', "HNXINDEX"]))
+@rx.page(route="/select", on_load=[
+    State.get_graph(['VNINDEX', 'UPCOMINDEX', "HNXINDEX"]),
+    State.get_industries
+])
 def index():
     return rx.vstack(
         navbar(),
@@ -299,7 +338,7 @@ def ticker_card(
     accumulated_volume: int, 
     pct_price_change: float
 ):
-    color = rx.cond(pct_price_change.to(int) > 0, "#28a745", rx.cond(pct_price_change.to(int) < 0, "#CC0000", "#6B7280"))
+    color = rx.cond(pct_price_change.to(int) > 0, rx.color('green', 11), rx.cond(pct_price_change.to(int) < 0, rx.color('red', 9), rx.color('gray', 7)))
     return rx.card(
         rx.hstack(
             # Column 1: Ticker and organ_name
@@ -310,7 +349,7 @@ def ticker_card(
                         href=f"/analyze/{ticker}",
                         style={"textDecoration": "none", "color": "inherit"},
                     ),
-                    rx.text(organ_name, color="var(--gray-7)", size="2"),
+                    rx.text(organ_name, color=rx.color('gray', 7), size="2"),
                 ),
                 width="50%",
                 align="end",
@@ -318,14 +357,14 @@ def ticker_card(
             ),
             # Column 2: Current price
             rx.box(
-                rx.text(f"{current_price.to(int)*1e-3:.2f}", weight="medium", size="3", color=color),
+                rx.text(f"{current_price}", weight="medium", size="3", color=color),
                 width="15%",
                 align="center",
                 justify="center",
             ),
             # Column 3: Percentage change
             rx.box(
-                rx.text(f"{pct_price_change:.2f}%", weight="medium", size="2", color=color),
+                rx.text(f"{pct_price_change}%", weight="medium", size="2", color=color),
                 font_style="italic",
                 width="20%",
                 align="center",
@@ -352,7 +391,7 @@ def ticker_card(
             ),
             width="100%",
             align_items="center",
-            spacing="1",
+            spacing="2",
         ),
         padding="1em",
         style={"marginBottom": "0.75em", "width": "100%"}
@@ -392,7 +431,118 @@ def ticker_list():
 def ticker_filter():
     return rx.box(
         rx.hstack(
+            # Metrics filter
+            rx.dropdown_menu.root(
+                rx.dropdown_menu.trigger(
+                    rx.button("Select metrics", variant='outline', width="30vw"),
+                ),
+                rx.dropdown_menu.content(
+                    rx.text("Fundamentals:", size="6", font_weight="bold"),
+                    rx.hstack(
+                        rx.badge(
+                            rx.text("PE <", font_size="lg", font_weight="bold", size="3",),
+                            variant="soft",
+                            border_radius="full",
+                            box_shadow="md",
+                            color_scheme="violet",
+                        ),
+                        rx.input(
+                            title="PE <",
+                            type="number",
+                            min=0,
+                            value=State.pe_threshold.to(str),
+                            placeholder="e.g 1.0",
+                            on_change=lambda value: State.set_metric("pe", rx.cond(value, value.to(float), None)),
+                            style={"width": "5rem", "marginRight": "1rem"},
+                        ),
+                        
+                        rx.badge(
+                            rx.text("PB <", font_size="lg", font_weight="bold", size="3"),
+                            variant="soft",
+                            border_radius="full",
+                            box_shadow="md",
+                            color_scheme="violet",
+                        ),
+                        rx.input(
+                            title="PB <",
+                            type="number",
+                            min=0,
+                            value=State.pb_threshold.to(str),
+                            placeholder="e.g 1.0",
+                            on_change=lambda value: State.set_metric("pb", rx.cond(value, value.to(float), None)),
+                            style={"width": "5rem", "marginRight": "1rem"},
+                        ),
+                        
+                        rx.badge(
+                            rx.text("ROE >", font_size="lg", font_weight="bold", size="3"),
+                            variant="soft",
+                            border_radius="full",
+                            box_shadow="md",
+                            color_scheme="violet"
+                        ),
+                        rx.input(
+                            title="ROE >",
+                            type="number",
+                            min=0,
+                            value=State.roe_threshold.to(str),
+                            placeholder="e.g 1.0",
+                            on_change=lambda value: State.set_metric("roe", rx.cond(value, value.to(float), None)),
+                            style={"width": "5rem", "marginRight": "1rem"},
+                        ),
+                        
+                        rx.badge(
+                            rx.text("ALPHA >", font_size="lg", font_weight="bold", size="3"),
+                            variant="soft",
+                            border_radius="full",
+                            box_shadow="md",
+                            color_scheme="violet"
+                        ),
+                        rx.input(
+                            title="ALPHA >",
+                            type="number",
+                            min=0,
+                            value=State.alpha_threshold.to(str),
+                            placeholder="e.g 1.0",
+                            on_change=lambda value: State.set_metric("alpha", rx.cond(value, value.to(float), None)),
+                            style={"width": "5rem", "marginRight": "1rem"},
+                        ),
+                        spacing='2',
+                        align='center',
+                        width='100%',
+                        justify='between',
+                        paddingTop='1em',
+                    ),
+                    justify='center',
+                ),
+            ),
             rx.spacer(), # Push the following components to the right
+            # Industry filter
+            rx.dropdown_menu.root(
+                rx.dropdown_menu.trigger(
+                    rx.button(
+                        rx.cond(State.selected_industry != 'All', State.selected_industry, "Industry"),
+                        variant=rx.cond(State.selected_industry != 'All', 'solid', 'outline')
+                    ),
+                ),
+                rx.dropdown_menu.content(
+                    rx.foreach(
+                        State.industries,
+                        lambda industry: rx.dropdown_menu.item(
+                            rx.hstack(
+                                rx.cond(
+                                    industry == State.selected_industry, 
+                                    rx.icon('check', size=16),
+                                    rx.box(width='16px')
+                                ),
+                                rx.text(industry, weight=rx.cond(industry == State.selected_industry, "bold", "normal")),
+                                spacing="2",
+                                align="center",
+                            ),
+                            on_select=State.set_industry(industry)
+                        )
+                    ),   
+                )
+            ),
             # Platform selector
             rx.dropdown_menu.root(
                 rx.dropdown_menu.trigger(
