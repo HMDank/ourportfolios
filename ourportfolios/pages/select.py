@@ -166,26 +166,30 @@ def industry_roller():
                     rx.foreach(
                         State.industries,
                         lambda item: rx.card(
-                            rx.inset(
-                                rx.image(
-                                    src="/placeholder-industry.png",  # ✅ Use placeholder or map industries to images
-                                    width="40px",
-                                    height="40px",
-                                    style={"marginBottom": "0.5em"},
+                            rx.link(
+                                rx.inset(
+                                    rx.image(
+                                        src="/placeholder-industry.png",  # ✅ Use placeholder or map industries to images
+                                        width="40px",
+                                        height="40px",
+                                        style={"marginBottom": "0.5em"},
+                                    ),
+                                    item,
+                                    style={
+                                        "height": "120px",
+                                        "minWidth": "200px",
+                                        "padding": "1em",
+                                        "display": "flex",
+                                        "flexDirection": "column",
+                                        "justifyContent": "center",
+                                        "alignItems": "flex-start",
+                                        "whiteSpace": "normal",
+                                        "overflow": "visible",
+                                    },
+                                    side="right",
                                 ),
-                                item,
-                                style={
-                                    "height": "120px",
-                                    "minWidth": "200px",
-                                    "padding": "1em",
-                                    "display": "flex",
-                                    "flexDirection": "column",
-                                    "justifyContent": "center",
-                                    "alignItems": "flex-start",
-                                    "whiteSpace": "normal",
-                                    "overflow": "visible",
-                                },
-                                side="right",
+                                href=f'/select/{item.lower()}',
+                                underline='none',
                             )
                         )
                     ),
