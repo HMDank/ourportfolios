@@ -54,8 +54,36 @@ def populate_db() -> None:
     print("Data loaded successfully.")
 
 
-if __name__ == "__main__":
-    load_data_vni()
+def load_price_board(tickers: List[str]) -> pd.DataFrame:
+    price_board_df = Trading(source='vci', symbol='ACB').price_board(symbols_list=tickers)
+    price_board_df.columns = price_board_df.columns.droplevel(0) # Flatten columns
+    price_board_df = price_board_df.drop('exchange', axis=1) # Drop spare column to prevent duplicate column
+    price_board_df = price_board_df.loc[:, ~price_board_df.columns.duplicated()]
+
+    return price_board_df
+
+
+def compute_instrument(df: pd.DataFrame) -> pd.DataFrame:
+    # Changes in price
+    if 'bid_1_price' in df.columns:         
+        df = df.rename(columns={'bid_1_price': 'current_price'}) # Rename for better comprehension
+        
+        # latest close price - close price from previous day
+        df['price_change'] = (df['current_price'] - df['ref_price'])
+        df['pct_price_change'] = (df['price_change'] / df['ref_price']) * 100
+            
+    # On the day when the market is closed
+    else:  
+        df = df.rename(columns={'ref_price': 'current_price'})
+        df['price_change'] = 0
+        df['pct_price_change'] = 0
+    
+    # Normalize
+    df['current_price'] = round(df['current_price'] * 1e-3, 2)
+    df['price_change'] = round(df['price_change'] * 1e-3, 2)
+    df['pct_price_change'] = round(df['pct_price_change'], 2)
+    
+    return df
 
 
 def load_historical_data(symbol,
