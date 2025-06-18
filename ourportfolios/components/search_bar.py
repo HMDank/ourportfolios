@@ -88,15 +88,14 @@ def search_bar():
             on_change=SearchBarState.set_query,
             on_blur=SearchBarState.set_display_suggestions(False),
             on_focus=SearchBarState.set_display_suggestions(True),
-            width="24vw",
-            border_radius="8px",
+            width="22vw",
         ),
         rx.vstack(
             rx.foreach(
                 rx.cond(SearchBarState.search_query, SearchBarState.get_suggest_ticker, SearchBarState.get_recent_ticker),
                 lambda ticker_value: suggestion_card(value=ticker_value),
             ),
-            width="24vw",
+            width="22vw",
             max_height="250px",
             overflow_y="auto",
             z_index="100",
@@ -107,27 +106,23 @@ def search_bar():
             left="0",
         ),
         position="relative",
-        background_color="#000000",
-        border_radius="8px",
     )
+
     
 def suggestion_card(value: Dict[str, Any]) -> rx.Component:
     ticker = value['ticker']
     industry = value['industry']
     pct_price_change: float = value['pct_price_change'].to(float)
     
-    color = rx.cond(pct_price_change > 0, rx.color('jade', 11), rx.cond(pct_price_change < 0, rx.color('red', 9), rx.color('gray', 7)))
+    color = rx.cond(pct_price_change > 0, rx.color('green', 11), rx.cond(pct_price_change < 0, rx.color('red', 9), rx.color('gray', 7)))
     scheme = rx.cond(pct_price_change > 0, "green", rx.cond(pct_price_change < 0, "red", "gray"))
     
     return rx.box(
         rx.hstack(
-            rx.badge(
+            rx.text(
                 ticker,
-                size="3",
+                size="5",
                 weight="bold",
-                variant='solid',
-                color_scheme="violet",
-                radius='small',
             ),
             
             rx.badge(
@@ -135,20 +130,16 @@ def suggestion_card(value: Dict[str, Any]) -> rx.Component:
                 size="2",
                 weight="medium",
                 variant='surface',
-                color_scheme="gray",
+                color_scheme="violet",
                 radius='medium',
             ),
             
             rx.spacer(),
-            
-            rx.badge(
-                f"{pct_price_change}%", 
-                size="1", 
-                weight="medium", 
-                color=color, 
-                variant="surface",
-                color_scheme=scheme,
-                radius='full',
+
+            pct_change_badge(
+                pct_price_change=pct_price_change,
+                color=color,
+                scheme=scheme
             ),
             
             align="center",
@@ -160,9 +151,20 @@ def suggestion_card(value: Dict[str, Any]) -> rx.Component:
             SearchBarState.set_query("")
         ],
         width="100%",
-        padding="8px",
-        border_radius="8px",
+        padding="10px",
         cursor="pointer",
-        _hover={'background_color':"#000000"}
+        _hover={'background_color':rx.color('cyan', 9)},
+        max_width="100%",
     )
     
+    
+def pct_change_badge(pct_price_change: float, color: rx.Color, scheme: str):
+    return rx.badge(
+            f"{pct_price_change}%", 
+            size="1", 
+            weight="medium", 
+            color=color, 
+            variant="surface",
+            color_scheme=scheme,
+            radius='full',
+        ),
