@@ -114,7 +114,7 @@ def suggestion_card(value: Dict[str, Any]) -> rx.Component:
     industry = value['industry']
     pct_price_change: float = value['pct_price_change'].to(float)
     
-    color = rx.cond(pct_price_change > 0, rx.color('green', 11), rx.cond(pct_price_change < 0, rx.color('red', 9), rx.color('gray', 7)))
+    color = rx.cond(pct_price_change > 0, rx.color('green', 11), rx.cond(pct_price_change < 0, rx.color('red', 9), rx.color('gray', 11)))
     scheme = rx.cond(pct_price_change > 0, "green", rx.cond(pct_price_change < 0, "red", "gray"))
     
     return rx.box(
