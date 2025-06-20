@@ -219,10 +219,10 @@ def cart_drawer_content():
             ),
             width="100%",
             padding="2em",
-            border_radius="1.2em",
+            border_radius="1em",
             style={
                 "backdropFilter": "blur(14px)",
-                "background": "rgba(30, 27, 46, 0.7)",
+                "background": "rgba(20, 20, 20, 0.7)",
             },
         ),
         width="28em",
