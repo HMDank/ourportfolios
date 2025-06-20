@@ -501,16 +501,6 @@ def metric_label_column() -> rx.Component:
     perfectly aligned with the number rows and with minimal spacing.
     """
     return rx.vstack(
-        # Spacer to align with the stock header row (match header height)
-        rx.box(
-            width="12em",
-            min_width="12em",
-            height="7em",  # Match the min_height of stock_header_card
-            style={
-                "flex_shrink": "0",
-                "background": "transparent",
-            }
-        ),
         rx.foreach(
             StockComparisonState.selected_metrics,
             lambda metric_key: rx.card(
@@ -554,7 +544,10 @@ def metric_label_column() -> rx.Component:
         spacing="1",
         align="start",
         width="fit-content",
-        style={"flex_wrap": "nowrap"}
+        style={
+            "flex_wrap": "nowrap",
+            "margin_top": "8.5em"  # Push down to align with metric rows
+        }
     )
 
 
