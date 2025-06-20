@@ -29,8 +29,6 @@ class CartState(rx.State):
     @rx.event
     def remove_item(self, index: int):
         self.cart_items.pop(index)
-        from ..pages.compare import StockComparisonState
-        yield StockComparisonState.fetch_stocks_from_cart()
 
     @rx.event
     def add_item(self, ticker: str):
@@ -40,8 +38,6 @@ class CartState(rx.State):
             industry = get_industry(ticker)
             self.cart_items.append({"name": ticker, 'industry': industry})
             yield rx.toast(f"{ticker} added to cart!")
-            from ..pages.compare import StockComparisonState
-            yield StockComparisonState.fetch_stocks_from_cart()
 
 
 def cart_drawer_content():
