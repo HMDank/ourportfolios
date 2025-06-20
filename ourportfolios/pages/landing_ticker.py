@@ -327,7 +327,6 @@ def graph_card(
                     margin={"top": 10, "right": 10, "left": 5, "bottom": 35},
                 ),
                 width="100%",
-                # Remove conflicting overflow settings
                 style={"overflow": "hidden"},
             ),
             spacing="3",
@@ -356,7 +355,7 @@ def create_valuation_chart():
 def create_profitability_chart():
     return graph_card(
         title="Profitability Metrics",
-        metric_options=["ROE (%)", "ROA (%)", "EPS"],
+        metric_options=["ROE (%)", "ROA (%)", "EPS (VND)"],
         selected_metric=State.selected_profitability_metric,
         set_metric_event=State.set_profitability_metric,
         chart_data=State.profitability_chart_data_single,
