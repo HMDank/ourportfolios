@@ -23,7 +23,7 @@ class StockComparisonState(rx.State):
         return [
             'roe', 'pe', 'pb', 'dividend_yield',
             'revenue_growth_1y', 'eps_growth_1y', 'gross_margin',
-            'net_margin', 'beta', 'rsi14', 'stock_rating',
+            'net_margin', 'beta', 'rsi14',
             'industry', 'tcbs_recommend'
         ]
 
@@ -41,7 +41,6 @@ class StockComparisonState(rx.State):
             'net_margin': 'Net Margin',
             'beta': 'Beta',
             'rsi14': 'RSI (14)',
-            'stock_rating': 'Stock Rating',
             'industry': 'Industry',
             'tcbs_recommend': 'Recommendation'
         }
@@ -331,9 +330,9 @@ def stock_header_card(stock: Dict[str, Any]) -> rx.Component:
             width="100%",
             height="100%"
         ),
-        padding="1em",
-        width="12em",  # Reduced width
-        min_height="8em",  # Reduced height
+        padding="0.5em",  # Reduced padding
+        width="12em",
+        min_height="7em",  # Slightly reduced height
         display="flex",
         align_items="center",
         justify_content="center",
@@ -343,7 +342,7 @@ def stock_header_card(stock: Dict[str, Any]) -> rx.Component:
             "border_radius": "12px",
             "transition": "all 0.2s ease",
             "cursor": "pointer",
-            "flex_shrink": "0"  # Prevent shrinking
+            "flex_shrink": "0"
         },
         _hover={
             "border_color": rx.color("gray", 8),
@@ -376,10 +375,12 @@ def stock_headers() -> rx.Component:
         rx.hstack(
             rx.foreach(
                 StockComparisonState.formatted_stocks,
-                lambda stock, _: stock_header_card(stock)
+                lambda stock, _:
+                    stock_header_card(stock)
             ),
             spacing="2",
-            style={"flex_wrap": "nowrap"}
+            style={"flex_wrap": "nowrap"},
+            margin_top="0.5em"  # Add top margin to prevent cut-off
         ),
         spacing="0",
         margin_bottom="1.5em",
@@ -409,7 +410,7 @@ def metric_comparison_row(metric_key: str) -> rx.Component:
                 ),
                 width="12em",
                 min_width="12em",
-                padding="0.8em 0.5em 0.8em 0.8em",  # Remove right padding
+                padding="0.5em 0.3em 0.5em 0.5em",  # Reduced padding
                 background_color=rx.color("gray", 2),
                 display="flex",
                 align_items="center",
@@ -426,7 +427,10 @@ def metric_comparison_row(metric_key: str) -> rx.Component:
             min_width="12em",
             background_color=rx.color("gray", 1),
             style={
-                "border": f"1px solid {rx.color('gray', 3)}",
+                # border style split for line length
+                "border": (
+                    f"1px solid {rx.color('gray', 3)}"
+                ),
                 "border_radius": "8px 0 0 8px",
                 "flex_shrink": "0",
                 "overflow": "visible",
@@ -459,7 +463,7 @@ def metric_comparison_row(metric_key: str) -> rx.Component:
                         ),
                         width="12em",
                         min_width="12em",
-                        padding="0.8em 0.8em 0.8em 0.5em",  # Remove left padding
+                        padding="0.5em",  # Reduced padding
                         text_align="center",
                         display="flex",
                         align_items="center",
@@ -474,7 +478,10 @@ def metric_comparison_row(metric_key: str) -> rx.Component:
             min_width="fit-content",
             background_color=rx.color("gray", 1),
             style={
-                "border": f"1px solid {rx.color('gray', 3)}",
+                # border style split for line length
+                "border": (
+                    f"1px solid {rx.color('gray', 3)}"
+                ),
                 "border_radius": "0 8px 8px 0",
                 "flex_shrink": "0",
                 "overflow": "visible",
@@ -483,6 +490,69 @@ def metric_comparison_row(metric_key: str) -> rx.Component:
         ),
         spacing="0",
         align="center",
+        width="fit-content",
+        style={"flex_wrap": "nowrap"}
+    )
+
+
+def metric_label_column() -> rx.Component:
+    """
+    Fixed vertical column of metric labels (sticky/fixed on the left),
+    perfectly aligned with the number rows and with minimal spacing.
+    """
+    return rx.vstack(
+        # Spacer to align with the stock header row (match header height)
+        rx.box(
+            width="12em",
+            min_width="12em",
+            height="7em",  # Match the min_height of stock_header_card
+            style={
+                "flex_shrink": "0",
+                "background": "transparent",
+            }
+        ),
+        rx.foreach(
+            StockComparisonState.selected_metrics,
+            lambda metric_key: rx.card(
+                rx.box(
+                    rx.text(
+                        StockComparisonState.metric_labels[metric_key],
+                        size="2",
+                        weight="medium",
+                        color=rx.color("gray", 12)
+                    ),
+                    width="12em",
+                    min_width="12em",
+                    padding="0.5em 0.3em 0.5em 0.5em",
+                    background_color=rx.color("gray", 2),
+                    display="flex",
+                    align_items="center",
+                    style={
+                        "flex_shrink": "0",
+                        "position": "sticky",
+                        "left": 0,
+                        "z_index": 2,
+                        "background": rx.color("gray", 1),
+                        "border_right": f"1px solid {rx.color('gray', 4)}"
+                    }
+                ),
+                width="12em",
+                min_width="12em",
+                background_color=rx.color("gray", 1),
+                style={
+                    "border": (
+                        f"1px solid {rx.color('gray', 3)}"
+                    ),
+                    "border_radius": "8px 0 0 8px",
+                    "flex_shrink": "0",
+                    "overflow": "visible",
+                    # Minimal spacing from value columns
+                    "margin_right": "0.5em"
+                }
+            )
+        ),
+        spacing="1",
+        align="start",
         width="fit-content",
         style={"flex_wrap": "nowrap"}
     )
@@ -512,7 +582,8 @@ def comparison_controls() -> rx.Component:
 def comparison_section() -> rx.Component:
     """
     Main comparison section with all metrics.
-    Only horizontal scroll for table content. Metric labels are fixed.
+    Metric labels are fixed on the left,
+    only the table content scrolls horizontally.
     """
     return rx.cond(
         StockComparisonState.compare_list,
@@ -520,104 +591,57 @@ def comparison_section() -> rx.Component:
             rx.vstack(
                 comparison_controls(),
                 rx.hstack(
-                    # Fixed metric label column (left)
-                    rx.vstack(
-                        # Empty box to align with stock headers
-                        rx.box(
-                            width="12em",
-                            min_width="12em",
-                            height="6.5em",  # Match header card height
-                        ),
-                        rx.foreach(
-                            StockComparisonState.selected_metrics,
-                            lambda metric_key: rx.card(
-                                rx.box(
-                                    rx.text(
-                                        StockComparisonState.metric_labels[
-                                            metric_key
-                                        ],
-                                        size="2",
-                                        weight="medium",
-                                        color=rx.color("gray", 12)
-                                    ),
-                                    width="12em",
-                                    min_width="12em",
-                                    padding="0.8em 0.5em 0.8em 0.8em",
-                                    background_color=rx.color("gray", 2),
-                                    display="flex",
-                                    align_items="center",
-                                ),
-                                width="12em",
-                                min_width="12em",
-                                background_color=rx.color("gray", 1),
-                                style={
-                                    "border": f"1px solid {rx.color('gray', 3)}",
-                                    "border_radius": "8px 0 0 8px",
-                                    "flex_shrink": "0",
-                                    "overflow": "visible",
-                                    "margin_right": "0px"
-                                }
-                            )
-                        ),
-                        spacing="1",
-                        align="start",
-                        style={
-                            "flex_shrink": "0",
-                            "z_index": 2,
-                        }
-                    ),
-                    # Add spacing between label and scroll area
-                    rx.box(width="1.5em"),
-                    # Scrollable stock headers and metric values (right)
+                    # Fixed metric label column
+                    metric_label_column(),
+                    # Scrollable area for stock headers and metric values
                     rx.box(
                         rx.scroll_area(
                             rx.vstack(
-                                # Stock headers (add top margin to align with label)
+                                # Stock headers (no metric label placeholder)
                                 rx.hstack(
                                     rx.foreach(
                                         StockComparisonState.formatted_stocks,
-                                        lambda stock, _: stock_header_card(stock)
+                                        lambda stock, _:
+                                            stock_header_card(stock)
                                     ),
                                     spacing="2",
                                     style={"flex_wrap": "nowrap"},
-                                    height="6.5em",
-                                    align="end"
+                                    margin_top="0.5em"
                                 ),
-                                # Metric value rows
+                                # Metric value rows (no metric label column)
                                 rx.foreach(
                                     StockComparisonState.selected_metrics,
                                     lambda metric_key: rx.card(
                                         rx.hstack(
                                             rx.foreach(
-                                                StockComparisonState.formatted_stocks,
+                                                StockComparisonState.
+                                                formatted_stocks,
                                                 lambda stock, index: rx.box(
                                                     rx.text(
                                                         stock[metric_key],
                                                         size="2",
                                                         weight=rx.cond(
-                                                            StockComparisonState.best_performers[
+                                                            StockComparisonState.
+                                                            best_performers[
                                                                 metric_key
                                                             ] == index,
                                                             "bold",
                                                             "medium"
                                                         ),
                                                         color=rx.cond(
-                                                            StockComparisonState.best_performers[
+                                                            StockComparisonState.
+                                                            best_performers[
                                                                 metric_key
                                                             ] == index,
                                                             rx.color(
-                                                                "green",
-                                                                11
-                                                            ),
+                                                                "green", 11),
                                                             rx.color(
-                                                                "gray",
-                                                                11
-                                                            )
+                                                                "gray", 11)
                                                         )
                                                     ),
                                                     width="12em",
                                                     min_width="12em",
-                                                    padding="0.8em",
+                                                    padding="0.5em",
                                                     text_align="center",
                                                     display="flex",
                                                     align_items="center",
@@ -632,7 +656,10 @@ def comparison_section() -> rx.Component:
                                         min_width="fit-content",
                                         background_color=rx.color("gray", 1),
                                         style={
-                                            "border": f"1px solid {rx.color('gray', 3)}",
+                                            # Minimal border style
+                                            "border": (
+                                                f"1px solid {rx.color('gray', 3)}"
+                                            ),
                                             "border_radius": "0 8px 8px 0",
                                             "flex_shrink": "0",
                                             "overflow": "visible",
@@ -658,7 +685,6 @@ def comparison_section() -> rx.Component:
                         }
                     ),
                     spacing="0",
-                    align="start",
                     width="100%"
                 ),
                 spacing="0",
