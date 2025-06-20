@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 
 from ..components.navbar import navbar
 from ..components.drawer import CartState, drawer_button
-from ..components.page_roller import card_link
+from ..components.page_roller import card_link, card_wrapper
 
 
 class StockComparisonState(rx.State):
@@ -15,7 +15,7 @@ class StockComparisonState(rx.State):
     def selected_metrics(self) -> List[str]:
         """Default metrics to display"""
         return [
-            'market_cap', 'roe', 'pe', 'pb', 'dividend_yield',
+            'roe', 'pe', 'pb', 'dividend_yield',
             'revenue_growth_1y', 'eps_growth_1y', 'gross_margin',
             'net_margin', 'beta', 'rsi14'
         ]
@@ -44,16 +44,13 @@ class StockComparisonState(rx.State):
         """Pre-format all stock values for display"""
         formatted = []
         for stock in self.stocks:
-            print("[DEBUG] Formatting stock:", stock)
             formatted_stock = {}
             for key, value in stock.items():
                 if key in self.selected_metrics:
                     formatted_stock[key] = self._format_value(key, value)
                 else:
                     formatted_stock[key] = value
-            print("[DEBUG] Formatted stock:", formatted_stock)
             formatted.append(formatted_stock)
-        print("[DEBUG] All formatted stocks:", formatted)
         return formatted
 
     @rx.var
@@ -108,10 +105,8 @@ class StockComparisonState(rx.State):
         """Fetch stock data for tickers in the cart and store in self.stocks."""
         cart_state = await self.get_state(CartState)
         tickers = [item["name"] for item in cart_state.cart_items]
-        print("[DEBUG] Cart tickers:", tickers)
         stocks = []
         if not tickers:
-            print("[DEBUG] No tickers in cart.")
             self.stocks = []
             return
         conn = sqlite3.connect(
@@ -126,11 +121,9 @@ class StockComparisonState(rx.State):
                 "FROM data_vni WHERE ticker = ?"
             )
             df = pd.read_sql(query, conn, params=(ticker,))
-            print(f"[DEBUG] Query result for {ticker}:", df.to_dict())
             if not df.empty:
                 stocks.append(df.iloc[0].to_dict())
         conn.close()
-        print("[DEBUG] Stocks fetched:", stocks)
         self.stocks = stocks
 
 
@@ -277,13 +270,26 @@ def comparison_section() -> rx.Component:
                     weight="medium",
                     align="center",
                 ),
-                rx.button(
-                    rx.icon('chevron_left'),
-                    "Select",
-                    on_click=lambda: rx.redirect("/select"),
-                    size="2",
-                    variant="solid",
-                    color_scheme="purple",
+                rx.link(
+                    rx.card(
+                        rx.hstack(
+                            rx.icon("chevron_left", size=32),
+                            rx.heading("Select",
+                                       weight="bold", size="6"),
+                            align="center",
+                            justify="center",
+                            height="100%",
+                            spacing="2"
+                        ),
+                        width="300px",
+                        height="150px",
+                        padding="4",
+                        cursor="pointer",
+                        _hover={"transform": "scale(1.02)"},
+                        transition="transform 0.2s ease",
+                    ),
+                    href="/select",
+                    underline='none',
                 ),
                 spacing="3",
                 align="center",
