@@ -23,8 +23,7 @@ class StockComparisonState(rx.State):
         return [
             'roe', 'pe', 'pb', 'dividend_yield',
             'revenue_growth_1y', 'eps_growth_1y', 'gross_margin',
-            'net_margin', 'beta', 'rsi14',
-            'industry', 'tcbs_recommend'
+            'net_margin', 'beta', 'rsi14', 'tcbs_recommend'
         ]
 
     @rx.var
@@ -41,7 +40,6 @@ class StockComparisonState(rx.State):
             'net_margin': 'Net Margin',
             'beta': 'Beta',
             'rsi14': 'RSI (14)',
-            'industry': 'Industry',
             'tcbs_recommend': 'Recommendation'
         }
 
@@ -278,16 +276,14 @@ def stock_header_card(stock: Dict[str, Any]) -> rx.Component:
                 on_click=lambda: StockComparisonState.remove_stock_from_compare(
                     ticker),
                 variant="ghost",
-                size="1",
-                color_scheme="red",
+                size="2",
                 style={
                     "position": "absolute",
-                    "top": "0.75em",
-                    "right": "0.75em",
+                    "top": "1em",
+                    "right": "1em",
                     "padding": "0.25em",
                     "min_width": "auto",
                     "height": "auto",
-                    "border_radius": "50%",
                     "opacity": "0.7"
                 }
             ),
@@ -297,7 +293,7 @@ def stock_header_card(stock: Dict[str, Any]) -> rx.Component:
                     rx.text(
                         ticker,
                         weight="bold",
-                        size="6",
+                        size="7",
                         color=rx.color("gray", 12),
                         letter_spacing="0.05em"
                     ),
@@ -331,23 +327,19 @@ def stock_header_card(stock: Dict[str, Any]) -> rx.Component:
             height="100%"
         ),
         padding="0.5em",  # Reduced padding
-        width="12em",
-        min_height="7em",  # Slightly reduced height
+        width="11em",
+        min_height="5em",  # Slightly reduced height
         display="flex",
         align_items="center",
         justify_content="center",
         position="relative",
         style={
-            "border": f"1px solid {rx.color('gray', 6)}",
-            "border_radius": "12px",
             "transition": "all 0.2s ease",
             "cursor": "pointer",
             "flex_shrink": "0"
         },
         _hover={
-            "border_color": rx.color("gray", 8),
-            "transform": "translateY(-2px)",
-            "box_shadow": f"0 8px 25px -5px {rx.color('gray', 4)}"
+            "transform": "translateY(-0.3em)",
         }
     )
 
@@ -368,7 +360,6 @@ def stock_headers() -> rx.Component:
                 "left": 0,
                 "z_index": 2,
                 "background": rx.color("gray", 1),
-                "border_right": f"1px solid {rx.color('gray', 4)}"
             }
         ),
         # Horizontally scrollable stock header cards
@@ -392,104 +383,62 @@ def stock_headers() -> rx.Component:
 
 def metric_comparison_row(metric_key: str) -> rx.Component:
     """
-    Create a row comparing a specific metric across all stocks.
-    The metric label and the values are in two separate boxes.
-    The metric label column is sticky.
+    Create a single row: sticky label on the left,
+    values for each ticker to the right.
+    This ensures perfect alignment between label and values.
     """
+    best = StockComparisonState.best_performers
     return rx.hstack(
-        # Sticky metric label card (its own card/box)
-        rx.card(
-            rx.box(
-                rx.text(
-                    StockComparisonState.metric_labels[
-                        metric_key
-                    ],
-                    size="2",
-                    weight="medium",
-                    color=rx.color("gray", 12)
-                ),
-                width="12em",
-                min_width="12em",
-                padding="0.5em 0.3em 0.5em 0.5em",  # Reduced padding
-                background_color=rx.color("gray", 2),
-                display="flex",
-                align_items="center",
-                style={
-                    "flex_shrink": "0",
-                    "position": "sticky",
-                    "left": 0,
-                    "z_index": 2,
-                    "background": rx.color("gray", 1),
-                    "border_right": f"1px solid {rx.color('gray', 4)}"
-                }
+        # Sticky metric label cell
+        rx.box(
+            rx.text(
+                StockComparisonState.metric_labels[metric_key],
+                size="2",
+                weight="medium",
+                color=rx.color("gray", 12)
             ),
-            width="12em",
-            min_width="12em",
-            background_color=rx.color("gray", 1),
+            width="11em",
+            min_width="11em",
+            min_height="2.5em",
+            padding="0.5em 0.5em 0.5em 1em",
+            display="flex",
+            align_items="center",
             style={
-                # border style split for line length
-                "border": (
-                    f"1px solid {rx.color('gray', 3)}"
-                ),
-                "border_radius": "8px 0 0 8px",
-                "flex_shrink": "0",
-                "overflow": "visible",
-                "margin_right": "0px"
+                "position": "sticky",
+                "left": 0,
+                "z_index": 2,
             }
         ),
-        # Metric values card (its own card/box, horizontally scrollable)
-        rx.card(
-            rx.hstack(
-                rx.foreach(
-                    StockComparisonState.formatted_stocks,
-                    lambda stock, index: rx.box(
-                        rx.text(
-                            stock[metric_key],
-                            size="2",
-                            weight=rx.cond(
-                                StockComparisonState.best_performers[
-                                    metric_key
-                                ] == index,
-                                "bold",
-                                "medium"
-                            ),
-                            color=rx.cond(
-                                StockComparisonState.best_performers[
-                                    metric_key
-                                ] == index,
-                                rx.color("green", 11),
-                                rx.color("gray", 11)
-                            )
-                        ),
-                        width="12em",
-                        min_width="12em",
-                        padding="0.5em",  # Reduced padding
-                        text_align="center",
-                        display="flex",
-                        align_items="center",
-                        justify_content="center",
-                        style={"flex_shrink": "0"}
+        # Metric values for each ticker
+        rx.foreach(
+            StockComparisonState.formatted_stocks,
+            lambda stock, index: rx.box(
+                rx.text(
+                    stock[metric_key],
+                    size="2",
+                    weight=rx.cond(
+                        best[metric_key] == index,
+                        "bold",
+                        "medium"
+                    ),
+                    color=rx.cond(
+                        best[metric_key] == index,
+                        rx.color("green", 11),
+                        rx.color("gray", 11)
                     )
                 ),
-                spacing="2",
-                style={"flex_wrap": "nowrap"}
-            ),
-            width="fit-content",
-            min_width="fit-content",
-            background_color=rx.color("gray", 1),
-            style={
-                # border style split for line length
-                "border": (
-                    f"1px solid {rx.color('gray', 3)}"
-                ),
-                "border_radius": "0 8px 8px 0",
-                "flex_shrink": "0",
-                "overflow": "visible",
-                "margin_left": "0px"
-            }
+                width="11em",
+                min_width="11em",
+                min_height="2.5em",
+                padding="0.5em",
+                text_align="center",
+                display="flex",
+                align_items="center",
+                justify_content="center",
+                style={"flex_shrink": "0"}
+            )
         ),
         spacing="0",
-        align="center",
         width="fit-content",
         style={"flex_wrap": "nowrap"}
     )
@@ -511,9 +460,8 @@ def metric_label_column() -> rx.Component:
                         weight="medium",
                         color=rx.color("gray", 12)
                     ),
-                    width="12em",
-                    min_width="12em",
-                    padding="0.5em 0.3em 0.5em 0.5em",
+                    width="10em",
+                    padding="0.3em",
                     background_color=rx.color("gray", 2),
                     display="flex",
                     align_items="center",
@@ -522,22 +470,14 @@ def metric_label_column() -> rx.Component:
                         "position": "sticky",
                         "left": 0,
                         "z_index": 2,
-                        "background": rx.color("gray", 1),
-                        "border_right": f"1px solid {rx.color('gray', 4)}"
                     }
                 ),
                 width="12em",
                 min_width="12em",
                 background_color=rx.color("gray", 1),
                 style={
-                    "border": (
-                        f"1px solid {rx.color('gray', 3)}"
-                    ),
-                    "border_radius": "8px 0 0 8px",
                     "flex_shrink": "0",
                     "overflow": "visible",
-                    # Minimal spacing from value columns
-                    "margin_right": "0.5em"
                 }
             )
         ),
@@ -546,7 +486,8 @@ def metric_label_column() -> rx.Component:
         width="fit-content",
         style={
             "flex_wrap": "nowrap",
-            "margin_top": "8.5em"  # Push down to align with metric rows
+            "margin_top": "8.7em",
+            # "margin_right": "0.7em",
         }
     )
 
@@ -584,13 +525,10 @@ def comparison_section() -> rx.Component:
             rx.vstack(
                 comparison_controls(),
                 rx.hstack(
-                    # Fixed metric label column
                     metric_label_column(),
-                    # Scrollable area for stock headers and metric values
                     rx.box(
                         rx.scroll_area(
                             rx.vstack(
-                                # Stock headers (no metric label placeholder)
                                 rx.hstack(
                                     rx.foreach(
                                         StockComparisonState.formatted_stocks,
@@ -632,9 +570,8 @@ def comparison_section() -> rx.Component:
                                                                 "gray", 11)
                                                         )
                                                     ),
-                                                    width="12em",
-                                                    min_width="12em",
-                                                    padding="0.5em",
+                                                    width="11.1em",
+                                                    padding="0.3em",
                                                     text_align="center",
                                                     display="flex",
                                                     align_items="center",
@@ -642,18 +579,13 @@ def comparison_section() -> rx.Component:
                                                     style={"flex_shrink": "0"}
                                                 )
                                             ),
-                                            spacing="2",
+                                            spacing="0",
                                             style={"flex_wrap": "nowrap"}
                                         ),
                                         width="fit-content",
                                         min_width="fit-content",
                                         background_color=rx.color("gray", 1),
                                         style={
-                                            # Minimal border style
-                                            "border": (
-                                                f"1px solid {rx.color('gray', 3)}"
-                                            ),
-                                            "border_radius": "0 8px 8px 0",
                                             "flex_shrink": "0",
                                             "overflow": "visible",
                                             "margin_left": "0px"
@@ -674,10 +606,10 @@ def comparison_section() -> rx.Component:
                         width="100%",
                         style={
                             "overflow_x": "auto",
-                            "overflow_y": "visible"
+                            "overflow_y": "visible",
                         }
                     ),
-                    spacing="0",
+                    spacing="2",
                     width="100%"
                 ),
                 spacing="0",
@@ -739,7 +671,7 @@ def index() -> rx.Component:
             comparison_section(),
             width="100%",
             style={
-                "max_width": "90vw",  # Reduced max width
+                "max_width": "90vw",
                 "margin": "0 auto",
             },
         ),
