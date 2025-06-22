@@ -367,7 +367,7 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                 spacing="0",
                 width="100%",
             ),
-            width="10em",  # Reduced from 12em to 8em
+            width="11em",  # Reduced from 12em to 8em
             style={
                 "flex_shrink": "0"
             }
