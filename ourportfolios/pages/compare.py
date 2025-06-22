@@ -193,6 +193,7 @@ def metric_selector_popover() -> rx.Component:
         rx.popover.content(
             rx.vstack(
                 rx.hstack(
+                    rx.heading('Select metrics'),
                     rx.spacer(),
                     rx.popover.close(
                         rx.button(
@@ -204,7 +205,6 @@ def metric_selector_popover() -> rx.Component:
                     width="100%",
                     align="center"
                 ),
-                rx.heading('Select metrics'),
                 rx.scroll_area(
                     rx.vstack(
                         rx.foreach(
@@ -367,7 +367,6 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                 ),
                 spacing="0",
                 width="100%",
-                padding="0.5em"  # Padding inside the card
             ),
             width="12em",
             min_width="12em",
