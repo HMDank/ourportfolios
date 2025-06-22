@@ -263,231 +263,184 @@ def metric_selector_popover() -> rx.Component:
     )
 
 
-def stock_header_card(stock: Dict[str, Any]) -> rx.Component:
-    """Create header card for each stock with remove button"""
+def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
+    """Create a column with separate header card and metrics card for each stock"""
     market_cap = stock.get('market_cap', "")
     ticker = stock.get('ticker', '')
 
-    return rx.card(
-        rx.vstack(
-            # Remove button positioned at top-right
-            rx.button(
-                rx.icon("x", size=12),
-                on_click=lambda: StockComparisonState.remove_stock_from_compare(
-                    ticker),
-                variant="ghost",
-                size="2",
-                style={
-                    "position": "absolute",
-                    "top": "1em",
-                    "right": "1em",
-                    "padding": "0.25em",
-                    "min_width": "auto",
-                    "height": "auto",
-                    "opacity": "0.7"
-                }
-            ),
-            # Stock content - clickable area
-            rx.link(
-                rx.vstack(
-                    rx.text(
-                        ticker,
-                        weight="bold",
-                        size="7",
-                        color=rx.color("gray", 12),
-                        letter_spacing="0.05em"
-                    ),
-                    rx.badge(
-                        stock.get('industry', ''),
-                        size="1",
-                        variant="soft",
-                        style={"font_size": "0.7em"}
-                    ),
-                    rx.text(
-                        f"{market_cap} B. VND",
-                        size="1",
-                        color=rx.color("gray", 10),
-                        weight="medium"
-                    ),
-                    spacing="2",
-                    align="center",
-                    justify="center",
-                    width="100%",
-                    padding_top="1.5em"
+    return rx.vstack(
+        # Header card - separate from metrics
+        rx.card(
+            rx.box(
+                rx.button(
+                    rx.icon("x", size=12),
+                    on_click=lambda: StockComparisonState.remove_stock_from_compare(
+                        ticker),
+                    variant="ghost",
+                    size="2",
+                    style={
+                        "position": "absolute",
+                        "top": "0.5em",
+                        "right": "0.5em",
+                        "padding": "0.25em",
+                        "min_width": "auto",
+                        "height": "auto",
+                        "opacity": "0.7"
+                    }
                 ),
-                href=f"/analyze/{ticker}",
-                text_decoration="none",
-                _hover={"text_decoration": "none"},
+                rx.link(
+                    rx.vstack(
+                        rx.text(
+                            ticker,
+                            weight="bold",
+                            size="6",
+                            color=rx.color("gray", 12),
+                            letter_spacing="0.05em"
+                        ),
+                        rx.badge(
+                            stock.get('industry', ''),
+                            size="1",
+                            variant="soft",
+                            style={"font_size": "0.7em"}
+                        ),
+                        rx.text(
+                            f"{market_cap} B. VND",
+                            size="1",
+                            color=rx.color("gray", 10),
+                            weight="medium"
+                        ),
+                        spacing="2",
+                        justify="center",
+                        width="100%",
+                        padding_bottom="0.5em"
+                    ),
+                    href=f"/analyze/{ticker}",
+                    text_decoration="none",
+                    _hover={
+                        "text_decoration": "none",
+                    },
+                    width="100%"
+                ),
+                position="relative",
                 width="100%"
             ),
-            spacing="0",
-            align="center",
-            justify="center",
-            width="100%",
-            height="100%"
-        ),
-        padding="0.5em",  # Reduced padding
-        width="11em",
-        min_height="5em",  # Slightly reduced height
-        display="flex",
-        align_items="center",
-        justify_content="center",
-        position="relative",
-        style={
-            "transition": "all 0.2s ease",
-            "cursor": "pointer",
-            "flex_shrink": "0"
-        },
-        _hover={
-            "transform": "translateY(-0.3em)",
-        }
-    )
-
-
-def stock_headers() -> rx.Component:
-    """
-    Create the header row with all stock information.
-    The metric label column is sticky.
-    """
-    return rx.hstack(
-        # Sticky metric label placeholder
-        rx.box(
             width="12em",
             min_width="12em",
             style={
                 "flex_shrink": "0",
-                "position": "sticky",
-                "left": 0,
-                "z_index": 2,
-                "background": rx.color("gray", 1),
+                "transition": "transform 0.2s ease",
+            },
+            _hover={
+                "transform": "translateY(-0.4em)",
             }
         ),
-        # Horizontally scrollable stock header cards
-        rx.hstack(
-            rx.foreach(
-                StockComparisonState.formatted_stocks,
-                lambda stock, _:
-                    stock_header_card(stock)
-            ),
-            spacing="2",
-            style={"flex_wrap": "nowrap"},
-            margin_top="0.5em"  # Add top margin to prevent cut-off
-        ),
-        spacing="0",
-        margin_bottom="1.5em",
-        width="fit-content",
-        min_width="fit-content",
-        style={"flex_wrap": "nowrap"}
-    )
 
-
-def metric_comparison_row(metric_key: str) -> rx.Component:
-    """
-    Create a single row: sticky label on the left,
-    values for each ticker to the right.
-    This ensures perfect alignment between label and values.
-    """
-    best = StockComparisonState.best_performers
-    return rx.hstack(
-        # Sticky metric label cell
-        rx.box(
-            rx.text(
-                StockComparisonState.metric_labels[metric_key],
-                size="2",
-                weight="medium",
-                color=rx.color("gray", 12)
-            ),
-            width="11em",
-            min_width="11em",
-            min_height="2.5em",
-            padding="0.5em 0.5em 0.5em 1em",
-            display="flex",
-            align_items="center",
-            style={
-                "position": "sticky",
-                "left": 0,
-                "z_index": 2,
-            }
-        ),
-        # Metric values for each ticker
-        rx.foreach(
-            StockComparisonState.formatted_stocks,
-            lambda stock, index: rx.box(
-                rx.text(
-                    stock[metric_key],
-                    size="2",
-                    weight=rx.cond(
-                        best[metric_key] == index,
-                        "bold",
-                        "medium"
-                    ),
-                    color=rx.cond(
-                        best[metric_key] == index,
-                        rx.color("green", 11),
-                        rx.color("gray", 11)
+        # Metrics card - separate from header
+        rx.card(
+            rx.vstack(
+                rx.foreach(
+                    StockComparisonState.selected_metrics,
+                    lambda metric_key: rx.box(
+                        rx.text(
+                            stock[metric_key],
+                            size="2",
+                            weight=rx.cond(
+                                StockComparisonState.best_performers[metric_key] == index,
+                                "bold",
+                                "medium"
+                            ),
+                            color=rx.cond(
+                                StockComparisonState.best_performers[metric_key] == index,
+                                rx.color("green", 11),
+                                rx.color("gray", 11)
+                            ),
+                        ),
+                        width="100%",
+                        min_height="2.5em",
+                        padding="0.5em",
+                        text_align="center",
+                        display="flex",
+                        align_items="center",
+                        justify_content="center",
+                        border_bottom=f"1px solid {rx.color('gray', 4)}"
                     )
                 ),
-                width="11em",
-                min_width="11em",
-                min_height="2.5em",
-                padding="0.5em",
-                text_align="center",
-                display="flex",
-                align_items="center",
-                justify_content="center",
-                style={"flex_shrink": "0"}
-            )
+                spacing="0",
+                width="100%",
+                padding="0.5em"  # Padding inside the card
+            ),
+            width="12em",
+            min_width="12em",
+            style={
+                "flex_shrink": "0"
+            }
         ),
-        spacing="0",
-        width="fit-content",
-        style={"flex_wrap": "nowrap"}
+
+        spacing="5",  # Space between header and metrics cards
+        align="start",
+        width="12em",
+        min_width="12em",
+        style={
+            "flex_shrink": "0"
+        }
     )
 
 
-def metric_label_column() -> rx.Component:
-    """
-    Fixed vertical column of metric labels (sticky/fixed on the left),
-    perfectly aligned with the number rows and with minimal spacing.
-    """
+def metric_labels_column() -> rx.Component:
+    """Fixed column showing metric labels - matches the two-card structure"""
     return rx.vstack(
-        rx.foreach(
-            StockComparisonState.selected_metrics,
-            lambda metric_key: rx.card(
-                rx.box(
-                    rx.text(
-                        StockComparisonState.metric_labels[metric_key],
-                        size="2",
-                        weight="medium",
-                        color=rx.color("gray", 12)
-                    ),
-                    width="10em",
-                    padding="0.3em",
-                    background_color=rx.color("gray", 2),
-                    display="flex",
-                    align_items="center",
-                    style={
-                        "flex_shrink": "0",
-                        "position": "sticky",
-                        "left": 0,
-                        "z_index": 2,
-                    }
-                ),
+        # Empty header spacer to align with stock headers
+        rx.card(
+            rx.box(
+                # Empty header space
                 width="12em",
                 min_width="12em",
-                background_color=rx.color("gray", 1),
-                style={
-                    "flex_shrink": "0",
-                    "overflow": "visible",
-                }
-            )
+                min_height="7.5em",  # Match stock header height
+            ),
+            width="12em",
+            min_width="12em",
+            style={
+                "flex_shrink": "0",
+                "visibility": "hidden"  # Hide but maintain space
+            }
         ),
-        spacing="1",
+
+        # Metrics labels card
+        rx.card(
+            rx.vstack(
+                rx.foreach(
+                    StockComparisonState.selected_metrics,
+                    lambda metric_key: rx.box(
+                        rx.text(
+                            StockComparisonState.metric_labels[metric_key],
+                            size="2",
+                            weight="medium",
+                            color=rx.color("gray", 12)
+                        ),
+                        width="100%",
+                        min_height="2.5em",
+                        padding="0.5em",
+                        text_align="center",
+                        display="flex",
+                        align_items="center",
+                        justify_content="center",
+                        border_bottom=f"1px solid {rx.color('gray', 4)}"
+                    )
+                ),
+                spacing="0",
+                width="100%"
+            ),
+            width="12em",
+            min_width="12em",
+            style={
+                "flex_shrink": "0"
+            }
+        ),
+
+        spacing="2",  # Match spacing of stock columns
         align="start",
-        width="fit-content",
         style={
-            "flex_wrap": "nowrap",
-            "margin_top": "8.7em",
-            # "margin_right": "0.7em",
+            "flex_shrink": "0"
         }
     )
 
@@ -515,102 +468,54 @@ def comparison_controls() -> rx.Component:
 
 def comparison_section() -> rx.Component:
     """
-    Main comparison section with all metrics.
-    Metric labels are fixed on the left,
-    only the table content scrolls horizontally.
+    Main comparison section with column-based layout.
+    Metric labels are separate from the scrollable stock columns.
     """
     return rx.cond(
         StockComparisonState.compare_list,
         rx.box(
             rx.vstack(
                 comparison_controls(),
+                # Main comparison table - separate fixed column and scrollable area
                 rx.hstack(
-                    metric_label_column(),
+                    # Fixed metric labels column (separate from scroll area)
+                    metric_labels_column(),
+                    # Scrollable stock columns area
                     rx.box(
                         rx.scroll_area(
-                            rx.vstack(
+                            rx.box(
                                 rx.hstack(
+                                    # Stock columns
                                     rx.foreach(
                                         StockComparisonState.formatted_stocks,
-                                        lambda stock, _:
-                                            stock_header_card(stock)
+                                        lambda stock, index: stock_column_card(
+                                            stock, index)
                                     ),
-                                    spacing="2",
-                                    style={"flex_wrap": "nowrap"},
-                                    margin_top="0.5em"
+                                    spacing="3",
+                                    align="start",
+                                    style={"flex_wrap": "nowrap"}
                                 ),
-                                # Metric value rows (no metric label column)
-                                rx.foreach(
-                                    StockComparisonState.selected_metrics,
-                                    lambda metric_key: rx.card(
-                                        rx.hstack(
-                                            rx.foreach(
-                                                StockComparisonState.
-                                                formatted_stocks,
-                                                lambda stock, index: rx.box(
-                                                    rx.text(
-                                                        stock[metric_key],
-                                                        size="2",
-                                                        weight=rx.cond(
-                                                            StockComparisonState.
-                                                            best_performers[
-                                                                metric_key
-                                                            ] == index,
-                                                            "bold",
-                                                            "medium"
-                                                        ),
-                                                        color=rx.cond(
-                                                            StockComparisonState.
-                                                            best_performers[
-                                                                metric_key
-                                                            ] == index,
-                                                            rx.color(
-                                                                "green", 11),
-                                                            rx.color(
-                                                                "gray", 11)
-                                                        )
-                                                    ),
-                                                    width="11.1em",
-                                                    padding="0.3em",
-                                                    text_align="center",
-                                                    display="flex",
-                                                    align_items="center",
-                                                    justify_content="center",
-                                                    style={"flex_shrink": "0"}
-                                                )
-                                            ),
-                                            spacing="0",
-                                            style={"flex_wrap": "nowrap"}
-                                        ),
-                                        width="fit-content",
-                                        min_width="fit-content",
-                                        background_color=rx.color("gray", 1),
-                                        style={
-                                            "flex_shrink": "0",
-                                            "overflow": "visible",
-                                            "margin_left": "0px"
-                                        }
-                                    )
-                                ),
-                                spacing="1",
-                                align="start",
-                                width="fit-content"
+                                padding_top="0.5em",  # Add padding to accommodate hover transform
+                                padding_bottom="0.5em"
                             ),
                             direction="horizontal",
                             scrollbars="horizontal",
                             style={
                                 "width": "100%",
-                                "max_height": "none"
+                                "max_height": "none",
+                                "overflow": "visible"  # Make scroll area overflow visible
                             }
                         ),
                         width="100%",
                         style={
-                            "overflow_x": "auto",
-                            "overflow_y": "visible",
+                            "overflow": "visible",  # Remove any clipping
+                            "position": "relative",
                         }
                     ),
                     spacing="2",
-                    width="100%"
+                    align="start",
+                    width="100%",
+                    style={"flex_wrap": "nowrap"}
                 ),
                 spacing="0",
                 width="100%"
@@ -620,7 +525,7 @@ def comparison_section() -> rx.Component:
                 "max_width": "100vw",
                 "margin": "0 auto",
                 "padding": "1.5em",
-                "overflow": "hidden"
+                "overflow": "visible"
             }
         ),
         rx.center(
