@@ -469,280 +469,56 @@ def comparison_controls() -> rx.Component:
 def comparison_section() -> rx.Component:
     """
     Main comparison section with column-based layout.
-    Always show stock header cards. If no metrics are selected, show a centered message in the metric area.
-    The metrics label column stays fixed while stock columns scroll horizontally.
+    Metric labels are separate from the scrollable stock columns.
     """
     return rx.cond(
         StockComparisonState.compare_list,
         rx.box(
             rx.vstack(
                 comparison_controls(),
-                # Split into header row and metrics row for proper alignment
-                rx.vstack(
-                    # Header row - stock headers with fixed empty space on left
-                    rx.hstack(
-                        # Empty space to align with fixed label column
-                        rx.box(
-                            width="12em",
-                            min_width="12em",
-                            min_height="7.5em",  # Match header height
-                            style={"flex_shrink": "0"}
-                        ),
-                        # Scrollable stock headers
+                # Main comparison table - separate fixed column and scrollable area
+                rx.hstack(
+                    # Fixed metric labels column (separate from scroll area)
+                    metric_labels_column(),
+                    # Scrollable stock columns area
+                    rx.box(
                         rx.scroll_area(
-                            rx.hstack(
-                                rx.foreach(
-                                    StockComparisonState.formatted_stocks,
-                                    lambda stock, index: rx.card(
-                                        rx.box(
-                                            rx.button(
-                                                rx.icon("x", size=12),
-                                                on_click=lambda: StockComparisonState.remove_stock_from_compare(
-                                                    stock.get('ticker', '')),
-                                                variant="ghost",
-                                                size="2",
-                                                style={
-                                                    "position": "absolute",
-                                                    "top": "0.5em",
-                                                    "right": "0.5em",
-                                                    "min_width": "auto",
-                                                    "height": "auto",
-                                                    "opacity": "0.7"
-                                                }
-                                            ),
-                                            rx.link(
-                                                rx.vstack(
-                                                    rx.text(
-                                                        stock.get(
-                                                            'ticker', ''),
-                                                        weight="bold",
-                                                        size="6",
-                                                        color=rx.color(
-                                                            "gray", 12),
-                                                        letter_spacing="0.05em"
-                                                    ),
-                                                    rx.badge(
-                                                        stock.get(
-                                                            'industry', ''),
-                                                        size="1",
-                                                        variant="soft",
-                                                        style={
-                                                            "font_size": "0.7em"}
-                                                    ),
-                                                    rx.text(
-                                                        f"{stock.get('market_cap', '')} B. VND",
-                                                        size="1",
-                                                        color=rx.color(
-                                                            "gray", 10),
-                                                        weight="medium"
-                                                    ),
-                                                    spacing="2",
-                                                    justify="center",
-                                                    width="100%",
-                                                    padding_bottom="1.2em"
-                                                ),
-                                                href=f"/analyze/{stock.get('ticker', '')}",
-                                                text_decoration="none",
-                                                _hover={
-                                                    "text_decoration": "none"},
-                                                width="100%"
-                                            ),
-                                            position="relative",
-                                            width="100%"
-                                        ),
-                                        width="12em",
-                                        min_width="12em",
-                                        style={
-                                            "flex_shrink": "0",
-                                            "transition": "transform 0.2s ease",
-                                        },
-                                        _hover={
-                                            "transform": "translateY(-0.4em)"}
-                                    )
-                                ),
-                                spacing="3",
-                                align="start",
-                                style={
-                                    "flex_wrap": "nowrap",
-                                    "padding_right": "2em"
-                                }
-                            ),
-                            type="hover",
-                            scrollbars="horizontal",
-                            style={"width": "100%", "flex": "1"}
-                        ),
-                        spacing="0",
-                        align="start",
-                        width="100%",
-                        style={"flex_wrap": "nowrap"}
-                    ),
-
-                    # Metrics row - fixed label column + scrollable metrics
-                    rx.hstack(
-                        # Fixed metric label column
-                        rx.cond(
-                            StockComparisonState.selected_metrics,
                             rx.box(
-                                rx.card(
-                                    rx.vstack(
-                                        rx.foreach(
-                                            StockComparisonState.selected_metrics,
-                                            lambda metric_key: rx.box(
-                                                rx.text(
-                                                    StockComparisonState.metric_labels[metric_key],
-                                                    size="2",
-                                                    weight="medium",
-                                                    color=rx.color("gray", 12)
-                                                ),
-                                                width="100%",
-                                                min_height="2.5em",
-                                                text_align="center",
-                                                display="flex",
-                                                align_items="center",
-                                                justify_content="center",
-                                                border_bottom=f"1px solid {rx.color('gray', 4)}"
-                                            )
-                                        ),
-                                        spacing="0",
-                                        width="100%"
+                                rx.hstack(
+                                    # Stock columns
+                                    rx.foreach(
+                                        StockComparisonState.formatted_stocks,
+                                        lambda stock, index: stock_column_card(
+                                            stock, index)
                                     ),
-                                    width="12em",
-                                    min_width="12em",
-                                    style={"flex_shrink": "0"}
+                                    spacing="3",
+                                    align="start",
+                                    style={"flex_wrap": "nowrap"}
                                 ),
-                                position="sticky",
-                                left="0",
-                                z_index="10",
-                                background=rx.color("gray", 1),
-                                style={"flex_shrink": "0"}
+                                # Add padding to accommodate hover transform
+                                padding_top="0.5em",
+                                padding_bottom="0.5em"
                             ),
-                            rx.box(
-                                width="12em",
-                                min_width="12em",
-                                position="sticky",
-                                left="0",
-                                z_index="10",
-                                background=rx.color("gray", 1),
-                                style={"flex_shrink": "0"}
-                            )
-                        ),
-                        # Scrollable metrics columns
-                        rx.scroll_area(
-                            rx.hstack(
-                                rx.foreach(
-                                    StockComparisonState.formatted_stocks,
-                                    lambda stock, index: rx.cond(
-                                        StockComparisonState.selected_metrics,
-                                        rx.card(
-                                            rx.vstack(
-                                                rx.foreach(
-                                                    StockComparisonState.selected_metrics,
-                                                    lambda metric_key: rx.box(
-                                                        rx.text(
-                                                            stock[metric_key],
-                                                            size="2",
-                                                            weight=rx.cond(
-                                                                StockComparisonState.best_performers[
-                                                                    metric_key] == index,
-                                                                "bold",
-                                                                "medium"
-                                                            ),
-                                                            color=rx.cond(
-                                                                StockComparisonState.best_performers[
-                                                                    metric_key] == index,
-                                                                rx.color(
-                                                                    "green", 11),
-                                                                rx.color(
-                                                                    "gray", 11)
-                                                            ),
-                                                        ),
-                                                        width="100%",
-                                                        min_height="2.5em",
-                                                        text_align="center",
-                                                        display="flex",
-                                                        align_items="center",
-                                                        justify_content="center",
-                                                        border_bottom=f"1px solid {rx.color('gray', 4)}"
-                                                    )
-                                                ),
-                                                spacing="0",
-                                                width="100%",
-                                            ),
-                                            width="12em",
-                                            min_width="12em",
-                                            style={"flex_shrink": "0"}
-                                        ),
-                                        rx.box(
-                                            width="12em", min_width="12em", min_height="8em")
-                                    )
-                                ),
-                                spacing="3",
-                                align="start",
-                                style={
-                                    "flex_wrap": "nowrap",
-                                    "padding_right": "2em"
-                                }
-                            ),
-                            type="hover",
+                            direction="horizontal",
                             scrollbars="horizontal",
-                            style={"width": "100%", "flex": "1"}
+                            style={
+                                "width": "100%",
+                                "max_height": "none",
+                                # Make scroll area overflow visible
+                                "overflow": "visible"
+                            }
                         ),
-                        spacing="0",
-                        align="start",
                         width="100%",
-                        style={"flex_wrap": "nowrap", "position": "relative"}
-                    ),
-
-                    spacing="5",  # Space between header and metrics rows
-                    width="100%"
-                ),
-
-                # Overlay message if no metrics selected
-                rx.cond(
-                    StockComparisonState.selected_metrics,
-                    None,
-                    rx.center(
-                        rx.card(
-                            rx.vstack(
-                                rx.hstack(
-                                    rx.icon(
-                                        "triangle-alert", color=rx.color("yellow", 10), size=18),
-                                    rx.text(
-                                        "No metrics selected.",
-                                        size="2",
-                                        weight="bold",
-                                        color=rx.color("yellow", 11),
-                                        margin_right="1em"
-                                    ),
-                                ),
-                                rx.hstack(
-                                    rx.text(
-                                        "Configure the metrics to compare via the settings button",
-                                        size="1",
-                                        color=rx.color("yellow", 10),
-                                    ),
-                                    rx.icon(
-                                        'arrow-up-right', color=rx.color('yellow', 10), size=16),
-                                ),
-                                spacing="2",
-                                align="center"
-                            ),
-                            width="max-content",
-                            min_width="20em",
-                            padding="1.2em 2em",
-                            background=rx.color("yellow", 2),
-                            border=f"1.5px solid {rx.color('yellow', 7)}",
-                        ),
-                        position="fixed",
-                        left="50%",
-                        top="45%",
                         style={
-                            "transform": "translate(-50%, -50%)",
-                            "z_index": 20,
-                            "pointer_events": "none"
-                        },
-                        width="100%"
-                    )
+                            # Remove any clipping
+                            "overflow": "visible",
+                            "position": "relative",
+                        }
+                    ),
+                    spacing="2",
+                    align="start",
+                    width="100%",
+                    style={"flex_wrap": "nowrap"}
                 ),
                 spacing="0",
                 width="100%"
@@ -758,14 +534,15 @@ def comparison_section() -> rx.Component:
         rx.center(
             rx.vstack(
                 rx.text(
-                    "Your compare list is empty. ",
+                    "Your compare list is empty. "
+                    "Use the button below to import from cart.",
                     size="3",
                     weight="medium",
                     align="center",
                 ),
                 rx.button(
                     rx.hstack(
-                        rx.icon("import", size=16),
+                        rx.icon("shopping_cart", size=16),
                         rx.text("Import from Cart"),
                         spacing="2"
                     ),
