@@ -445,18 +445,21 @@ def metric_labels_column() -> rx.Component:
 def comparison_controls() -> rx.Component:
     """Controls section with metric selector and load button"""
     return rx.hstack(
-        rx.button(
-            rx.hstack(
-                rx.icon("import", size=16),
-                rx.text("Import from Cart"),
-                spacing="2"
+        rx.spacer(),  # Push everything to the right
+        rx.hstack(
+            rx.button(
+                rx.hstack(
+                    rx.icon("import", size=16),
+                    spacing="2"
+                ),
+                on_click=StockComparisonState.import_and_fetch_compare,
+                size="2",
             ),
-            on_click=StockComparisonState.import_and_fetch_compare,
-            size="2",
+            metric_selector_popover(),  # Settings button
+            spacing="3",  # Space between the two buttons
+            align="center"
         ),
-        rx.spacer(),
-        metric_selector_popover(),
-        spacing="3",
+        spacing="0",
         align="center",
         width="100%",
         margin_bottom="2em"
