@@ -324,7 +324,7 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                 position="relative",
                 width="100%"
             ),
-            width="12em",
+            width="12em",  # Header card stays the same width
             min_width="12em",
             style={
                 "flex_shrink": "0",
@@ -335,7 +335,7 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
             }
         ),
 
-        # Metrics card - separate from header
+        # Metrics card - NARROWER WIDTH
         rx.card(
             rx.vstack(
                 rx.foreach(
@@ -367,15 +367,15 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                 spacing="0",
                 width="100%",
             ),
-            width="12em",
-            min_width="12em",
+            width="10em",  # Reduced from 12em to 8em
             style={
                 "flex_shrink": "0"
             }
         ),
 
         spacing="5",  # Space between header and metrics cards
-        align="start",
+        align="center",
+        # Overall column width stays the same (determined by header)
         width="12em",
         min_width="12em",
         style={
