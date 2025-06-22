@@ -495,7 +495,6 @@ def comparison_section() -> rx.Component:
                                     align="start",
                                     style={"flex_wrap": "nowrap"}
                                 ),
-                                # Add padding to accommodate hover transform
                                 padding_top="0.5em",
                                 padding_bottom="0.5em"
                             ),
@@ -503,16 +502,17 @@ def comparison_section() -> rx.Component:
                             scrollbars="horizontal",
                             style={
                                 "width": "100%",
-                                "max_height": "none",
-                                # Make scroll area overflow visible
-                                "overflow": "visible"
+                                "maxWidth": "90vw",
+                                "overflowX": "auto",
+                                "overflowY": "hidden"
                             }
                         ),
                         width="100%",
                         style={
-                            # Remove any clipping
-                            "overflow": "visible",
-                            "position": "relative",
+                            "maxWidth": "90vw",
+                            "overflowX": "auto",
+                            "overflowY": "hidden",
+                            "position": "relative"
                         }
                     ),
                     spacing="2",
@@ -528,7 +528,7 @@ def comparison_section() -> rx.Component:
                 "max_width": "100vw",
                 "margin": "0 auto",
                 "padding": "1.5em",
-                "overflow": "visible"
+                "overflowX": "hidden"
             }
         ),
         rx.center(
