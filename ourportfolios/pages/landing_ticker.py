@@ -1,22 +1,15 @@
-from turtle import width
 import pandas as pd
 import reflex as rx
 import sqlite3
 from typing import Any, List, Dict
-from vnstock import Vnstock, Finance
+from vnstock import Finance
 
-
-# from ..components.loading import loading_wrapper
 from ..components.price_chart import PriceChartState, render_price_chart
 from ..components.navbar import navbar
 from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
 from ..utils.load_data import load_company_info, load_officers_info, load_historical_data, load_financial_statements
-from ..utils.preprocess_texts import preprocess_events_texts
 from ..components.financial_statement import financial_statements
-
-
-CHART_HEIGHT = 280
 
 
 def fetch_technical_metrics(ticker: str) -> dict:
@@ -43,13 +36,44 @@ class State(rx.State):
 
     # Financial ratio data
     financial_df: pd.DataFrame = pd.DataFrame()
+
+    # Mapping for profitability metrics (display name -> data key)
+    profitability_metric_mapping: Dict[str, str] = {
+        "ROE (TTM)": "ROE (%)",
+        "ROA (TTM)": "ROA (%)",
+        "Earnings Per Share": "EPS (VND)",
+        "Gross Margin": "gross_margin",
+        "Net Margin": "net_margin"
+    }
+
+    # Mapping for dividend metrics (display name -> data key)
+    dividend_metric_mapping: Dict[str, str] = {
+        "Dividend (VND)": "dividend_vnd"
+    }
+
+    # Valuation metrics (no mapping needed - display name = data key)
+    valuation_options: List[str] = [
+        "P/E", "P/B", "P/S", "P/Cash Flow", "EV/EBITDA"]
+
+    # Display options for dropdowns
+    profitability_display_options: List[str] = [
+        "ROE (TTM)", "ROA (TTM)", "Earnings Per Share", "Gross Margin", "Net Margin"]
+    dividend_display_options: List[str] = ["Dividend (VND)"]
+
+    # Selected metrics
+    selected_valuation_metric: str = "P/E"
+    selected_profitability_display: str = "ROE (TTM)"
+    selected_dividend_display: str = "Dividend (VND)"
+
+    # Internal data keys (computed from mappings)
+    selected_profitability_metric: str = "ROE (%)"
+    selected_dividend_metric: str = "dividend_vnd"
+
+    # Legacy fields (keeping for backward compatibility)
     selected_metric: str = "P/E"
     available_metrics: List[str] = ["P/E", "P/B", "P/S",
                                     "P/Cash Flow", "ROE (%)", "ROA (%)", "Debt/Equity"]
-    selected_valuation_metric: str = "P/E"
-    selected_profitability_metric: str = "ROE (%)"
     selected_margin_metric: str = "gross_margin"
-    selected_dividend_metric: str = "dividend_vnd"
 
     @rx.event
     def load_technical_metrics(self):
@@ -90,20 +114,11 @@ class State(rx.State):
         df = self.financial_df.copy()
         transformed = []
 
-        # Check if we have year and lengthReport columns
-        if 'yearReport' in df.columns and 'lengthReport' in df.columns:
-            for _, row in df.head(8).iterrows():  # Take first 8 rows
-                quarter_index = f"Q{row['lengthReport']} {row['yearReport']}"
-                row_dict = row.to_dict()
-                row_dict['quarter_index'] = quarter_index
-                transformed.append(row_dict)
-        else:
-            # Fallback: use index as quarter indicator
-            for i, (_, row) in enumerate(df.head(8).iterrows()):
-                quarter_index = f"Q{i+1} 2024"  # Generic quarter naming
-                row_dict = row.to_dict()
-                row_dict['quarter_index'] = quarter_index
-                transformed.append(row_dict)
+        for _, row in df.head(8).iterrows():
+            quarter_index = f"Q{row['lengthReport']} {row['yearReport']}"
+            row_dict = row.to_dict()
+            row_dict['quarter_index'] = quarter_index
+            transformed.append(row_dict)
 
         return transformed
 
@@ -114,17 +129,18 @@ class State(rx.State):
             return []
 
         margin_data = []
-        for statement in self.income_statement[:8]:  # Take first 8 quarters
-
+        for statement in self.income_statement[:8]:
             revenue = float(statement.get('revenue', 0)
                             ) if statement.get('revenue') else 0
+            gross_profit = float(statement.get('gross_profit', 0)) if statement.get(
+                'gross_profit') else 0
             post_tax_profit = float(statement.get('post_tax_profit', 0)) if statement.get(
                 'post_tax_profit') else 0
 
-            # Calculate margins
-            gross_margin = (post_tax_profit / revenue *
+            gross_margin = (gross_profit / revenue *
                             100) if revenue != 0 else 0
-            net_margin = gross_margin  # Assuming post_tax_profit is net profit
+            net_margin = (post_tax_profit / revenue *
+                          100) if revenue != 0 else 0
 
             # Create quarter label from year and quarter info
             year = statement.get('yearReport', 2024)
@@ -149,8 +165,8 @@ class State(rx.State):
         for row in self.transformed_financial_data:
             dividend_yield = float(row.get('Dividend yield (%)', 0))
             pb_ratio = float(row.get('P/B', 0)) if row.get('P/B') else 0
-            bvps = float(row.get('BVPS (VND)', 10000)) if row.get(
-                'BVPS') else 10000  # Default BVPS
+            bvps = float(row.get('BVPS (VND)', 10000)
+                         ) if row.get('BVPS') else 10000
 
             dividend_vnd = dividend_yield * pb_ratio * bvps
 
@@ -168,7 +184,7 @@ class State(rx.State):
             return []
 
         chart_data = []
-        metrics = ["P/E", "P/B", "P/S", "P/Cash Flow"]
+        metrics = ["P/E", "P/B", "P/S", "P/Cash Flow", "EV/EBITDA"]
         for row in self.transformed_financial_data:
             data_point = {"quarter": row["quarter_index"]}
             for metric in metrics:
@@ -182,19 +198,28 @@ class State(rx.State):
 
     @rx.var
     def profitability_chart_data(self) -> List[Dict[str, Any]]:
-        """Get chart data for profitability metrics"""
+        """Get combined chart data for profitability metrics including margins"""
         if not self.transformed_financial_data:
             return []
 
         chart_data = []
-        metrics = ["ROE (%)", "ROA (%)", "EPS (VND)"]
-        for row in self.transformed_financial_data:
+        for i, row in enumerate(self.transformed_financial_data):
             data_point = {"quarter": row["quarter_index"]}
-            for metric in metrics:
+            profitability_metrics = ["ROE (%)", "ROA (%)", "EPS (VND)"]
+            for metric in profitability_metrics:
                 value = row.get(metric, 0)
                 if value is None or pd.isna(value):
                     value = 0
                 data_point[metric] = float(value)
+
+            if i < len(self.margin_data):
+                margin_row = self.margin_data[i]
+                data_point["gross_margin"] = margin_row.get("gross_margin", 0)
+                data_point["net_margin"] = margin_row.get("net_margin", 0)
+            else:
+                data_point["gross_margin"] = 0
+                data_point["net_margin"] = 0
+
             chart_data.append(data_point)
 
         return chart_data
@@ -214,34 +239,52 @@ class State(rx.State):
                 "value": shareholder["share_own_percent"],
             }
             for shareholder in self.shareholders
-
         ]
         for idx, d in enumerate(data):
             d["fill"] = colors[idx % len(colors)]
         return data
 
+    # Event handlers for setting metrics
     @rx.event
     def set_valuation_metric(self, value: str):
+        """Set valuation metric (no mapping needed)"""
         self.selected_valuation_metric = value
 
     @rx.event
-    def set_profitability_metric(self, value: str):
-        self.selected_profitability_metric = value
+    def set_profitability_metric(self, display_value: str):
+        """Set profitability metric using display value"""
+        self.selected_profitability_display = display_value
+        self.selected_profitability_metric = self.profitability_metric_mapping.get(
+            display_value, display_value)
 
+    @rx.event
+    def set_dividend_metric(self, display_value: str):
+        """Set dividend metric using display value"""
+        self.selected_dividend_display = display_value
+        self.selected_dividend_metric = self.dividend_metric_mapping.get(
+            display_value, display_value)
+
+    # Legacy event handlers (keeping for backward compatibility)
     @rx.event
     def set_margin_metric(self, value: str):
         self.selected_margin_metric = value
 
-    @rx.event
-    def set_dividend_metric(self, value: str):
-        self.selected_dividend_metric = value
+    @rx.var
+    def current_profitability_data_key(self) -> str:
+        """Get the actual data key for the selected profitability metric"""
+        return self.profitability_metric_mapping.get(self.selected_profitability_display, self.selected_profitability_display)
 
+    @rx.var
+    def current_dividend_data_key(self) -> str:
+        """Get the actual data key for the selected dividend metric"""
+        return self.dividend_metric_mapping.get(self.selected_dividend_display, self.selected_dividend_display)
+
+    # Single metric chart data methods
     @rx.var
     def valuation_chart_data_single(self) -> list[dict]:
         if not self.transformed_financial_data:
             return []
         metric = self.selected_valuation_metric
-        # Reverse so newest is rightmost
         return [
             {"quarter": row["quarter_index"], metric: row.get(metric, 0) or 0}
             for row in reversed(self.transformed_financial_data)
@@ -251,23 +294,23 @@ class State(rx.State):
     def profitability_chart_data_single(self) -> list[dict]:
         if not self.transformed_financial_data:
             return []
+
         metric = self.selected_profitability_metric
-        # Reverse so newest is rightmost
+
+        # Handle margin metrics separately since they come from margin_data
+        if metric in ["gross_margin", "net_margin"]:
+            if not self.margin_data:
+                return []
+            return [
+                {"quarter": row["quarter_index"],
+                    metric: row.get(metric, 0) or 0}
+                for row in reversed(self.margin_data)
+            ]
+
+        # Handle other profitability metrics from transformed_financial_data
         return [
             {"quarter": row["quarter_index"], metric: row.get(metric, 0) or 0}
             for row in reversed(self.transformed_financial_data)
-        ]
-
-    @rx.var
-    def margin_data_single(self) -> list[dict]:
-        if not self.margin_data:
-            return []
-        metric = self.selected_margin_metric
-        # Reverse so newest is rightmost
-        return [
-            {"quarter_index": row["quarter_index"],
-                metric: row.get(metric, 0) or 0}
-            for row in reversed(self.margin_data)
         ]
 
     @rx.var
@@ -275,7 +318,6 @@ class State(rx.State):
         if not self.dividend_data:
             return []
         metric = self.selected_dividend_metric
-        # Reverse so newest is rightmost
         return [
             {"quarter_index": row["quarter_index"],
                 metric: row.get(metric, 0) or 0}
@@ -342,8 +384,8 @@ def graph_card(
 
 def create_valuation_chart():
     return graph_card(
-        title="Valuation Metrics",
-        metric_options=["P/E", "P/B", "P/S", "P/Cash Flow"],
+        title="Valuation",
+        metric_options=State.valuation_options,
         selected_metric=State.selected_valuation_metric,
         set_metric_event=State.set_valuation_metric,
         chart_data=State.valuation_chart_data_single,
@@ -354,33 +396,126 @@ def create_valuation_chart():
 
 def create_profitability_chart():
     return graph_card(
-        title="Profitability Metrics",
-        metric_options=["ROE (%)", "ROA (%)", "EPS (VND)"],
-        selected_metric=State.selected_profitability_metric,
+        title="Profitability",
+        metric_options=State.profitability_display_options,
+        selected_metric=State.selected_profitability_display,
         set_metric_event=State.set_profitability_metric,
         chart_data=State.profitability_chart_data_single,
-        data_key=State.selected_profitability_metric,
+        data_key=State.current_profitability_data_key,
         x_axis_key="quarter"
     )
 
 
-def create_margin_chart():
-    return graph_card(
-        title="Profit Margins",
-        metric_options=["gross_margin", "net_margin"],
-        selected_metric=State.selected_margin_metric,
-        set_metric_event=State.set_margin_metric,
-        chart_data=State.margin_data_single,
-        data_key=State.selected_margin_metric,
-        x_axis_key="quarter_index"
+def create_placeholder_chart_a():
+    return rx.card(
+        rx.vstack(
+            rx.hstack(
+                rx.heading("Chart A", size="4", weight="bold"),
+                rx.spacer(),
+                rx.select(
+                    ["Metric A1", "Metric A2", "Metric A3"],
+                    value="Metric A1",
+                    size="1"
+                ),
+                align="center",
+                justify="between",
+                width="100%"
+            ),
+            rx.box(
+                rx.center(
+                    rx.text("Placeholder for Chart A", size="3", color="gray"),
+                    height="280px",
+                ),
+                width="100%",
+                style={"overflow": "hidden",
+                       "border": "2px dashed #ccc", "borderRadius": "8px"},
+            ),
+            spacing="3",
+            align="stretch"
+        ),
+        width="100%",
+        flex="1",
+        min_width="0",
+        max_width="100%",
+        style={"padding": "1em", "minWidth": 0, "overflow": "hidden"},
+    )
+
+
+def create_placeholder_chart_b():
+    return rx.card(
+        rx.vstack(
+            rx.hstack(
+                rx.heading("Chart B", size="4", weight="bold"),
+                rx.spacer(),
+                rx.select(
+                    ["Metric B1", "Metric B2", "Metric B3"],
+                    value="Metric B1",
+                    size="1"
+                ),
+                align="center",
+                justify="between",
+                width="100%"
+            ),
+            rx.box(
+                rx.center(
+                    rx.text("Placeholder for Chart B", size="3", color="gray"),
+                    height="280px",
+                ),
+                width="100%",
+                style={"overflow": "hidden",
+                       "border": "2px dashed #ccc", "borderRadius": "8px"},
+            ),
+            spacing="3",
+            align="stretch"
+        ),
+        width="100%",
+        flex="1",
+        min_width="0",
+        max_width="100%",
+        style={"padding": "1em", "minWidth": 0, "overflow": "hidden"},
+    )
+
+
+def create_placeholder_chart_c():
+    return rx.card(
+        rx.vstack(
+            rx.hstack(
+                rx.heading("Chart C", size="4", weight="bold"),
+                rx.spacer(),
+                rx.select(
+                    ["Metric C1", "Metric C2", "Metric C3"],
+                    value="Metric C1",
+                    size="1"
+                ),
+                align="center",
+                justify="between",
+                width="100%"
+            ),
+            rx.box(
+                rx.center(
+                    rx.text("Placeholder for Chart C", size="3", color="gray"),
+                    height="280px",
+                ),
+                width="100%",
+                style={"overflow": "hidden",
+                       "border": "2px dashed #ccc", "borderRadius": "8px"},
+            ),
+            spacing="3",
+            align="stretch"
+        ),
+        width="100%",
+        flex="1",
+        min_width="0",
+        max_width="100%",
+        style={"padding": "1em", "minWidth": 0, "overflow": "hidden"},
     )
 
 
 def create_dividend_chart():
     return graph_card(
         title="Dividend (VND)",
-        metric_options=["dividend_vnd"],
-        selected_metric=State.selected_dividend_metric,
+        metric_options=State.dividend_display_options,
+        selected_metric=State.selected_dividend_display,
         set_metric_event=State.set_dividend_metric,
         chart_data=State.dividend_data_single,
         data_key=State.selected_dividend_metric,
@@ -389,20 +524,21 @@ def create_dividend_chart():
 
 
 def performance_cards():
-    """Performance cards with multiple financial metrics charts"""
     return rx.vstack(
         rx.hstack(
-            create_valuation_chart(),
+            create_dividend_chart(),
+            create_placeholder_chart_a(),
             create_profitability_chart(),
-            spacing="5",
+            spacing="4",
             width="100%",
             align="stretch",
             justify="between",
         ),
         rx.hstack(
-            create_margin_chart(),
-            create_dividend_chart(),
-            spacing="5",
+            create_valuation_chart(),
+            create_placeholder_chart_b(),
+            create_placeholder_chart_c(),
+            spacing="4",
             width="100%",
             align="stretch",
             justify="between",
@@ -508,8 +644,7 @@ def company_card():
         rx.vstack(
             rx.box(
                 rx.segmented_control.root(
-                    rx.segmented_control.item(
-                        "Shares", value="shares"),
+                    rx.segmented_control.item("Shares", value="shares"),
                     rx.segmented_control.item("Events", value="events"),
                     rx.segmented_control.item("News", value="news"),
                     on_change=State.setvar("company_control"),
@@ -593,7 +728,6 @@ def company_card():
                         ),
                         style={"height": "45.3em"},
                     ),
-
                     rx.scroll_area(
                         rx.vstack(
                             rx.foreach(
@@ -654,10 +788,6 @@ def shareholders_pie_chart():
     )
 
 
-def display_price_plot():
-    return render_price_chart()
-
-
 @rx.page(route="/analyze/[ticker]", on_load=[State.load_technical_metrics, State.load_company_data, State.load_financial_ratios, PriceChartState.load_data])
 def index():
     return rx.fragment(
@@ -682,10 +812,9 @@ def index():
                             name_card(),
                             general_info_card(),
                             spacing="4",
-                            # width="22em",
                             align="center",
                         ),
-                        display_price_plot(),
+                        render_price_chart(),
                         width="100%",
                     ),
                     width="100%"
