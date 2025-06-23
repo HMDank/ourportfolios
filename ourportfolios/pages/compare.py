@@ -535,7 +535,6 @@ def comparison_section() -> rx.Component:
             rx.vstack(
                 rx.text(
                     "Your compare list is empty. "
-                    "Use the button below to import from cart.",
                     size="3",
                     weight="medium",
                     align="center",
