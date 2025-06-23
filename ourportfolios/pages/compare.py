@@ -417,10 +417,9 @@ def metric_labels_column() -> rx.Component:
                         ),
                         width="100%",
                         min_height="2.5em",
-                        text_align="center",
                         display="flex",
                         align_items="center",
-                        justify_content="center",
+                        justify_content="start",
                         border_bottom=f"1px solid {rx.color('gray', 4)}"
                     )
                 ),
@@ -508,6 +507,7 @@ def comparison_section() -> rx.Component:
                             }
                         ),
                         width="100%",
+                        margin_left="1.8em",
                         style={
                             "maxWidth": "90vw",
                             "overflowX": "auto",
@@ -515,7 +515,7 @@ def comparison_section() -> rx.Component:
                             "position": "relative"
                         }
                     ),
-                    spacing="2",
+                    spacing="0",
                     align="start",
                     width="100%",
                     style={"flex_wrap": "nowrap"}
