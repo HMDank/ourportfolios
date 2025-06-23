@@ -2,8 +2,10 @@ import reflex as rx
 import pandas as pd
 import time
 import sqlite3
-from typing import List, Dict, Any
 import itertools
+from typing import List, Dict, Any
+
+from .graph import pct_change_badge
 
 
 class SearchBarState(rx.State):
@@ -17,9 +19,9 @@ class SearchBarState(rx.State):
 
     @rx.event
     def set_display_suggestions(self, mode: bool):
-        yield time.sleep(0.15)  # Delay the set action
+        yield time.sleep(0.2)  # Delay the set action
         self.display_suggestion = mode
-
+        
     @rx.event
     def add_ticker_to_history(self, ticker: str):
         if not ticker in self.recent_tickers:
@@ -86,34 +88,46 @@ class SearchBarState(rx.State):
 
 def search_bar():
     return rx.box(
-        rx.input(
-            rx.input.slot(rx.icon(tag="search", size=16)),
-            placeholder="Search for a ticker here!",
-            type="search",
-            size="2",
-            value=SearchBarState.search_query,
-            on_change=SearchBarState.set_query,
-            on_blur=SearchBarState.set_display_suggestions(False),
-            on_focus=SearchBarState.set_display_suggestions(True),
-            width="22vw",
-        ),
         rx.vstack(
-            rx.foreach(
-                rx.cond(SearchBarState.search_query, SearchBarState.get_suggest_ticker,
-                        SearchBarState.get_recent_ticker),
-                lambda ticker_value: suggestion_card(value=ticker_value),
+            rx.input(
+                rx.input.slot(rx.icon(tag="search", size=16)),
+                placeholder="Search for a ticker here!",
+                type="search",
+                size="2",
+                value=SearchBarState.search_query,
+                on_change=SearchBarState.set_query,
+                on_blur=SearchBarState.set_display_suggestions(False),
+                on_mount=SearchBarState.set_display_suggestions(False), # Hide suggestion dropdown on page load
+                on_focus=SearchBarState.set_display_suggestions(True),
+                width="100%",
             ),
+            rx.cond(SearchBarState.display_suggestion,
+                # Scrollable suggestion dropdown 
+                rx.vstack(
+                    rx.scroll_area(
+                        rx.foreach(
+                            rx.cond(SearchBarState.search_query is not None, 
+                                    SearchBarState.get_suggest_ticker,
+                                    SearchBarState.get_recent_ticker),
+                            lambda ticker_value: suggestion_card(value=ticker_value),
+                        ),
+                        scrollbars="vertical",
+                        type="scroll",
+                    ),
+                    width="100%",
+                    max_height=300,
+                    overflow_y="auto",
+                    z_index="100",
+                    background_color=rx.color('gray', 2),
+                    position="absolute",
+                    top="calc(100% + 5px)",
+                    border_radius=10
+                ),
+                rx.box(),
+            ),
+            position="relative",
             width="22vw",
-            max_height="250px",
-            overflow_y="auto",
-            z_index="100",
-            background_color=rx.color('gray', 2),
-            color="white",
-            position="absolute",
-            top="calc(100% + 5px)",
-            left="0",
-        ),
-        position="relative",
+        )
     )
 
 
@@ -122,19 +136,15 @@ def suggestion_card(value: Dict[str, Any]) -> rx.Component:
     industry = value['industry']
     pct_price_change: float = value['pct_price_change'].to(float)
 
-    color = rx.cond(pct_price_change > 0, rx.color('green', 11), rx.cond(
-        pct_price_change < 0, rx.color('red', 9), rx.color('gray', 11)))
-    scheme = rx.cond(pct_price_change > 0, "green",
-                     rx.cond(pct_price_change < 0, "red", "gray"))
-
     return rx.box(
         rx.hstack(
+            # ticker tag
             rx.text(
                 ticker,
                 size="5",
                 weight="bold",
             ),
-
+            # industry tag
             rx.badge(
                 industry,
                 size="2",
@@ -143,14 +153,9 @@ def suggestion_card(value: Dict[str, Any]) -> rx.Component:
                 color_scheme="violet",
                 radius='medium',
             ),
-
             rx.spacer(),
-
-            pct_change_badge(
-                pct_price_change=pct_price_change,
-                color=color,
-                scheme=scheme
-            ),
+            # pct badge
+            pct_change_badge(diff=pct_price_change),
 
             align="center",
             spacing="2",
@@ -163,18 +168,8 @@ def suggestion_card(value: Dict[str, Any]) -> rx.Component:
         width="100%",
         padding="10px",
         cursor="pointer",
-        _hover={'background_color': rx.color('cyan', 9)},
+        _hover={'background_color': rx.color('gray', 3)},
         max_width="100%",
     )
 
 
-def pct_change_badge(pct_price_change: float, color: rx.Color, scheme: str):
-    return rx.badge(
-        f"{pct_price_change}%",
-        size="1",
-        weight="medium",
-        color=color,
-        variant="surface",
-        color_scheme=scheme,
-        radius='full',
-    ),
