@@ -534,7 +534,7 @@ def comparison_section() -> rx.Component:
         rx.center(
             rx.vstack(
                 rx.text(
-                    "Your compare list is empty. "
+                    "Your compare list is empty. ",
                     size="3",
                     weight="medium",
                     align="center",
