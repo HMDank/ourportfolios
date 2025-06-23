@@ -251,7 +251,7 @@ def ticker_card(df: str):
                 flex="1",
             ),
             rx.button(
-                rx.icon("shopping-cart", size=16),
+                rx.icon("list-plus", size=16),
                 size="1",
                 variant="soft",
                 on_click=lambda: CartState.add_item(ticker),
