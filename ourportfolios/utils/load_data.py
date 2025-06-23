@@ -1,4 +1,4 @@
-from .preprocessing.preprocess_texts import process_events_for_display
+from .preprocessing.events_texts import process_events_for_display
 import pandas as pd
 import numpy as np
 import sqlite3
