@@ -48,6 +48,7 @@ def populate_db() -> None:
     # Result
     df = pd.merge(left=stock_df, right=price_board_df,
                   left_on='ticker', right_on='symbol')
+    
     # Add additional instrument
     df = compute_instrument(df)
 
@@ -71,9 +72,9 @@ def load_price_board(tickers: List[str]) -> pd.DataFrame:
 
 def compute_instrument(df: pd.DataFrame) -> pd.DataFrame:
     # Changes in price
-    if 'bid_1_price' in df.columns:
+    if 'match_price' in df.columns:
         # Rename for better comprehension
-        df = df.rename(columns={'bid_1_price': 'current_price'})
+        df = df.rename(columns={'match_price': 'current_price'})
 
         # latest close price - close price from previous day
         df['price_change'] = (df['current_price'] - df['ref_price'])
