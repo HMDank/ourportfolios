@@ -81,29 +81,22 @@ def cart_drawer_content():
                                         CartState.cart_items,
                                         lambda item, i: rx.card(
                                             rx.hstack(
-                                                rx.button(
-                                                    rx.hstack(
+                                                rx.hstack(
+                                                    rx.link(
                                                         rx.text(
                                                             item["name"],
                                                             size="4",
                                                             weight="medium"
                                                         ),
-                                                        rx.badge(
-                                                            f"{item['industry']}",
-                                                            size='1',
-                                                        ),
-                                                        spacing="3",
-                                                        width='100%',
-                                                        display="flex",
-                                                        align_items="center",
-                                                        justify_content="between-center",
+                                                        href=f'/analyze/{item["name"]}',
+                                                        underline='none',
                                                     ),
-                                                    on_click=CartState.toggle_cart,
-                                                    variant="ghost",  # Optional: makes the button look like plain content
-                                                    width="100%",
-                                                    # Optional: remove button styling
-                                                    style={
-                                                        "padding": 0, "background": "none", "boxShadow": "none"},
+                                                    rx.badge(
+                                                        f"{item['industry']}",
+                                                        size='1',
+                                                    ),
+                                                    spacing="3",
+                                                    align_items="center",
                                                 ),
                                                 rx.button(
                                                     rx.icon(
@@ -117,23 +110,25 @@ def cart_drawer_content():
                                                         "fontSize": "0.9em"
                                                     },
                                                     on_click=lambda: CartState.remove_item(
-                                                        i
-                                                    ),
+                                                        i),
                                                 ),
                                                 align_items="center",
+                                                justify_content="space-between",
                                                 width="100%",
                                             ),
                                             background_color=rx.color(
                                                 "accent", 2),
                                             padding="0.8em 1em",
                                             margin_bottom="0.7em",
-                                            width="92%",
+                                            width="100%",  # Changed from "92%" to "100%"
                                         ),
                                     ),
                                     width="100%",
-                                    spacing="1"
+                                    spacing="1",
+                                    padding="0 0.5em",  # Add padding to the container instead
                                 ),
                                 height="400px",
+                                width="100%",  # Ensure scroll area takes full width
                             ),
                             rx.vstack(
                                 rx.foreach(
@@ -147,8 +142,7 @@ def cart_drawer_content():
                                                         size="4",
                                                         weight="medium"
                                                     ),
-                                                    href=f'/analyze/'
-                                                    f'{item["name"]}',
+                                                    href=f'/analyze/{item["name"]}',
                                                     underline='none',
                                                 ),
                                                 rx.badge(
@@ -156,11 +150,7 @@ def cart_drawer_content():
                                                     size='1',
                                                 ),
                                                 spacing="3",
-                                                width='100%',
-                                                display="flex",
                                                 align_items="center",
-                                                justify_content="between-"
-                                                "center",
                                             ),
                                             rx.button(
                                                 rx.icon("list-minus", size=16),
@@ -173,20 +163,21 @@ def cart_drawer_content():
                                                     "fontSize": "0.9em"
                                                 },
                                                 on_click=lambda: CartState.remove_item(
-                                                    i
-                                                ),
+                                                    i),
                                             ),
                                             align_items="center",
+                                            justify_content="space-between",
                                             width="100%",
                                         ),
                                         background_color=rx.color("accent", 2),
                                         padding="0.8em 1em",
                                         margin_bottom="0.7em",
-                                        width="92%",
+                                        width="100%",  # Keep consistent with scroll area version
                                     ),
                                 ),
                                 width="100%",
-                                spacing="1"
+                                spacing="1",
+                                padding="0 0.5em",  # Add same padding for consistency
                             )
                         ),
                         # Bottom right button - only shows when cart has items
