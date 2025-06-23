@@ -1,5 +1,7 @@
 import reflex as rx
 import pandas as pd
+from datetime import date
+from dateutil.relativedelta import relativedelta
 from typing import Dict, List, Any, Optional
 
 from ..utils.compute_instrument import compute_ma, compute_rsi
@@ -26,8 +28,11 @@ class PriceChartState(rx.State):
     @rx.event
     def load_data(self):
         """An event to refresh/recall historical data given new ticker"""
-        ticker = self.router.page.params.get("ticker", "")
-        chart_data = load_historical_data(ticker)
+        ticker: str = self.router.page.params.get("ticker","")
+        chart_data: pd.DataFrame = load_historical_data(symbol=ticker,
+                                       start=(date.today() - relativedelta(years=6)).strftime("%Y-%m-%d"),
+                                       end=(date.today()+ relativedelta(days=1)).strftime("%Y-%m-%d"),
+                                       interval="1D")
         if not chart_data.empty: self.set_df(chart_data.to_dict("records"))
 
     @rx.event
@@ -35,13 +40,13 @@ class PriceChartState(rx.State):
         if not value: value = 0
         self.ma_period = value
         self.chart_configs
-        
+
     @rx.event
     def set_rsi_period(self, value: int):
         if not value: value = 0
         self.rsi_period = value
         self.chart_configs
-        
+
     @rx.event
     def set_selection(self, selection: str):
         self.chart_selection  = selection
@@ -250,37 +255,6 @@ class PriceChartState(rx.State):
                     "barMaxWidth": "60%",
                     "markLine": {
                     "symbol": ["none", "none"],
-                    "data": [
-                        [
-                            {
-                                "name": "from lowest to highest",
-                                "type": "min",
-                                "valueDim": "lowest",
-                                "symbol": "circle",
-                                "symbolSize": 10,
-                                "label": {"show": False},
-                                "emphasis": {"label": {"show": False}},
-                            },
-                            {
-                                "type": "max",
-                                "valueDim": "highest",
-                                "symbol": "circle",
-                                "symbolSize": 10,
-                                "label": {"show": False},
-                                "emphasis": {"label": {"show": False}},
-                            },
-                        ],
-                        {
-                            "name": "min line on close",
-                            "type": "min",
-                            "valueDim": "close",
-                        },
-                        {
-                            "name": "max line on close",
-                            "type": "max",
-                            "valueDim": "close",
-                        },
-                    ],
                 },
             }
         ],
