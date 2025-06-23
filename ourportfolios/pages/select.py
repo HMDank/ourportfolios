@@ -15,6 +15,7 @@ class State(rx.State):
     control: str = "home"
     show_arrow: bool = True
     data: list[dict] = []
+    industries: list[str] = []
     offset: int = 0
     limit: int = 8  # Number of ticker cards to show per page
 
@@ -50,6 +51,14 @@ class State(rx.State):
     @rx.event
     def get_graph(self, ticker_list):
         self.data = fetch_data_for_symbols(ticker_list)
+
+    @rx.event
+    def get_all_industries(self):
+        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
+        industries = pd.read_sql(
+            "SELECT DISTINCT industry FROM data_vni;", conn)
+        conn.close()
+        self.industries = industries['industry'].tolist()
 
 
 def page_selection():
@@ -149,47 +158,38 @@ def card_with_scrollable_area():
 
 
 def industry_roller():
-    industries = [
-        {"name": "Technology", "desc": "Software, hardware, and IT services", "img": ""},
-        {"name": "Finance", "desc": "Banking, investment, and insurance", "img": ""},
-        {"name": "Healthcare", "desc": "Pharmaceuticals, hospitals, and biotech", "img": ""},
-        {"name": "Energy", "desc": "Oil, gas, and renewables", "img": ""},
-        {"name": "Consumer Goods", "desc": "Food, beverages, and retail", "img": ""},
-        {"name": "Industrials", "desc": "Manufacturing and infrastructure", "img": ""},
-        {"name": "Utilities", "desc": "Electric, water, and gas utilities", "img": ""},
-        {"name": "Telecommunications",
-            "desc": "Mobile, broadband, and satellite", "img": ""},
-        {"name": "Real Estate", "desc": "Commercial and residential properties", "img": ""},
-        {"name": "Materials", "desc": "Mining, chemicals, and forestry", "img": ""},
-    ]
-
+    State.get_all_industries()
     return rx.box(
         rx.box(
             rx.scroll_area(
                 rx.hstack(
                     rx.foreach(
-                        industries,
+                        State.industries,
                         lambda item: rx.card(
-                            rx.inset(
-                                rx.image(
-                                    src=item["img"],
-                                    width="40px",
-                                    height="40px",
-                                    style={"marginBottom": "0.5em"},
+                            rx.link(
+                                rx.inset(
+                                    rx.image(
+                                        src="/placeholder-industry.png",  # ✅ Use placeholder or map industries to images
+                                        width="40px",
+                                        height="40px",
+                                        style={"marginBottom": "0.5em"},
+                                    ),
+                                    item,
+                                    style={
+                                        "height": "120px",
+                                        "minWidth": "200px",
+                                        "padding": "1em",
+                                        "display": "flex",
+                                        "flexDirection": "column",
+                                        "justifyContent": "center",
+                                        "alignItems": "flex-start",
+                                        "whiteSpace": "normal",
+                                        "overflow": "visible",
+                                    },
+                                    side="right",
                                 ),
-                                item["name"],
-                                style={
-                                    "height": "120px",
-                                    "minWidth": "200px",
-                                    "padding": "1em",
-                                    "display": "flex",
-                                    "flexDirection": "column",
-                                    "justifyContent": "center",
-                                    "alignItems": "flex-start",
-                                    "whiteSpace": "normal",
-                                    "overflow": "visible",
-                                },
-                                side="right",
+                                href=f'/select/{item.lower()}',
+                                underline='none',
                             )
                         )
                     ),
@@ -233,7 +233,7 @@ def ticker_card(df: str):
             rx.hstack(
                 rx.link(
                     rx.text(ticker, weight="bold", size="4"),
-                    href=f"/select/{ticker}",
+                    href=f"/analyze/{ticker}",
                     style={
                         "textDecoration": "none",
                         "color": "inherit",
@@ -251,7 +251,7 @@ def ticker_card(df: str):
                 flex="1",
             ),
             rx.button(
-                rx.icon("shopping-cart", size=16),
+                rx.icon("list-plus", size=16),
                 size="1",
                 variant="soft",
                 on_click=lambda: CartState.add_item(ticker),
@@ -264,7 +264,7 @@ def ticker_card(df: str):
     )
 
 
-@rx.page(route="/select", on_load=State.get_graph([]))
+@rx.page(route="/select", on_load=[State.get_graph([]), State.get_all_industries])
 def index():
     return rx.vstack(
         navbar(),

@@ -5,15 +5,15 @@ from dateutil.relativedelta import relativedelta
 from typing import Dict, List, Any, Optional
 
 from ..utils.compute_instrument import compute_ma, compute_rsi
-from..utils.load_data import load_historical_data
+from ..utils.load_data import load_historical_data
 
 
 class Echarts(rx.Component):
     library = "echarts-for-react@3.0.2"
     lib_dependencies = ['fast-deep-equal', 'size-sensor']
     tag = "Reactecharts"
-    is_default=True
-    
+    is_default = True
+
     option: rx.Var[Dict[str, Any]]
 
 
@@ -37,30 +37,36 @@ class PriceChartState(rx.State):
 
     @rx.event
     def set_ma_period(self, value: int):
-        if not value: value = 0
+        if not value:
+            value = 0
         self.ma_period = value
         self.chart_configs
 
+
     @rx.event
     def set_rsi_period(self, value: int):
-        if not value: value = 0
+        if not value:
+            value = 0
         self.rsi_period = value
         self.chart_configs
 
+
     @rx.event
     def set_selection(self, selection: str):
-        self.chart_selection  = selection
+        self.chart_selection = selection
         self.chart_configs
 
     @rx.var
     def ohlc_data(self) -> pd.DataFrame:
         """Return a dataframe of {time, open, high, low, close}"""
         if not self.df:
-            return pd.DataFrame(columns=["time","open","high","low","close"])
-        
+            return pd.DataFrame(columns=["time", "open", "high", "low", "close"])
+
         df = pd.DataFrame(self.df)
-        if "time" not in df.columns: df2 = df.reset_index()
-        else: df2 = df.copy()
+        if "time" not in df.columns:
+            df2 = df.reset_index()
+        else:
+            df2 = df.copy()
         return df2
 
     @rx.var
@@ -69,23 +75,25 @@ class PriceChartState(rx.State):
         if not self.df:
             return pd.DataFrame(columns=["time", "close"])
         df = pd.DataFrame(self.df)
-        if not {"time","close"}.issubset(df.columns):
+        if not {"time", "close"}.issubset(df.columns):
             return []
-        tmp = df[["time","close"]].rename(columns={"close":"value"})
+        tmp = df[["time", "close"]].rename(columns={"close": "value"})
         return tmp.dropna(how="any", axis=0)
-    
+
     @rx.var
     def returns_data(self) -> pd.DataFrame:
         """Return % returns as {time, value, }"""
         if not self.df:
             return pd.DataFrame(columns=["time", "close"])
         df = pd.DataFrame(self.df)
-        if "time" not in df.columns: df2 = df.reset_index()
-        else: df2 = df.copy()
-        
+        if "time" not in df.columns:
+            df2 = df.reset_index()
+        else:
+            df2 = df.copy()
+
         tmp = df2[["time", "close"]].rename(columns={"close": "value"})
         tmp["value"] = tmp["value"].pct_change()
-        
+
         return tmp.dropna(how="any", axis=0)
 
     @rx.var
@@ -117,28 +125,28 @@ class PriceChartState(rx.State):
     @rx.var
     def chartOptions(self) -> dict[str, Any]:
         return self.chart_configs
-    
-    # Chart configurations 
+
+    # Chart configurations
     @rx.var
     def chart_configs(self) -> dict[str, Any]:
         if not self.df:
             return {}
-        
-        if self.chart_selection == 'Candlestick': 
+
+        if self.chart_selection == 'Candlestick':
             df = self.ohlc_data
             data = df[['open', 'high', 'low', 'close']].values.tolist()
-            
-        elif self.chart_selection == 'Price': 
+
+        elif self.chart_selection == 'Price':
             df = self.price_data
             data = df[['time', 'value']].values.tolist()
-        
-        elif self.chart_selection == 'Return': 
+
+        elif self.chart_selection == 'Return':
             df = self.returns_data
             data = df[['time', 'value']].values.tolist()
-            
+
         dates = df["time"].tolist()
-        
-        options  = {
+
+        options = {
             "backgroundColor": "#0e0d14",
             "textStyle": {"color": "#ffffff"},
             "toolbox": {
@@ -152,7 +160,7 @@ class PriceChartState(rx.State):
                 "trigger": "axis",
                 "axisPointer": {
                     "type": "cross",
-                    "snap": True,           
+                    "snap": True,
                     "label": {
                         "show": True,
                         "backgroundColor": "#222",
@@ -170,11 +178,11 @@ class PriceChartState(rx.State):
                 "borderColor": "#777",
                 "borderWidth": 1,
                 "textStyle": {"color": "#fff"},
-                
+
             },
             "grid": [
-                {"left": "6%", "right": "4%", "top": "4%",  "height": "70%"},# price
-                {"left": "6%", "right": "4%", "top": "85%", "height": "15%"} # rsi
+                {"left": "6%", "right": "4%", "top": "4%",  "height": "70%"},  # price
+                {"left": "6%", "right": "4%", "top": "85%", "height": "15%"}  # rsi
             ],
             "xAxis": [
                 {
@@ -273,7 +281,7 @@ class PriceChartState(rx.State):
                 "connectNulls": False,
             },
         )
-        
+
         rsi_data = self.rsi_data
         options["series"].append(
             {
@@ -285,14 +293,17 @@ class PriceChartState(rx.State):
                 "connectNulls": False,
                 "markLine": {
                     "data": [
-                        {"yAxis": 70, "lineStyle": {"type": "dashed", "color": "#888"}},
-                        {"yAxis": 30, "lineStyle": {"type": "dashed", "color": "#888"}},
+                        {"yAxis": 70, "lineStyle": {
+                            "type": "dashed", "color": "#888"}},
+                        {"yAxis": 30, "lineStyle": {
+                            "type": "dashed", "color": "#888"}},
                     ]
                 }
             },
         )
-        
+
         return options
+
 
 def render_price_chart():
     controls = rx.box(
@@ -303,9 +314,10 @@ def render_price_chart():
                     lambda selection: rx.button(
                         selection,
                         on_click=PriceChartState.set_selection(selection),
-                        variant=rx.cond(selection == PriceChartState.chart_selection, 'solid', 'outline')
+                        variant=rx.cond(
+                            selection == PriceChartState.chart_selection, 'solid', 'outline')
                     )
-                )  
+                )
             ),
             rx.hstack(
                 rx.vstack(
@@ -316,9 +328,10 @@ def render_price_chart():
                         min=0,
                         value=PriceChartState.ma_period.to(str),
                         placeholder="e.g 200",
-                        on_change=lambda value: PriceChartState.set_ma_period(rx.cond(value, value.to(int), None)),
+                        on_change=lambda value: PriceChartState.set_ma_period(
+                            rx.cond(value, value.to(int), None)),
                         style={"width": "5rem", "marginRight": "1rem"},
-                    ),      
+                    ),
                 ),
                 rx.vstack(
                     rx.text("RSI: ", fontSize="sm", fontWeight="medium"),
@@ -328,9 +341,10 @@ def render_price_chart():
                         min=0,
                         value=PriceChartState.rsi_period.to(str),
                         placeholder="e.g 14",
-                        on_change=lambda value: PriceChartState.set_rsi_period(rx.cond(value, value.to(int), None)),
+                        on_change=lambda value: PriceChartState.set_rsi_period(
+                            rx.cond(value, value.to(int), None)),
                         style={"width": "5rem"},
-                    ),   
+                    ),
                 )
             )
         ),
@@ -338,12 +352,11 @@ def render_price_chart():
     )
 
     return rx.box(
-        controls,
         rx.box(
-            Echarts.create(option=PriceChartState.chartOptions), 
+            Echarts.create(option=PriceChartState.chartOptions),
             style={
-                "width": "75vw",     
-                "height": "50vh",    
+                "width": "65vw",
+                "height": "50vh",
                 "padding": "0",
                 "margin": "0 auto",
             },

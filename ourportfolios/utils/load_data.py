@@ -33,7 +33,7 @@ def populate_db() -> None:
     screener = Screener(source='TCBS')
     default_params = {
         'exchangeName': 'HOSE,HNX',
-        'marketCap': (100, 99999999999),
+        'marketCap': (2000, 99999999999),
     }
     df = screener.stock(default_params, limit=1700, lang='en')
 
