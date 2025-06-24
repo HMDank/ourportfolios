@@ -1,28 +1,50 @@
-name: semantic-release
+name: Semantic Release
 
 on:
-  push:
-    branches: [main]
   pull_request:
+  push:
+    branches:
+      - main
 
 jobs:
-  release:
+  check-next-version:
+    name: Check Next Version
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.head_ref || github.ref }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Python Semantic Release
-        uses: python-semantic-release/python-semantic-release@v10.0.2
+
+      - name: Install dependencies
+        run: pip install python-semantic-release
+
+      - name: Predict next version (no commit/push)
+        run: semantic-release version --noop --no-push --verbosity=debug
+
+  release:
+    name: Release on Main
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: pip install python-semantic-release
+
+      - name: Run semantic release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: semantic-release publish
