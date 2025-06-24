@@ -29,9 +29,9 @@ changelog_file = "CHANGELOG.md"
 output_format = "md"
 mask_initial_release = true
 
-[[tool.semantic_release.branches]]
-match = ".*"
-prerelease = false
+[tool.semantic_release.branches]
+"*"  = { match = ".*",               prerelease = false }
+main = { match = "(main|master)$",   prerelease = false }
 
 [tool.semantic_release.branches.main]
 match = "(main|master)$"
