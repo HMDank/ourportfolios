@@ -29,14 +29,7 @@ jobs:
 
       - name: Check & Print Next Version (dry-run)
         if: github.event_name == 'pull_request'
-        run: |
-          semantic-release version \
-            --no-commit \
-            --no-tag \
-            --no-push \
-            --no-vcs-release \
-            --print \
-            -vv
+        run: semantic-release -v version --no-push --no-vcs-release
 
       - name: Publish Release to GitHub
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
