@@ -10,6 +10,8 @@ dependencies = [
 ]
 
 [tool.semantic_release]
+major_on_zero = false
+allow_zero_version = true
 version_toml = ["pyproject.toml:project.version"]
 commit_parser = "conventional"
 
