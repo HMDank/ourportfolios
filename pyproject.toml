@@ -23,8 +23,7 @@ upload_to_pypi = false
 tag_format = "{version}"
 
 [[tool.semantic_release.branches]]
-match = ".*"
-prerelease = false
+"*" = { match = ".*", prerelease = false }
 
 [tool.semantic_release.branches.main]
 match = "(main|master)"
