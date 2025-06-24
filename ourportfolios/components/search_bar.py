@@ -29,7 +29,7 @@ class SearchBarState(rx.State):
 
     @rx.var
     def get_suggest_ticker(self) -> List[Dict[str, Any]]:
-        """Recommends tickers on user's type"""
+        """Recommends tickers on user's keystroke, sort by pct price change"""
         if not self.display_suggestion:
             return []
 
@@ -54,7 +54,7 @@ class SearchBarState(rx.State):
             result: pd.DataFrame = self.fetch_ticker(
                 match_conditions="ticker LIKE ?", params=(f"{self.search_query[0]}%",))
 
-        return result.to_dict('records')
+        return result.to_dict('records')[:30] # Takes top 30
 
     def fetch_ticker(self, match_conditions: str, params: Any) -> pd.DataFrame:
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
@@ -62,7 +62,7 @@ class SearchBarState(rx.State):
                         SELECT ticker, pct_price_change, industry
                         FROM data_vni 
                         WHERE {match_conditions}
-                        ORDER BY current_price DESC
+                        ORDER BY pct_price_change DESC
                     """
         result: pd.DataFrame = pd.read_sql(query, conn, params=params)
         conn.close()
@@ -103,27 +103,27 @@ def search_bar():
             ),
             rx.cond(SearchBarState.display_suggestion,
                 # Scrollable suggestion dropdown 
-                rx.vstack(
-                    rx.scroll_area(
-                        rx.foreach(
-                            rx.cond(SearchBarState.search_query is not None, 
-                                    SearchBarState.get_suggest_ticker,
-                                    SearchBarState.get_recent_ticker),
-                            lambda ticker_value: suggestion_card(value=ticker_value),
+                rx.fragment(
+                    rx.vstack(
+                        rx.scroll_area(
+                            rx.foreach(
+                                SearchBarState.get_suggest_ticker,
+                                lambda ticker_value: suggestion_card(value=ticker_value),
+                            ),
+                            scrollbars="vertical",
+                            type="scroll",
                         ),
-                        scrollbars="vertical",
-                        type="scroll",
+                        width="100%",
+                        max_height=250,
+                        overflow_y="auto",
+                        z_index="100",
+                        background_color=rx.color('gray', 2),
+                        position="absolute",
+                        top="calc(100% + 5px)",
+                        border_radius=10
                     ),
-                    width="100%",
-                    max_height=300,
-                    overflow_y="auto",
-                    z_index="100",
-                    background_color=rx.color('gray', 2),
-                    position="absolute",
-                    top="calc(100% + 5px)",
-                    border_radius=10
                 ),
-                rx.box(),
+                rx.fragment(),
             ),
             position="relative",
             width="22vw",
