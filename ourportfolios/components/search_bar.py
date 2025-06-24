@@ -20,7 +20,7 @@ class SearchBarState(rx.State):
     def set_display_suggestions(self, mode: bool):
         yield time.sleep(0.2)  # Delay the set action
         self.display_suggestion = mode
-        
+
     @rx.var
     def get_suggest_ticker(self) -> List[Dict[str, Any]]:
         """Recommends tickers on user's keystroke, sort by pct price change"""
@@ -74,34 +74,36 @@ def search_bar():
                 value=SearchBarState.search_query,
                 on_change=SearchBarState.set_query,
                 on_blur=SearchBarState.set_display_suggestions(False),
-                on_mount=SearchBarState.set_display_suggestions(False), # Hide suggestion dropdown on page load
+                on_mount=SearchBarState.set_display_suggestions(
+                    False),  # Hide suggestion dropdown on page load
                 on_focus=SearchBarState.set_display_suggestions(True),
                 width="100%",
             ),
             rx.cond(SearchBarState.display_suggestion,
-                # Scrollable suggestion dropdown 
-                rx.fragment(
-                    rx.vstack(
-                        rx.scroll_area(
-                            rx.foreach(
-                                SearchBarState.get_suggest_ticker,
-                                lambda ticker_value: suggestion_card(value=ticker_value),
+                    # Scrollable suggestion dropdown
+                    rx.fragment(
+                        rx.vstack(
+                            rx.scroll_area(
+                                rx.foreach(
+                                    SearchBarState.get_suggest_ticker,
+                                    lambda ticker_value: suggestion_card(
+                                        value=ticker_value),
+                                ),
+                                scrollbars="vertical",
+                                type="scroll",
                             ),
-                            scrollbars="vertical",
-                            type="scroll",
+                            width="100%",
+                            max_height=250,
+                            overflow_y="auto",
+                            z_index="100",
+                            background_color=rx.color('gray', 2),
+                            position="absolute",
+                            top="calc(100% + 5px)",
+                            border_radius=6
                         ),
-                        width="100%",
-                        max_height=250,
-                        overflow_y="auto",
-                        z_index="100",
-                        background_color=rx.color('gray', 2),
-                        position="absolute",
-                        top="calc(100% + 5px)",
-                        border_radius=6
                     ),
-                ),
-                rx.fragment(),
-            ),
+                    rx.fragment(),
+                    ),
             position="relative",
             width="20vw",
         )
@@ -148,5 +150,3 @@ def suggestion_card(value: Dict[str, Any]) -> rx.Component:
         cursor="pointer",
         _hover={'background_color': rx.color('gray', 3)},
     )
-
-
