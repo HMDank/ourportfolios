@@ -27,7 +27,7 @@ jobs:
         run: pip install python-semantic-release
 
       - name: Predict next version (no commit/push)
-        run: semantic-release version --no-push
+        run: semantic-release -v --noop version
 
   release:
     name: Release on Main

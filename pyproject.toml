@@ -20,7 +20,6 @@ other_allowed_tags = ["build", "chore", "ci", "docs", "style", "refactor", "test
 parse_squash_commits = true
 ignore_merge_commits = true
 
-# === BRANCHES MUST BE A MAP, NOT AN ARRAY ===
 [tool.semantic_release.branches]
 "*"  = { match = ".*",             prerelease = false }
 main = { match = "(main|master)$", prerelease = false }
