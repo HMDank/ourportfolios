@@ -11,7 +11,6 @@ from .graph import pct_change_badge
 class SearchBarState(rx.State):
     search_query: str = ""
     display_suggestion: bool = False
-    recent_tickers: List[str] = []
 
     @rx.event
     def set_query(self, text: str = ""):
@@ -22,11 +21,6 @@ class SearchBarState(rx.State):
         yield time.sleep(0.2)  # Delay the set action
         self.display_suggestion = mode
         
-    @rx.event
-    def add_ticker_to_history(self, ticker: str):
-        if not ticker in self.recent_tickers:
-            self.recent_tickers.append(ticker)
-
     @rx.var
     def get_suggest_ticker(self) -> List[Dict[str, Any]]:
         """Recommends tickers on user's keystroke, sort by pct price change"""
@@ -54,7 +48,7 @@ class SearchBarState(rx.State):
             result: pd.DataFrame = self.fetch_ticker(
                 match_conditions="ticker LIKE ?", params=(f"{self.search_query[0]}%",))
 
-        return result.to_dict('records')[:30] # Takes top 30
+        return result.to_dict('records')
 
     def fetch_ticker(self, match_conditions: str, params: Any) -> pd.DataFrame:
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
@@ -62,28 +56,11 @@ class SearchBarState(rx.State):
                         SELECT ticker, pct_price_change, industry
                         FROM data_vni 
                         WHERE {match_conditions}
-                        ORDER BY pct_price_change DESC
+                        ORDER BY ticker DESC
                     """
         result: pd.DataFrame = pd.read_sql(query, conn, params=params)
         conn.close()
         return result
-
-    @rx.var
-    def get_recent_ticker(self) -> List[Dict[str, Any]]:
-        """Yields recently visited tickers"""
-        if not self.display_suggestion:
-            return []
-
-        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
-        placeholders = ', '.join(['?'] * len(self.recent_tickers))
-        query = f"""
-                    SELECT ticker, organ_name, pct_price_change, industry
-                    FROM data_vni 
-                    WHERE ticker 
-                    IN ({placeholders})
-                """
-        df: pd.DataFrame = pd.read_sql(query, conn, params=self.recent_tickers)
-        return df.to_dict('records')
 
 
 def search_bar():
@@ -120,13 +97,13 @@ def search_bar():
                         background_color=rx.color('gray', 2),
                         position="absolute",
                         top="calc(100% + 5px)",
-                        border_radius=10
+                        border_radius=6
                     ),
                 ),
                 rx.fragment(),
             ),
             position="relative",
-            width="22vw",
+            width="20vw",
         )
     )
 
@@ -138,38 +115,38 @@ def suggestion_card(value: Dict[str, Any]) -> rx.Component:
 
     return rx.box(
         rx.hstack(
-            # ticker tag
-            rx.text(
-                ticker,
-                size="5",
-                weight="bold",
-            ),
-            # industry tag
-            rx.badge(
-                industry,
-                size="2",
-                weight="medium",
-                variant='surface',
-                color_scheme="violet",
-                radius='medium',
+            rx.vstack(
+                # ticker tag
+                rx.text(
+                    ticker,
+                    size="5",
+                    weight="bold",
+                ),
+                # industry tag
+                rx.badge(
+                    industry,
+                    size="1",
+                    weight="medium",
+                    variant='surface',
+                    color_scheme="violet",
+                    radius='medium',
+                ),
+                spacing="1",
             ),
             rx.spacer(),
             # pct badge
             pct_change_badge(diff=pct_price_change),
-
             align="center",
-            spacing="2",
+            spacing="1",
         ),
         on_click=[
             rx.redirect(f"/analyze/{ticker}"),
-            SearchBarState.add_ticker_to_history(ticker=ticker),
             SearchBarState.set_query("")
         ],
         width="100%",
         padding="10px",
         cursor="pointer",
         _hover={'background_color': rx.color('gray', 3)},
-        max_width="100%",
     )
 
 
