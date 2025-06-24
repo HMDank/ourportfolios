@@ -115,13 +115,13 @@ def search_bar():
                         type="scroll",
                     ),
                     width="100%",
-                    max_height=300,
+                    max_height=250,
                     overflow_y="auto",
                     z_index="100",
                     background_color=rx.color('gray', 2),
                     position="absolute",
                     top="calc(100% + 5px)",
-                    border_radius=10
+                    border_radius=6
                 ),
                 rx.box(),
             ),
