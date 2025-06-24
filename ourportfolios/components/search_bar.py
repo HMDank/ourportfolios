@@ -56,7 +56,7 @@ class SearchBarState(rx.State):
                         SELECT ticker, pct_price_change, industry
                         FROM data_vni 
                         WHERE {match_conditions}
-                        ORDER BY ticker DESC
+                        ORDER BY ticker ASC
                     """
         result: pd.DataFrame = pd.read_sql(query, conn, params=params)
         conn.close()
