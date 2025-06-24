@@ -16,22 +16,13 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || 'main' }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
 
-      - name: Python Semantic Release (Dry Run on PR)
-        if: github.event_name == 'pull_request'
-        uses: python-semantic-release/python-semantic-release@v10.0.2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          no_operation_mode: true
-
-      - name: Python Semantic Release (Real Release on Main)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Python Semantic Release
         uses: python-semantic-release/python-semantic-release@v10.0.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
