@@ -1,7 +1,8 @@
 import reflex as rx
 import sqlite3
 import pandas as pd
-from typing import List, Dict
+import itertools
+from typing import List, Dict, Any, Optional
 
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
@@ -40,12 +41,12 @@ class State(rx.State):
         self.show_arrow = scroll_position < max_scroll - 10
 
     @rx.var(cache=True)
-    def get_all_tickers(self) -> List[Dict][dict]:
+    def get_all_tickers(self) -> List[Dict[str, Any]]:
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
 
         # Isolate query & clause for dynamic filters and sorting criteria
         query = [
-            "SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change FROM data_vni WHERE"]
+            "SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change FROM data_vni WHERE 1=1"]
         order_by_clause = ""
 
         # Filter by industry
@@ -112,7 +113,7 @@ class State(rx.State):
         return " | ".join(filters)
 
     @rx.event
-    def get_industries(self) -> None:
+    def get_all_industries(self) -> None:
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         industries: pd.DataFrame = pd.read_sql(
             "SELECT DISTINCT industry FROM data_vni", con=conn)
@@ -176,11 +177,18 @@ class State(rx.State):
         if metric == "alpha":
             self.alpha_threshold = value
 
+    # Search bar
+
+    @rx.event
+    def set_search_query(self, value: str):
+        self.search_query = value
+
 
 # Filter section
+
 @rx.page(route="/select", on_load=[
     State.get_graph(['VNINDEX', 'UPCOMINDEX', "HNXINDEX"]),
-    State.get_industries
+    State.get_all_industries
 ])
 def index():
     return rx.vstack(
@@ -493,6 +501,7 @@ def ticker_list():
 def ticker_filter():
     return rx.hstack(
         rx.spacer(),  # Push filter button far right
+        search_bar(),
         rx.menu.root(
             rx.menu.trigger(
                 rx.button(
@@ -706,4 +715,23 @@ def metric_badge(tag: str):
         border_radius="full",
         box_shadow="md",
         color_scheme="violet",
+    )
+
+
+def search_bar():
+    return rx.box(
+        rx.vstack(
+            rx.input(
+                rx.input.slot(rx.icon(tag="search", size=16)),
+                placeholder="Search for a ticker here!",
+                type="search",
+                size="2",
+                value=State.search_query,
+                width="100%",
+                on_change=State.set_search_query,
+                color_scheme="violet"
+            ),
+            position="relative",
+            width="25vw",
+        )
     )
