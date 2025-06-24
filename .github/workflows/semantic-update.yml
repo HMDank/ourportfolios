@@ -7,10 +7,12 @@ on:
       - main
 
 jobs:
-  check-next-version:
-    name: Check Next Version
-    if: github.event_name == 'pull_request'
+  semantic_release:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
 
     steps:
       - name: Checkout code
@@ -22,31 +24,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-
-      - name: Install dependencies
+      - name: Install python-semantic-release
         run: pip install python-semantic-release
 
-      - name: Predict next version (no commit/push)
+      - name: Check & Print Next Version (dry-run)
+        if: github.event_name == 'pull_request'
         run: semantic-release -v version --no-push --no-vcs-release
 
-  release:
-    name: Release on Main
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Install dependencies
-        run: pip install python-semantic-release
-
-      - name: Run semantic release
+      - name: Publish Release to GitHub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: semantic-release publish
