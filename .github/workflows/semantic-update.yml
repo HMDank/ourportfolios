@@ -1,9 +1,11 @@
 name: semantic-release
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -16,12 +18,11 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-
+          ref: ${{ github.head_ref || github.ref }}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-
       - name: Python Semantic Release
         uses: python-semantic-release/python-semantic-release@v10.0.2
         with:
