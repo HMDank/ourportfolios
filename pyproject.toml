@@ -22,9 +22,12 @@ upload_to_release = true
 upload_to_pypi = false
 tag_format = "{version}"
 
+[[tool.semantic_release.branches]]
+match = ".*"
+prerelease = false
+
 [tool.semantic_release.branches.main]
 match = "(main|master)"
-prerelease_token = "rc"
 prerelease = false
 
 [tool.semantic_release.changelog]
