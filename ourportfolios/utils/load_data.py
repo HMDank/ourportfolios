@@ -1,3 +1,4 @@
+from .preprocess_texts import process_events_for_display
 import pandas as pd
 import numpy as np
 import sqlite3
@@ -34,7 +35,7 @@ def populate_db() -> None:
     screener = Screener(source='TCBS')
     default_params = {
         'exchangeName': 'HOSE,HNX',
-        'marketCap': (100, 99999999999),
+        'marketCap': (2000, 99999999999),
     }
     stock_df = screener.stock(default_params, limit=1700, lang='en')
 
@@ -97,7 +98,7 @@ def load_historical_data(symbol,
                              "%Y-%m-%d"),
                          end=(date.today() + timedelta(days=1)
                               ).strftime("%Y-%m-%d"),
-                         interval="15m"):
+                         interval="15m") -> pd.DataFrame:
     stock = Vnstock().stock(symbol=symbol, source='TCBS')
     df = stock.quote.history(start=start, end=end, interval=interval)
     return df
@@ -150,6 +151,64 @@ def fetch_data_for_symbols(symbols: list[str]):
             "percent_diff": percent_diff
         })
     return graph_data
+
+
+def load_company_info(ticker: str):
+    stock = Vnstock().stock(symbol=ticker, source='TCBS')
+    company = stock.company
+
+    overview = company.overview().iloc[0].to_dict()
+    overview['website'] = overview['website'].removeprefix(
+        'https://').removeprefix('http://')
+
+    shareholders_df = company.shareholders()
+    shareholders_df["share_own_percent"] = (
+        shareholders_df["share_own_percent"] * 100).round(2)
+
+    shareholders = shareholders_df.to_dict("records")
+    events = company.events()
+    events['price_change_ratio'] = (events['price_change_ratio']*100).round(2)
+    events = events.to_dict("records")
+    processed_events = process_events_for_display(events)
+
+    news = company.news()
+    news = news[~news['title'].str.contains('insider', case=False, na=False)]
+    news['price_change_ratio'] = (news['price_change_ratio']*100).round(2)
+    news = news.to_dict("records")
+
+    return overview, shareholders, processed_events, news
+
+
+def load_officers_info(ticker: str):
+    stock = Vnstock().stock(symbol=ticker, source='TCBS')
+    company = stock.company
+    officers = (
+        company.officers().dropna(subset=["officer_name"]).fillna(
+            "").groupby("officer_name")
+        .agg({
+            "officer_position": lambda x: ", ".join(sorted(set(pos.strip() for pos in x if isinstance(pos, str) and pos.strip()))),
+            "officer_own_percent": "first"
+        })
+        .reset_index()
+        .sort_values(by="officer_own_percent", ascending=False)
+    )
+    officers["officer_own_percent"] = (
+        officers["officer_own_percent"] * 100).round(2)
+
+    officers = officers.sort_values(
+        by="officer_own_percent", ascending=False).to_dict("records")
+
+    return officers
+
+
+def load_financial_statements(ticker: str):
+    stock = Vnstock().stock(symbol=ticker, source='TCBS')
+    finance = stock.finance
+    income_statement = finance.income_statement(period='year').reset_index()
+    balance_sheet = finance.balance_sheet(period='year').reset_index()
+    cash_flow = finance.cash_flow(period='year').reset_index()
+
+    return income_statement.to_dict("records"), balance_sheet.to_dict("records"), cash_flow.to_dict("records")
 
 
 if __name__ == "__main__":

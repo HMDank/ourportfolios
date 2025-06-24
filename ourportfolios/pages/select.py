@@ -39,8 +39,8 @@ class State(rx.State):
     def update_arrow(self, scroll_position: int, max_scroll: int):
         self.show_arrow = scroll_position < max_scroll - 10
 
-    @rx.var
-    def get_all_tickers(self) -> List[Dict]:
+    @rx.var(cache=True)
+    def get_all_tickers(self) -> List[Dict][dict]:
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
 
         # Isolate query & clause for dynamic filters and sorting criteria
@@ -79,7 +79,7 @@ class State(rx.State):
 
         return df[['ticker', 'organ_name', 'current_price', 'accumulated_volume', 'pct_price_change']].to_dict('records')
 
-    @rx.var
+    @rx.var(cache=True)
     def get_all_tickers_length(self) -> int:
         return len(self.get_all_tickers)
 
@@ -221,17 +221,18 @@ def index():
 
 
 def page_selection():
-    return rx.center(
+    return rx.box(
         card_roller(
             card_link(
                 rx.hstack(
                     rx.icon("chevron_left", size=32),
                     rx.vstack(
-                        rx.heading("Recommend", weight="bold", size="6"),
+                        rx.heading("Recommend", weight="bold", size="5"),
                         rx.text("caijdo", size="1"),
                         align="center",
                         justify="center",
                         height="100%",
+                        spacing="1"
                     ),
                     align="center",
                     justify="center",
@@ -240,33 +241,38 @@ def page_selection():
             ),
             card_link(
                 rx.vstack(
-                    rx.heading("Select", weight="bold", size="8"),
+                    rx.heading("Select", weight="bold", size="7"),
                     rx.text("caijdo", size="3"),
                     align="center",
                     justify="center",
                     height="100%",
+                    spacing="1"
                 ),
                 href="/select",
             ),
             card_link(
                 rx.hstack(
                     rx.vstack(
-                        rx.heading("Analyze", weight="bold", size="6"),
+                        rx.heading("Analyze", weight="bold", size="5"),
                         rx.text("caijdo", size="1"),
                         align="center",
                         justify="center",
                         height="100%",
+                        spacing="1"
                     ),
                     rx.icon("chevron_right", size=32),
                     align="center",
                     justify="center",
                 ),
-                href="/simulate",
+                href="/analyze",
             ),
         ),
-        min_height="0vh",
         width="100%",
+        display="flex",
+        justify_content="center",
         align_items="center",
+        margin="0",
+        padding="0",
     )
 
 
@@ -311,47 +317,38 @@ def card_with_scrollable_area():
 
 
 def industry_roller():
-    industries = [
-        {"name": "Technology", "desc": "Software, hardware, and IT services", "img": ""},
-        {"name": "Finance", "desc": "Banking, investment, and insurance", "img": ""},
-        {"name": "Healthcare", "desc": "Pharmaceuticals, hospitals, and biotech", "img": ""},
-        {"name": "Energy", "desc": "Oil, gas, and renewables", "img": ""},
-        {"name": "Consumer Goods", "desc": "Food, beverages, and retail", "img": ""},
-        {"name": "Industrials", "desc": "Manufacturing and infrastructure", "img": ""},
-        {"name": "Utilities", "desc": "Electric, water, and gas utilities", "img": ""},
-        {"name": "Telecommunications",
-            "desc": "Mobile, broadband, and satellite", "img": ""},
-        {"name": "Real Estate", "desc": "Commercial and residential properties", "img": ""},
-        {"name": "Materials", "desc": "Mining, chemicals, and forestry", "img": ""},
-    ]
-
+    State.get_all_industries()
     return rx.box(
         rx.box(
             rx.scroll_area(
                 rx.hstack(
                     rx.foreach(
-                        industries,
+                        State.industries,
                         lambda item: rx.card(
-                            rx.inset(
-                                rx.image(
-                                    src=item["img"],
-                                    width="40px",
-                                    height="40px",
-                                    style={"marginBottom": "0.5em"},
+                            rx.link(
+                                rx.inset(
+                                    rx.image(
+                                        src="/placeholder-industry.png",  # ✅ Use placeholder or map industries to images
+                                        width="40px",
+                                        height="40px",
+                                        style={"marginBottom": "0.5em"},
+                                    ),
+                                    item,
+                                    style={
+                                        "height": "120px",
+                                        "minWidth": "200px",
+                                        "padding": "1em",
+                                        "display": "flex",
+                                        "flexDirection": "column",
+                                        "justifyContent": "center",
+                                        "alignItems": "flex-start",
+                                        "whiteSpace": "normal",
+                                        "overflow": "visible",
+                                    },
+                                    side="right",
                                 ),
-                                item["name"],
-                                style={
-                                    "height": "120px",
-                                    "minWidth": "200px",
-                                    "padding": "1em",
-                                    "display": "flex",
-                                    "flexDirection": "column",
-                                    "justifyContent": "center",
-                                    "alignItems": "flex-start",
-                                    "whiteSpace": "normal",
-                                    "overflow": "visible",
-                                },
-                                side="right",
+                                href=f'/select/{item.lower()}',
+                                underline='none',
                             )
                         )
                     ),

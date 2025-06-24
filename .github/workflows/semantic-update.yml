@@ -1,28 +1,39 @@
-name: semantic-update
+name: Semantic Release
+
 on:
-  push:
-    branches: [main]
   pull_request:
-    branches: [main]
+  push:
+    branches:
+      - main
+
 jobs:
-  release:
+  semantic_release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+    defaults:
+      run:
+        shell: bash
+
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-
+          ref: ${{ github.head_ref }}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Install python-semantic-release
+        run: pip install python-semantic-release
 
-      - name: Python Semantic Release
-        uses: python-semantic-release/python-semantic-release@v10.0.2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check & Print Next Version (dry-run)
+        if: github.event_name == 'pull_request'
+        run: semantic-release -v version --no-push --no-vcs-release
+
+      - name: Publish Release to GitHub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: semantic-release publish
