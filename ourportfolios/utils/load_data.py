@@ -48,7 +48,7 @@ def populate_db() -> None:
     # Result
     df = pd.merge(left=stock_df, right=price_board_df,
                   left_on='ticker', right_on='symbol')
-    
+
     # Add additional instrument
     df = compute_instrument(df)
 
@@ -71,23 +71,24 @@ def load_price_board(tickers: List[str]) -> pd.DataFrame:
 
 
 def compute_instrument(df: pd.DataFrame) -> pd.DataFrame:
-    # Changes in price
     if 'match_price' in df.columns:
-        # Rename for better comprehension
         df = df.rename(columns={'match_price': 'current_price'})
 
         # latest close price - close price from previous day
-        df['price_change'] = round((df['current_price'] - df['ref_price']) * 1e-3, 2) 
-        df['current_price'] = round(df['current_price'] * 1e-3, 2)
-        df['pct_price_change'] = round((df['price_change'] / df['ref_price']) * 100, 2)
-        
+        df['price_change'] = (df['current_price'] - df['ref_price'])
+        df['pct_price_change'] = (df['price_change'] / df['ref_price']) * 100
+
     # On the day when the market is closed
     else:
         df = df.rename(columns={'ref_price': 'current_price'})
-        df['current_price'] = round(df['current_price'] * 1e-3, 2)
-        df['price_change'] = f"{0:.2f}"
-        df['pct_price_change'] = f"{0:.2f}"
-        
+        df['price_change'] = 0
+        df['pct_price_change'] = 0
+
+    # Normalize
+    df['current_price'] = round(df['current_price'] * 1e-3, 2)
+    df['price_change'] = round(df['price_change'] * 1e-3, 2)
+    df['pct_price_change'] = round(df['pct_price_change'], 2)
+
     return df
 
 
