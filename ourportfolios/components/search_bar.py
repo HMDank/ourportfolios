@@ -11,6 +11,7 @@ from .graph import pct_change_badge
 class SearchBarState(rx.State):
     search_query: str = ""
     display_suggestion: bool = False
+    tickers_list: list[dict] = []
 
     @rx.event
     def set_query(self, text: str = ""):
@@ -20,7 +21,11 @@ class SearchBarState(rx.State):
     def set_display_suggestions(self, mode: bool):
         yield time.sleep(0.2)  # Delay the set action
         self.display_suggestion = mode
-        
+
+    @rx.event
+    def load_suggest_ticker(self):
+        self.tickers_list = self.get_suggest_ticker
+
     @rx.var
     def get_suggest_ticker(self) -> List[Dict[str, Any]]:
         """Recommends tickers on user's keystroke, sort by pct price change"""
@@ -28,9 +33,8 @@ class SearchBarState(rx.State):
             return []
 
         # At first, try to fetch exact ticker
-        match_conditions = "ticker LIKE ?"
         result: pd.DataFrame = self.fetch_ticker(
-            match_conditions=match_conditions, params=(f"{self.search_query}%",))
+            match_conditions="ticker LIKE ?", params=(f"{self.search_query}%",))
 
         # In-case of mistype or no ticker returned, calculate all possible permutation of provided search_query with fixed length
         if result.empty:
@@ -39,9 +43,8 @@ class SearchBarState(rx.State):
                 list(self.search_query), len(self.search_query)))
             all_combination = [f"{''.join(combo)}%" for combo in combos]
 
-            match_conditions = " OR ".join(["ticker LIKE ?"] * len(combos))
             result: pd.DataFrame = self.fetch_ticker(
-                match_conditions=match_conditions, params=all_combination)
+                match_conditions=" OR ".join(["ticker LIKE ?"] * len(combos)), params=all_combination)
 
         # Suggest base of the first letter if still no ticker matched
         if result.empty:
@@ -54,7 +57,7 @@ class SearchBarState(rx.State):
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         query: str = f"""
                         SELECT ticker, pct_price_change, industry
-                        FROM data_vni 
+                        FROM data_vni
                         WHERE {match_conditions}
                         ORDER BY ticker ASC
                     """
@@ -74,18 +77,19 @@ def search_bar():
                 value=SearchBarState.search_query,
                 on_change=SearchBarState.set_query,
                 on_blur=SearchBarState.set_display_suggestions(False),
-                on_mount=SearchBarState.set_display_suggestions(False), # Hide suggestion dropdown on page load
                 on_focus=SearchBarState.set_display_suggestions(True),
                 width="100%",
             ),
-            rx.cond(SearchBarState.display_suggestion,
-                # Scrollable suggestion dropdown 
+            rx.cond(
+                SearchBarState.display_suggestion,
+                # Scrollable suggestion dropdown
                 rx.fragment(
                     rx.vstack(
                         rx.scroll_area(
                             rx.foreach(
-                                SearchBarState.get_suggest_ticker,
-                                lambda ticker_value: suggestion_card(value=ticker_value),
+                                SearchBarState.tickers_list,
+                                lambda ticker_value: suggestion_card(
+                                    value=ticker_value),
                             ),
                             scrollbars="vertical",
                             type="scroll",
@@ -97,14 +101,14 @@ def search_bar():
                         background_color=rx.color('gray', 2),
                         position="absolute",
                         top="calc(100% + 5px)",
-                        border_radius=6
+                        border_radius=4
                     ),
                 ),
                 rx.fragment(),
             ),
             position="relative",
             width="20vw",
-        )
+        ),
     )
 
 
@@ -148,5 +152,3 @@ def suggestion_card(value: Dict[str, Any]) -> rx.Component:
         cursor="pointer",
         _hover={'background_color': rx.color('gray', 3)},
     )
-
-
