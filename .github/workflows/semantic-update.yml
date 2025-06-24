@@ -1,9 +1,10 @@
-name: semantic-update
+name: semantic-release
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -11,6 +12,7 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,6 +25,18 @@ jobs:
           python-version: '3.13'
 
       - name: Python Semantic Release
+        id: semantic-release
         uses: python-semantic-release/python-semantic-release@v10.0.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          push: false
+
+      - name: Create Pull Request
+        if: ${{ steps.semantic-release.outputs.released == 'true' }}
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(release): ${{ steps.semantic-release.outputs.version }}"
+          title: "chore(release): ${{ steps.semantic-release.outputs.version }}"
+          body: "Automated release PR"
+          branch: "release/${{ steps.semantic-release.outputs.version }}"
