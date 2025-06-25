@@ -1,7 +1,7 @@
 import reflex as rx
 import sqlite3
 import pandas as pd
-from typing import List, Dict
+from typing import List, Dict, Any, Optional
 
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
@@ -20,11 +20,16 @@ class State(rx.State):
     # Search bar
     search_query = ""
 
-    # Fundamental metrics
-    pe_threshold: float = 0.00
-    pb_threshold: float = 0.00
-    roe_threshold: float = 0.00
-    alpha_threshold: float = 0.00
+    pe_threshold: List[float] = [0.00, 0.00]
+    pb_threshold: List[float] = [0.00, 0.00]
+    roe_threshold: List[float] = [0.00, 0.00]
+    alpha_threshold: List[float] = [0.00, 0.00]
+    beta_threshold: List[float] = [0.00, 0.00]
+    eps_threshold: List[float] = [0.00, 0.00]
+    gross_margin_threshold: List[float] = [0.00, 0.00]
+    net_margin_threshold: List[float] = [0.00, 0.00]
+    ev_ebitda_threshold: List[float] = [0.00, 0.00]
+    dividend_yield_threshold: List[float] = [0.00, 0.00]
 
     # Other filter
     selected_category: str = "All"
@@ -33,19 +38,19 @@ class State(rx.State):
     selected_industry: str = 'All'
 
     filters: List[str] = ['All', 'Market Cap', '% Increase']
-    platforms: List[str] = ['All', 'HSX', 'HNX']
+    exchanges: List[str] = ['All', 'HSX', 'HNX']
     industries: List[str] = []
 
     def update_arrow(self, scroll_position: int, max_scroll: int):
         self.show_arrow = scroll_position < max_scroll - 10
 
     @rx.var(cache=True)
-    def get_all_tickers(self) -> List[Dict][dict]:
+    def get_all_tickers(self) -> List[Dict[str, Any]]:
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
 
         # Isolate query & clause for dynamic filters and sorting criteria
         query = [
-            "SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change FROM data_vni WHERE"]
+            "SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change FROM data_vni WHERE 1=1"]
         order_by_clause = ""
 
         # Filter by industry
@@ -63,14 +68,18 @@ class State(rx.State):
             order_by_clause = "ORDER BY pct_price_change DESC"
 
         # Filter by metrics
-        if self.pe_threshold > 0:
-            query.append(f"AND pe < {self.pe_threshold}")
-        if self.pb_threshold > 0:
-            query.append(f"AND pb < {self.pb_threshold}")
-        if self.roe_threshold > 0:
-            query.append(f"AND roe > {self.roe_threshold}")
-        if self.alpha_threshold > 0:
-            query.append(f"AND alpha < {self.alpha_threshold}")
+        if self.pe_threshold[1] > 0:
+            query.append(
+                f"AND pe BETWEEN {self.pe_threshold[0]} AND {self.pe_threshold[1]}")
+        if self.pb_threshold[1] > 0:
+            query.append(
+                f"AND pb BETWEEN {self.pb_threshold[0]} AND {self.pb_threshold[1]}")
+        if self.roe_threshold[1] > 0:
+            query.append(
+                f"AND roe BETWEEN {self.roe_threshold[0]} AND {self.roe_threshold[1]}")
+        if self.alpha_threshold[1] > 0:
+            query.append(
+                f"AND alpha BETWEEN {self.alpha_threshold[0]} AND {self.alpha_threshold[1]}")
 
         full_query = " ".join(
             query) + f" {order_by_clause}" if order_by_clause else " ".join(query)
@@ -83,36 +92,33 @@ class State(rx.State):
     def get_all_tickers_length(self) -> int:
         return len(self.get_all_tickers)
 
-    @rx.var
-    def get_current_screener_filter(self) -> str:
-        filters: List[str] = []
-        if self.selected_category != 'All':
-            filters.append(self.selected_category)
-        if self.selected_industry != 'All':
-            filters.append(self.selected_industry)
-        if self.selected_technical != 'All':
-            filters.append(self.selected_technical)
-        if self.selected_exchange != 'All':
-            filters.append(self.selected_exchange)
+    # @rx.var
+    # def get_current_screener_filter(self) -> str:
+    #     filters: List[str] = []
+    #     if self.selected_category != 'All':
+    #         filters.append(self.selected_category)
+    #     if self.selected_industry != 'All':
+    #         filters.append(self.selected_industry)
+    #     if self.selected_technical != 'All':
+    #         filters.append(self.selected_technical)
+    #     if self.selected_exchange != 'All':
+    #         filters.append(self.selected_exchange)
 
-        return " | ".join(filters)
+    #     return " | ".join(filters)
 
-    @rx.var
-    def get_current_fundamental_filter(self) -> str:
-        filters: List[str] = []
-        if self.pe_threshold > 0:
-            filters.append("PE")
-        if self.pb_threshold > 0:
-            filters.append("PB")
-        if self.roe_threshold > 0:
-            filters.append("ROE")
-        if self.alpha_threshold > 0:
-            filters.append("ALPHA")
-
-        return " | ".join(filters)
+    # @rx.var
+    # def get_current_fundamental_filter(self, metric: str) -> str:
+    #     if metric.lower() == "pe":
+    #         return f"PE: {self.pe_threshold[0]} <-> {self.pe_threshold[1]}"
+    #     if metric.lower() == "pb":
+    #         return f"PB: {self.pb_threshold[0]} <-> {self.pb_threshold[1]}"
+    #     if metric.lower() == "roe":
+    #         return f"ROE: {self.roe_threshold[0]} <-> {self.roe_threshold[1]}"
+    #     if metric.lower() == "alpha":
+    #         return f"ALPHA: {self.alpha_threshold[0]} <-> {self.alpha_threshold[1]}"
 
     @rx.event
-    def get_industries(self) -> None:
+    def get_all_industries(self):
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         industries: pd.DataFrame = pd.read_sql(
             "SELECT DISTINCT industry FROM data_vni", con=conn)
@@ -160,13 +166,11 @@ class State(rx.State):
 
     @rx.event
     def clear_fundamental_filter(self):
-        self.pe_threshold = self.pb_threshold = self.roe_threshold = self.alpha_threshold = 0
+        self.pe_threshold = self.pb_threshold = self.roe_threshold = self.alpha_threshold = [
+            0.00, 0.00]
 
     @rx.event
-    def set_metric(self, metric: str,  value: float):
-        if not value:
-            value = float(0.00)
-
+    def set_metric(self, metric: str,  value: List[float]):
         if metric == "pe":
             self.pe_threshold = value
         if metric == "pb":
@@ -175,12 +179,24 @@ class State(rx.State):
             self.roe_threshold = value
         if metric == "alpha":
             self.alpha_threshold = value
+        if metric == "beta":
+            self.beta_threshold = value
+        if metric == "eps":
+            self.eps_threshold = value
+        if metric == "gross_margin":
+            self.gross_margin_threshold = value
+        if metric == "net_margin":
+            self.net_margin_threshold = value
+        if metric == "ev_ebitda":
+            self.ev_ebitda_threshold = value
+        if metric == "dividend_yield":
+            self.dividend_yield_threshold = value
 
 
 # Filter section
 @rx.page(route="/select", on_load=[
     State.get_graph(['VNINDEX', 'UPCOMINDEX', "HNXINDEX"]),
-    State.get_industries
+    State.get_all_industries
 ])
 def index():
     return rx.vstack(
@@ -496,214 +512,185 @@ def ticker_filter():
         rx.menu.root(
             rx.menu.trigger(
                 rx.button(
-                    rx.icon("filter", size=20),
-                    variant=rx.cond(
-                        (State.get_current_fundamental_filter |
-                         State.get_current_screener_filter),
-                        'solid',
-                        'outline',
-                    )
-                ),
+                    rx.hstack(
+                        rx.icon("filter", size=12),
+                        rx.text("Filter"),
+                        align="center",
+                        justify="between"
+                    ),
+                    variant='outline'
+                )
             ),
             rx.menu.content(
                 rx.fragment(
-                    rx.hstack(
-                        rx.text("Fundamentals:", size="6", font_weight="bold"),
-                        rx.spacer(),
-                        rx.button(
-                            rx.icon("filter-x", size=15),
-                            variant='outline',
-                            on_click=[State.clear_fundamental_filter,
-                                      State.clear_screener_filter]
+                    rx.tabs.root(
+                        rx.tabs.list(
+                            rx.tabs.trigger(
+                                "Fundamental", value="fundamental"),
+                            rx.tabs.trigger("Industry", value="industry"),
+                            rx.tabs.trigger("Technical", value="technical"),
                         ),
-                        screener_filter(),
-                        spacing="2",
-                        width="100%"
-                    ),
-                    rx.hstack(
-                        # PE
-                        metric_badge(tag="PE <"),
-                        rx.input(
-                            title="PE <",
-                            type="number",
-                            min=0,
-                            value=State.pe_threshold.to(str),
-                            placeholder="e.g 1.0",
-                            on_change=lambda value: State.set_metric(
-                                "pe", rx.cond(value, value.to(float), None)),
-                            width="5rem"
+                        rx.scroll_area(
+                            rx.tabs.content(
+                                fundamentals_filter(),
+                                value="fundamental",
+                            ),
+                            rx.tabs.content(
+                                screener_filter(),
+                                value="industry",
+                            ),
+                            rx.tabs.content(
+                                rx.text("item on tab 2"),
+                                value="technical",
+                            ),
                         ),
-                        # PB
-                        metric_badge(tag="PB <"),
-                        rx.input(
-                            title="PB <",
-                            type="number",
-                            min=0,
-                            value=State.pb_threshold.to(str),
-                            placeholder="e.g 1.0",
-                            on_change=lambda value: State.set_metric(
-                                "pb", rx.cond(value, value.to(float), None)),
-                            width="5rem"
-                        ),
-                        # ROE
-                        metric_badge(tag="ROE >"),
-                        rx.input(
-                            title="ROE >",
-                            type="number",
-                            min=0,
-                            value=State.roe_threshold.to(str),
-                            placeholder="e.g 1.0",
-                            on_change=lambda value: State.set_metric(
-                                "roe", rx.cond(value, value.to(float), None)),
-                            width="5rem"
-                        ),
-                        # ALPHA
-                        metric_badge(tag="ALPHA >"),
-                        rx.input(
-                            title="ALPHA >",
-                            type="number",
-                            min=0,
-                            value=State.alpha_threshold.to(str),
-                            placeholder="e.g 1.0",
-                            on_change=lambda value: State.set_metric(
-                                "alpha", rx.cond(value, value.to(float), None)),
-                            width="5rem"
-                        ),
-                        spacing='2',
-                        width='100%',
-                        justify='between',
-                        paddingTop="1em",
-                    ),
+                        default_value="fundamental",
+                    )
                 ),
                 side='left',
-                width="100%"
-            ),
+                width="50vw",
+                height="25vw",
+            )
         ),
         width="100%"
     )
 
 
 def screener_filter():
-    return rx.menu.root(
-        rx.menu.trigger(
-            rx.button(
-                rx.icon("filter", size=15),
-                variant=rx.cond(
-                    State.get_current_screener_filter != "", 'solid', 'outline')
-            )
-        ),
-        rx.menu.content(
-            rx.menu.item(
-                rx.text("Default", weight="bold"),
-                on_select=State.clear_screener_filter,
-            ),
-            # Technical
-            rx.menu.sub(
-                rx.menu.sub_trigger(
-                    rx.text(
-                        rx.cond(State.selected_technical != 'All',
-                                State.selected_technical, "Technical"),
-                        weight=rx.cond(
-                            State.selected_technical != 'All', 'bold', 'light'),
-                        color_scheme=rx.cond(
-                            State.selected_technical != 'All', 'violet', 'white')
-                    ),
+    return rx.hstack(
+        rx.vstack(
+            rx.scroll_area(
+                rx.foreach(
+                    State.industries,
+                    lambda industry: rx.text(industry)
                 ),
-                rx.menu.sub_content(
-                    rx.foreach(
-                        State.filters,
-                        lambda filter: rx.menu.item(
-                            rx.hstack(
-                                rx.cond(
-                                    filter == State.selected_technical,
-                                    rx.icon("check", size=16),
-                                    rx.box(width="16px")
-                                ),
-                                rx.text(filter, weight=rx.cond(
-                                        filter == State.selected_technical, "bold", "normal")),
-                                spacing="2",
-                                align="center",
-                            ),
-                            on_select=State.set_filter(filter)
-                        ),
-                    ),
-                ),
-            ),
-
-            # Exchange
-            rx.menu.sub(
-                rx.menu.sub_trigger(
-                    rx.text(
-                        rx.cond(State.selected_exchange != 'All',
-                                State.selected_exchange, "Exchange"),
-                        weight=rx.cond(
-                            State.selected_exchange != 'All', 'bold', 'light'),
-                        color_scheme=rx.cond(
-                            State.selected_exchange != 'All', 'violet', 'white')
-                    ),
-                ),
-                rx.menu.sub_content(
-                    rx.foreach(
-                        State.platforms,
-                        lambda platform: rx.menu.item(
-                            rx.hstack(
-                                rx.cond(
-                                    platform == State.selected_exchange,
-                                    rx.icon('check', size=16),
-                                    rx.box(width='16px')
-                                ),
-                                rx.text(platform, weight=rx.cond(
-                                        platform == State.selected_exchange, "bold", "normal")),
-                                spacing="2",
-                                align="center",
-                            ),
-                            on_select=State.set_platform(platform)
-                        )
-                    )
-                ),
-            ),
-
-            # Industry
-            rx.menu.sub(
-                rx.menu.sub_trigger(
-                    rx.text(
-                        rx.cond(State.selected_industry != 'All',
-                                State.selected_industry, "Industry"),
-                        weight=rx.cond(
-                            State.selected_industry != 'All', 'bold', 'light'),
-                        color_scheme=rx.cond(
-                            State.selected_industry != 'All', 'violet', 'white')
-                    ),
-                ),
-                rx.menu.sub_content(
-                    rx.foreach(
-                        State.industries,
-                        lambda industry: rx.menu.item(
-                            rx.hstack(
-                                rx.cond(
-                                    industry == State.selected_industry,
-                                    rx.icon('check', size=16),
-                                    rx.box(width='16px')
-                                ),
-                                rx.text(industry, weight=rx.cond(
-                                        industry == State.selected_industry, "bold", "normal")),
-                                spacing="2",
-                                align="center",
-                            ),
-                            on_select=State.set_industry(industry)
-                        )
-                    ),
-                ),
+                spacing="3",
             ),
         ),
+        rx.vstack(
+            rx.scroll_area(
+                rx.foreach(
+                    State.exchanges,
+                    lambda exchange: rx.text(exchange)
+                ),
+                spacing="3"
+            ),
+        ),
+        width="100%",
+        padding="1em",
+        justify="between",
+        align='start'
     ),
+
+
+def fundamentals_filter() -> rx.Component:
+    return rx.fragment(
+        rx.hstack(
+            rx.text("Fundamentals:", size="6", font_weight="bold"),
+            rx.spacer(),
+            rx.button(
+                rx.icon("filter-x", size=15),
+                variant='outline',
+                on_click=[State.clear_fundamental_filter,
+                          State.clear_screener_filter]
+            ),
+            spacing="2",
+            width="100%",
+            paddingTop="1em",
+        ),
+        rx.vstack(
+            # PE
+            rx.hstack(
+                metric_badge(
+                    tag=f"{State.pe_threshold[0]} < PE < {State.pe_threshold[1]}"),
+                rx.slider(
+                    default_value=[0.00, 0.00],
+                    value=State.pe_threshold,
+                    min_=0,
+                    max=100,
+                    on_change=lambda value: State.set_metric(
+                        "pe", rx.cond(value, value.to(float), None)).throttle(10),
+                    variant='soft',
+                    size="1",
+                    radius="small",
+                ),
+                width="100%",
+                align="center",
+                justify="between",
+                padding="1em",
+            ),
+            # PB
+            rx.hstack(
+                metric_badge(
+                    tag=f"{State.pb_threshold[0]} < PB < {State.pb_threshold[1]}"),
+                rx.slider(
+                    default_value=[0, 100],
+                    value=State.pb_threshold,
+                    min_=0,
+                    max=100,
+                    on_change=lambda value: State.set_metric(
+                        "pb", rx.cond(value, value.to(float), None)).throttle(10),
+                    variant='soft',
+                    size="1",
+                    radius="small",
+                ),
+                width="100%",
+                align="center",
+                justify="between",
+                padding="1em",
+            ),
+
+            # ROE
+            rx.hstack(
+                metric_badge(
+                    tag=f"{State.roe_threshold[0]} < ROE < {State.roe_threshold[1]}"),
+                rx.slider(
+                    default_value=[0, 100],
+                    value=State.roe_threshold,
+                    min_=0,
+                    max=100,
+                    on_change=lambda value: State.set_metric(
+                        "roe", rx.cond(value, value.to(float), None)).throttle(10),
+                    variant='soft',
+                    size="1",
+                    radius="small",
+                ),
+                width="100%",
+                align="center",
+                padding="1em",
+            ),
+            # ALPHA
+            rx.hstack(
+                metric_badge(
+                    tag=f"{State.alpha_threshold[0]} < ALPHA < {State.alpha_threshold[1]}"),
+                rx.slider(
+                    default_value=[0, 100],
+                    value=State.alpha_threshold,
+                    min_=0,
+                    max=100,
+                    on_change=lambda value: State.set_metric(
+                        "alpha", rx.cond(value, value.to(float), None)).throttle(10),
+                    variant='soft',
+                    size="1",
+                    radius="small",
+                ),
+                width="100%",
+                align="center",
+                justify="between",
+                padding="1em",
+            ),
+            spacing='1',
+            width='100%',
+            justify='end',
+        ),
+    )
 
 
 def metric_badge(tag: str):
     return rx.badge(
-        rx.text(tag, font_size="lg", font_weight="bold", size="3",),
+        rx.text(tag, font_size="lg", font_weight="bold", size="2"),
         variant="soft",
-        border_radius="full",
+        radius="full",
         box_shadow="md",
         color_scheme="violet",
     )
