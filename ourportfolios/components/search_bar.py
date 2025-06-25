@@ -11,8 +11,7 @@ from .graph import pct_change_badge
 class SearchBarState(rx.State):
     search_query: str = ""
     display_suggestion: bool = False
-    tickers_list: list[dict] = []
-
+    
     @rx.event
     def set_query(self, text: str = ""):
         self.search_query = text
@@ -87,7 +86,7 @@ def search_bar():
                     rx.vstack(
                         rx.scroll_area(
                             rx.foreach(
-                                SearchBarState.tickers_list,
+                                SearchBarState.get_suggest_ticker,
                                 lambda ticker_value: suggestion_card(
                                     value=ticker_value),
                             ),
