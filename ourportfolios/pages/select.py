@@ -24,22 +24,21 @@ class State(rx.State):
     pb_threshold: List[float] = [0.00, 0.00]
     roe_threshold: List[float] = [0.00, 0.00]
     alpha_threshold: List[float] = [0.00, 0.00]
-    beta_threshold: List[float] = [0.00, 0.00]
-    eps_threshold: List[float] = [0.00, 0.00]
-    gross_margin_threshold: List[float] = [0.00, 0.00]
-    net_margin_threshold: List[float] = [0.00, 0.00]
-    ev_ebitda_threshold: List[float] = [0.00, 0.00]
-    dividend_yield_threshold: List[float] = [0.00, 0.00]
+    # beta_threshold: List[float] = [0.00, 0.00]
+    # eps_threshold: List[float] = [0.00, 0.00]
+    # gross_margin_threshold: List[float] = [0.00, 0.00]
+    # net_margin_threshold: List[float] = [0.00, 0.00]
+    # ev_ebitda_threshold: List[float] = [0.00, 0.00]
+    # dividend_yield_threshold: List[float] = [0.00, 0.00]
 
     # Other filter
-    selected_category: str = "All"
     selected_technical: str = "All"
-    selected_exchange: str = 'All'
-    selected_industry: str = 'All'
+    selected_exchange: List[str] = []
+    selected_industry: List[str] = []
 
     filters: List[str] = ['All', 'Market Cap', '% Increase']
-    exchanges: List[str] = ['All', 'HSX', 'HNX']
-    industries: List[str] = []
+    exchange_filter: Dict[str, bool] = {}
+    industry_filter: Dict[str, bool] = {}
 
     def update_arrow(self, scroll_position: int, max_scroll: int):
         self.show_arrow = scroll_position < max_scroll - 10
@@ -54,12 +53,14 @@ class State(rx.State):
         order_by_clause = ""
 
         # Filter by industry
-        if not self.selected_industry == 'All':
-            query.append(f"AND industry = '{self.selected_industry}'")
+        if self.selected_industry:
+            query.append(
+                f"AND industry IN ({', '.join(f"'{industry}'" for industry in self.selected_industry)})")
 
-        # Filter by exchange platform
-        if self.selected_exchange != 'All':
-            query.append(f"AND exchange = '{self.selected_exchange}'")
+        # Filter by exchange
+        if self.selected_exchange:
+            query.append(
+                f"AND exchange IN ({', '.join(f"'{exchange}'" for exchange in self.selected_exchange)})")
 
         # Order by condition
         if self.selected_technical == "Market Cap":
@@ -92,38 +93,23 @@ class State(rx.State):
     def get_all_tickers_length(self) -> int:
         return len(self.get_all_tickers)
 
-    # @rx.var
-    # def get_current_screener_filter(self) -> str:
-    #     filters: List[str] = []
-    #     if self.selected_category != 'All':
-    #         filters.append(self.selected_category)
-    #     if self.selected_industry != 'All':
-    #         filters.append(self.selected_industry)
-    #     if self.selected_technical != 'All':
-    #         filters.append(self.selected_technical)
-    #     if self.selected_exchange != 'All':
-    #         filters.append(self.selected_exchange)
-
-    #     return " | ".join(filters)
-
-    # @rx.var
-    # def get_current_fundamental_filter(self, metric: str) -> str:
-    #     if metric.lower() == "pe":
-    #         return f"PE: {self.pe_threshold[0]} <-> {self.pe_threshold[1]}"
-    #     if metric.lower() == "pb":
-    #         return f"PB: {self.pb_threshold[0]} <-> {self.pb_threshold[1]}"
-    #     if metric.lower() == "roe":
-    #         return f"ROE: {self.roe_threshold[0]} <-> {self.roe_threshold[1]}"
-    #     if metric.lower() == "alpha":
-    #         return f"ALPHA: {self.alpha_threshold[0]} <-> {self.alpha_threshold[1]}"
-
     @rx.event
     def get_all_industries(self):
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         industries: pd.DataFrame = pd.read_sql(
             "SELECT DISTINCT industry FROM data_vni", con=conn)
-        self.industries = ['All']
-        self.industries.extend(industries['industry'].tolist())
+
+        self.industry_filter: Dict[str, bool] = {
+            item: False for item in industries['industry'].tolist()}
+
+    @rx.event
+    def get_all_exchanges(self):
+        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
+        exchanges: pd.DataFrame = pd.read_sql(
+            "SELECT DISTINCT exchange FROM data_vni", con=conn)
+
+        self.exchange_filter: Dict[str, bool] = {
+            item: False for item in exchanges['exchange'].tolist()}
 
     # Page navigation
 
@@ -153,16 +139,26 @@ class State(rx.State):
         self.selected_technical = filter
 
     @rx.event
-    def set_platform(self, platform):
-        self.selected_exchange = platform
+    def set_exchange(self, value: bool, exchange: str):
+        self.exchange_filter[exchange] = value
+        self.selected_exchange = [item[0]
+                                  for item in self.exchange_filter.items() if item[1]]
 
     @rx.event
-    def set_industry(self, industry: str):
-        self.selected_industry = industry
+    def set_industry(self, value: bool, industry: str):
+        self.industry_filter[industry] = value
+        self.selected_industry = [item[0]
+                                  for item in self.industry_filter.items() if item[1]]
 
     @rx.event
     def clear_screener_filter(self):
-        self.selected_category = self.selected_technical = self.selected_industry = self.selected_exchange = "All"
+        self.selected_technical = ""
+        self.industry_filter = {
+            item[0]: False for item in self.industry_filter.items()}
+        self.selected_industry = []
+        self.exchange_filter = {
+            item[0]: False for item in self.exchange_filter.items()}
+        self.selected_exchange = []
 
     @rx.event
     def clear_fundamental_filter(self):
@@ -196,7 +192,8 @@ class State(rx.State):
 # Filter section
 @rx.page(route="/select", on_load=[
     State.get_graph(['VNINDEX', 'UPCOMINDEX', "HNXINDEX"]),
-    State.get_all_industries
+    State.get_all_industries,
+    State.get_all_exchanges,
 ])
 def index():
     return rx.vstack(
@@ -339,7 +336,7 @@ def industry_roller():
             rx.scroll_area(
                 rx.hstack(
                     rx.foreach(
-                        State.industries,
+                        State.industry_filter.items(),
                         lambda item: rx.card(
                             rx.link(
                                 rx.inset(
@@ -349,7 +346,7 @@ def industry_roller():
                                         height="40px",
                                         style={"marginBottom": "0.5em"},
                                     ),
-                                    item,
+                                    item[0],
                                     style={
                                         "height": "120px",
                                         "minWidth": "200px",
@@ -363,7 +360,7 @@ def industry_roller():
                                     },
                                     side="right",
                                 ),
-                                href=f'/select/{item.lower()}',
+                                href=f'/select/{item[0].lower()}',
                                 underline='none',
                             )
                         )
@@ -522,65 +519,103 @@ def ticker_filter():
                 )
             ),
             rx.menu.content(
-                rx.fragment(
-                    rx.tabs.root(
-                        rx.tabs.list(
-                            rx.tabs.trigger(
-                                "Fundamental", value="fundamental"),
-                            rx.tabs.trigger("Industry", value="industry"),
-                            rx.tabs.trigger("Technical", value="technical"),
-                        ),
+                rx.tabs.root(
+                    rx.tabs.list(
+                        rx.tabs.trigger(
+                            "Fundamental", value="fundamental"),
+                        rx.tabs.trigger("Category", value="category"),
+                        rx.tabs.trigger("Technical", value="technical"),
+                        rx.spacer(),
+                        rx.button(
+                            rx.hstack(
+                                rx.icon("filter-x", size=12),
+                                rx.text("Clear all"),
+                                align="center",
+                                justify="between",
+                            ),
+                            variant='outline',
+                            on_click=[State.clear_fundamental_filter,
+                                      State.clear_screener_filter]
+                        )
+                    ),
+                    rx.tabs.content(
+                        fundamentals_filter(),
+                        value="fundamental",
+                    ),
+                    rx.tabs.content(
                         rx.scroll_area(
-                            rx.tabs.content(
-                                fundamentals_filter(),
-                                value="fundamental",
-                            ),
-                            rx.tabs.content(
-                                screener_filter(),
-                                value="industry",
-                            ),
-                            rx.tabs.content(
-                                rx.text("item on tab 2"),
-                                value="technical",
-                            ),
+                            screener_filter(),
+                            height="23vw",
+                            scrollbars="vertical",
+                            type="hover",
                         ),
-                        default_value="fundamental",
-                    )
+                        value="category",
+                    ),
+                    rx.tabs.content(
+                        rx.scroll_area(
+                            rx.text("Scrollable content for Tab 1 " * 20),
+                        ),
+                        value="technical",
+                    ),
+                    default_value="fundamental",
                 ),
                 side='left',
                 width="50vw",
-                height="25vw",
-            )
+                height="28vw",
+            ),
         ),
         width="100%"
     )
 
 
 def screener_filter():
-    return rx.hstack(
+    return rx.grid(
         rx.vstack(
-            rx.scroll_area(
-                rx.foreach(
-                    State.industries,
-                    lambda industry: rx.text(industry)
-                ),
-                spacing="3",
+            rx.heading("Industry"),
+            rx.foreach(
+                State.industry_filter.items(),
+                lambda item: rx.checkbox(
+                    # item = {'<industry_tag>': bool=False}
+                    rx.badge(item[0]),
+                    checked=item[1],
+                    on_change=lambda value: State.set_industry(
+                        value=value, industry=item[0]),
+                )
             ),
+            spacing="3"
+        ),
+
+        rx.vstack(
+            rx.heading("Exchange"),
+            rx.foreach(
+                State.exchange_filter.items(),
+                lambda item: rx.checkbox(
+                    rx.badge(item[0]),
+                    checked=item[1],
+                    on_change=lambda value: State.set_exchange(
+                        value=value, exchange=item[0])
+                )
+            ),
+            spacing="3"
         ),
         rx.vstack(
-            rx.scroll_area(
-                rx.foreach(
-                    State.exchanges,
-                    lambda exchange: rx.text(exchange)
-                ),
-                spacing="3"
+            rx.heading("Exchange"),
+            rx.foreach(
+                State.exchange_filter,
+                lambda exchange: rx.hstack(
+                    rx.checkbox(),
+                    rx.badge(exchange),
+                    width="100%",
+                )
             ),
+            spacing="3"
         ),
         width="100%",
         padding="1em",
+        align='start',
         justify="between",
-        align='start'
-    ),
+        columns="3"
+    )
 
 
 def fundamentals_filter() -> rx.Component:
@@ -591,8 +626,7 @@ def fundamentals_filter() -> rx.Component:
             rx.button(
                 rx.icon("filter-x", size=15),
                 variant='outline',
-                on_click=[State.clear_fundamental_filter,
-                          State.clear_screener_filter]
+                on_click=State.clear_fundamental_filter,
             ),
             spacing="2",
             width="100%",
