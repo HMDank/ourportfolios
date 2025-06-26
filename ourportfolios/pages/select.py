@@ -31,17 +31,26 @@ class State(rx.State):
     # ev_ebitda_threshold: List[float] = [0.00, 0.00]
     # dividend_yield_threshold: List[float] = [0.00, 0.00]
 
+    technical_metrics: List[str] = ["pe", "pb", "roe", "alpha", "beta",
+                                    "eps", "gross_margin", "net_margin", "ev_ebitda", "dividend_yield"]
+    fundamental_metrics: List[str] = ["market_cap",
+                                      "accumulated_volume", "pct_price_change", "rsi14"]
+
     # Filters
     selected_sort_order: str = 'ASC'
     selected_sort_option: str = "A-Z"
     selected_technical: str = "All"
     selected_exchange: List[str] = []
     selected_industry: List[str] = []
+    selected_technical_metric: List[str] = []
+    selected_fundamental_metric: List[str] = []
 
     sort_orders: List[str] = ['ASC', 'DESC']
     sort_options: List[str] = ['A-Z', 'Market Cap', '% Change', "Volume"]
     exchange_filter: Dict[str, bool] = {}
     industry_filter: Dict[str, bool] = {}
+    technical_filter: Dict[str, List[float]] = {}
+    fundamental_filter: Dict[str, List[float]] = {}
 
     def update_arrow(self, scroll_position: int, max_scroll: int):
         self.show_arrow = scroll_position < max_scroll - 10
@@ -521,6 +530,13 @@ def ticker_list():
 def ticker_filter():
     return rx.hstack(
         rx.spacer(),  # Push filter button far right
+        rx.scroll_area(
+            selected_filters(),
+            scrollbars="horizontal",
+            width="40vw",
+            type="hover",
+            height="2vw",
+        ),
         rx.menu.root(
             rx.menu.trigger(
                 rx.button(
@@ -577,7 +593,7 @@ def ticker_filter():
                             screener_filter(),
                             height="23vw",
                             scrollbars="vertical",
-                            type="hover",
+                            type="always",
                         ),
                         value="category",
                     ),
@@ -594,7 +610,9 @@ def ticker_filter():
                 height="28vw",
             ),
         ),
-        width="100%"
+        width="100%",
+        align="center",
+        spacing="2",
     )
 
 
@@ -758,3 +776,49 @@ def metric_badge(tag: str):
         box_shadow="md",
         color_scheme="violet",
     )
+
+
+def selected_filters():
+    return rx.hstack(
+        rx.foreach(
+            State.selected_industry,
+            lambda item: rx.badge(
+                rx.hstack(
+                    item,
+                    rx.button(
+                        rx.icon("x", size=8),
+                        variant="ghost",
+                        size="1",
+                        on_click=State.set_industry(False, item)
+                    ),
+                    spacing="1",
+                    align="center"
+                ),
+                color_scheme="violet",
+                radius="large",
+                align="center"
+            ),
+        ),
+        rx.foreach(
+            State.selected_exchange,
+            lambda item: rx.badge(
+                rx.hstack(
+                    item,
+                    rx.button(
+                        rx.icon("x", size=8),
+                        variant="ghost",
+                        size="1",
+                        on_click=State.set_exchange(False, item)
+                    ),
+                    spacing="1",
+                    align="center"
+                ),
+                color_scheme="violet",
+                radius="large",
+                align="center"
+            ),
+        ),
+        width="100%",
+        spacing="2",
+        direction="row-reverse"
+    ),
