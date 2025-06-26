@@ -31,12 +31,15 @@ class State(rx.State):
     # ev_ebitda_threshold: List[float] = [0.00, 0.00]
     # dividend_yield_threshold: List[float] = [0.00, 0.00]
 
-    # Other filter
+    # Filters
+    selected_sort_order: str = 'ASC'
+    selected_sort_option: str = "A-Z"
     selected_technical: str = "All"
     selected_exchange: List[str] = []
     selected_industry: List[str] = []
 
-    filters: List[str] = ['All', 'Market Cap', '% Increase']
+    sort_orders: List[str] = ['ASC', 'DESC']
+    sort_options: List[str] = ['A-Z', 'Market Cap', '% Change', "Volume"]
     exchange_filter: Dict[str, bool] = {}
     industry_filter: Dict[str, bool] = {}
 
@@ -63,10 +66,14 @@ class State(rx.State):
                 f"AND exchange IN ({', '.join(f"'{exchange}'" for exchange in self.selected_exchange)})")
 
         # Order by condition
-        if self.selected_technical == "Market Cap":
-            order_by_clause = "ORDER BY market_cap DESC"
-        if self.selected_technical == '% Increase':
-            order_by_clause = "ORDER BY pct_price_change DESC"
+        if self.selected_sort_option == "A-Z":
+            order_by_clause = f"ORDER BY ticker {self.selected_sort_order}"
+        if self.selected_sort_option == "Market Cap":
+            order_by_clause = f"ORDER BY market_cap {self.selected_sort_order}"
+        if self.selected_sort_option == '% Change':
+            order_by_clause = f"ORDER BY pct_price_change {self.selected_sort_order}"
+        if self.selected_sort_option == 'Volume':
+            order_by_clause = f"ORDER BY accumulated_volume {self.selected_sort_order}"
 
         # Filter by metrics
         if self.pe_threshold[1] > 0:
@@ -135,8 +142,12 @@ class State(rx.State):
     # Filter event handlers
 
     @rx.event
-    def set_filter(self, filter):
-        self.selected_technical = filter
+    def set_sort_option(self, option: str):
+        self.selected_sort_option = option
+
+    @rx.event
+    def set_sort_order(self, order: str):
+        self.selected_sort_order = order
 
     @rx.event
     def set_exchange(self, value: bool, exchange: str):
@@ -164,6 +175,10 @@ class State(rx.State):
     def clear_fundamental_filter(self):
         self.pe_threshold = self.pb_threshold = self.roe_threshold = self.alpha_threshold = [
             0.00, 0.00]
+
+    @rx.event
+    def clear_sort_setting(self):
+        pass
 
     @rx.event
     def set_metric(self, metric: str,  value: List[float]):
@@ -515,7 +530,7 @@ def ticker_filter():
                         align="center",
                         justify="between"
                     ),
-                    variant='outline'
+                    variant='outline',
                 )
             ),
             rx.menu.content(
@@ -526,17 +541,32 @@ def ticker_filter():
                         rx.tabs.trigger("Category", value="category"),
                         rx.tabs.trigger("Technical", value="technical"),
                         rx.spacer(),
-                        rx.button(
-                            rx.hstack(
-                                rx.icon("filter-x", size=12),
-                                rx.text("Clear all"),
-                                align="center",
-                                justify="between",
+                        rx.hstack(
+                            # Sort by
+                            rx.select(
+                                State.sort_orders,
+                                value=State.selected_sort_order,
+                                name="select",
+                                on_change=lambda val: State.set_sort_order(
+                                    val),
+                                color_scheme="violet",
+                                radius="large",
+                                size="1"
                             ),
-                            variant='outline',
-                            on_click=[State.clear_fundamental_filter,
-                                      State.clear_screener_filter]
-                        )
+                            # Clear filter
+                            rx.button(
+                                rx.hstack(
+                                    rx.icon("filter-x", size=12),
+                                    rx.text("Clear all"),
+                                    align="center",
+                                    justify="between",
+                                ),
+                                variant='outline',
+                                on_click=[State.clear_fundamental_filter,
+                                          State.clear_screener_filter]
+                            ),
+                            align="center"
+                        ),
                     ),
                     rx.tabs.content(
                         fundamentals_filter(),
