@@ -37,7 +37,7 @@ class State(rx.State):
                                       "accumulated_volume", "pct_price_change", "rsi14"]
 
     # Filters
-    selected_sort_order: str = 'ASC'
+    selected_sort_order: str = 'DESC'
     selected_sort_option: str = "A-Z"
     selected_technical: str = "All"
     selected_exchange: List[str] = []
@@ -528,7 +528,7 @@ def ticker_list():
 
 
 def ticker_filter():
-    return rx.hstack(
+    return rx.flex(
         rx.spacer(),  # Push filter button far right
         rx.scroll_area(
             selected_filters(),
@@ -557,31 +557,23 @@ def ticker_filter():
                         rx.tabs.trigger("Category", value="category"),
                         rx.tabs.trigger("Technical", value="technical"),
                         rx.spacer(),
-                        rx.hstack(
-                            # Sort by
-                            rx.select(
-                                State.sort_orders,
-                                value=State.selected_sort_order,
-                                name="select",
-                                on_change=lambda val: State.set_sort_order(
-                                    val),
-                                color_scheme="violet",
-                                radius="large",
-                                size="1"
-                            ),
+                        rx.flex(
+                            # Sort
+                            sort_options(),
                             # Clear filter
                             rx.button(
                                 rx.hstack(
                                     rx.icon("filter-x", size=12),
                                     rx.text("Clear all"),
                                     align="center",
-                                    justify="between",
                                 ),
                                 variant='outline',
                                 on_click=[State.clear_fundamental_filter,
                                           State.clear_screener_filter]
                             ),
-                            align="center"
+                            align="center",
+                            direction="row",
+                            spacing="2",
                         ),
                     ),
                     rx.tabs.content(
@@ -589,12 +581,7 @@ def ticker_filter():
                         value="fundamental",
                     ),
                     rx.tabs.content(
-                        rx.scroll_area(
-                            screener_filter(),
-                            height="23vw",
-                            scrollbars="vertical",
-                            type="always",
-                        ),
+                        screener_filter(),
                         value="category",
                     ),
                     rx.tabs.content(
@@ -607,11 +594,13 @@ def ticker_filter():
                 ),
                 side='left',
                 width="50vw",
-                height="28vw",
+                height="30vw"
             ),
+            modal=False,
         ),
         width="100%",
         align="center",
+        direction="row",
         spacing="2",
     )
 
@@ -620,49 +609,53 @@ def screener_filter():
     return rx.grid(
         rx.vstack(
             rx.heading("Industry"),
-            rx.foreach(
-                State.industry_filter.items(),
-                lambda item: rx.checkbox(
-                    # item = {'<industry_tag>': bool=False}
-                    rx.badge(item[0]),
-                    checked=item[1],
-                    on_change=lambda value: State.set_industry(
-                        value=value, industry=item[0]),
-                )
+            rx.scroll_area(
+                rx.flex(
+                    rx.foreach(
+                        State.industry_filter.items(),
+                        lambda item: rx.checkbox(
+                            # item = {'<industry_tag>': bool=False}
+                            rx.badge(item[0]),
+                            checked=item[1],
+                            on_change=lambda value: State.set_industry(
+                                value=value, industry=item[0]),
+                        ),
+                    ),
+                    spacing="3",
+                    direction="column",
+                ),
+                height="20vw",
+                scrollbars="vertical",
+                type="scroll",
             ),
-            spacing="3"
         ),
 
         rx.vstack(
             rx.heading("Exchange"),
-            rx.foreach(
-                State.exchange_filter.items(),
-                lambda item: rx.checkbox(
-                    rx.badge(item[0]),
-                    checked=item[1],
-                    on_change=lambda value: State.set_exchange(
-                        value=value, exchange=item[0])
-                )
+            rx.scroll_area(
+                rx.flex(
+                    rx.foreach(
+                        State.exchange_filter.items(),
+                        lambda item: rx.checkbox(
+                            rx.badge(item[0]),
+                            checked=item[1],
+                            on_change=lambda value: State.set_exchange(
+                                value=value, exchange=item[0])
+                        )
+                    ),
+                    spacing="3",
+                    direction="column",
+                ),
+                height="20vw",
+                scrollbars="vertical",
+                type="hover",
             ),
-            spacing="3"
-        ),
-        rx.vstack(
-            rx.heading("Exchange"),
-            rx.foreach(
-                State.exchange_filter,
-                lambda exchange: rx.hstack(
-                    rx.checkbox(),
-                    rx.badge(exchange),
-                    width="100%",
-                )
-            ),
-            spacing="3"
         ),
         width="100%",
+        align='center',
         padding="1em",
-        align='start',
-        justify="between",
-        columns="3"
+        spacing="3",
+        columns="2",
     )
 
 
@@ -680,90 +673,95 @@ def fundamentals_filter() -> rx.Component:
             width="100%",
             paddingTop="1em",
         ),
-        rx.vstack(
-            # PE
-            rx.hstack(
-                metric_badge(
-                    tag=f"{State.pe_threshold[0]} < PE < {State.pe_threshold[1]}"),
-                rx.slider(
-                    default_value=[0.00, 0.00],
-                    value=State.pe_threshold,
-                    min_=0,
-                    max=100,
-                    on_change=lambda value: State.set_metric(
-                        "pe", rx.cond(value, value.to(float), None)).throttle(10),
-                    variant='soft',
-                    size="1",
-                    radius="small",
+        rx.scroll_area(
+            rx.vstack(
+                # PE
+                rx.hstack(
+                    metric_badge(
+                        tag=f"{State.pe_threshold[0]} < PE < {State.pe_threshold[1]}"),
+                    rx.slider(
+                        default_value=[0.00, 0.00],
+                        value=State.pe_threshold,
+                        min_=0,
+                        max=100,
+                        on_change=lambda value: State.set_metric(
+                            "pe", rx.cond(value, value.to(float), None)).throttle(10),
+                        variant='soft',
+                        size="1",
+                        radius="small",
+                    ),
+                    width="100%",
+                    align="center",
+                    justify="between",
+                    padding="1em",
                 ),
-                width="100%",
-                align="center",
-                justify="between",
-                padding="1em",
-            ),
-            # PB
-            rx.hstack(
-                metric_badge(
-                    tag=f"{State.pb_threshold[0]} < PB < {State.pb_threshold[1]}"),
-                rx.slider(
-                    default_value=[0, 100],
-                    value=State.pb_threshold,
-                    min_=0,
-                    max=100,
-                    on_change=lambda value: State.set_metric(
-                        "pb", rx.cond(value, value.to(float), None)).throttle(10),
-                    variant='soft',
-                    size="1",
-                    radius="small",
+                # PB
+                rx.hstack(
+                    metric_badge(
+                        tag=f"{State.pb_threshold[0]} < PB < {State.pb_threshold[1]}"),
+                    rx.slider(
+                        default_value=[0, 100],
+                        value=State.pb_threshold,
+                        min_=0,
+                        max=100,
+                        on_change=lambda value: State.set_metric(
+                            "pb", rx.cond(value, value.to(float), None)).throttle(10),
+                        variant='soft',
+                        size="1",
+                        radius="small",
+                    ),
+                    width="100%",
+                    align="center",
+                    justify="between",
+                    padding="1em",
                 ),
-                width="100%",
-                align="center",
-                justify="between",
-                padding="1em",
-            ),
 
-            # ROE
-            rx.hstack(
-                metric_badge(
-                    tag=f"{State.roe_threshold[0]} < ROE < {State.roe_threshold[1]}"),
-                rx.slider(
-                    default_value=[0, 100],
-                    value=State.roe_threshold,
-                    min_=0,
-                    max=100,
-                    on_change=lambda value: State.set_metric(
-                        "roe", rx.cond(value, value.to(float), None)).throttle(10),
-                    variant='soft',
-                    size="1",
-                    radius="small",
+                # ROE
+                rx.hstack(
+                    metric_badge(
+                        tag=f"{State.roe_threshold[0]} < ROE < {State.roe_threshold[1]}"),
+                    rx.slider(
+                        default_value=[0, 100],
+                        value=State.roe_threshold,
+                        min_=0,
+                        max=100,
+                        on_change=lambda value: State.set_metric(
+                            "roe", rx.cond(value, value.to(float), None)).throttle(10),
+                        variant='soft',
+                        size="1",
+                        radius="small",
+                    ),
+                    width="100%",
+                    align="center",
+                    padding="1em",
                 ),
-                width="100%",
-                align="center",
-                padding="1em",
-            ),
-            # ALPHA
-            rx.hstack(
-                metric_badge(
-                    tag=f"{State.alpha_threshold[0]} < ALPHA < {State.alpha_threshold[1]}"),
-                rx.slider(
-                    default_value=[0, 100],
-                    value=State.alpha_threshold,
-                    min_=0,
-                    max=100,
-                    on_change=lambda value: State.set_metric(
-                        "alpha", rx.cond(value, value.to(float), None)).throttle(10),
-                    variant='soft',
-                    size="1",
-                    radius="small",
+                # ALPHA
+                rx.hstack(
+                    metric_badge(
+                        tag=f"{State.alpha_threshold[0]} < ALPHA < {State.alpha_threshold[1]}"),
+                    rx.slider(
+                        default_value=[0, 100],
+                        value=State.alpha_threshold,
+                        min_=0,
+                        max=100,
+                        on_change=lambda value: State.set_metric(
+                            "alpha", rx.cond(value, value.to(float), None)).throttle(10),
+                        variant='soft',
+                        size="1",
+                        radius="small",
+                    ),
+                    width="100%",
+                    align="center",
+                    justify="between",
+                    padding="1em",
                 ),
-                width="100%",
-                align="center",
-                justify="between",
-                padding="1em",
+                spacing='3',
+                width='100%',
+                justify='end',
             ),
-            spacing='1',
-            width='100%',
-            justify='end',
+            height="100%",
+            scrollbars="vertical",
+            type="always",
         ),
     )
 
@@ -776,6 +774,66 @@ def metric_badge(tag: str):
         box_shadow="md",
         color_scheme="violet",
     )
+
+
+def sort_options():
+    return rx.fragment(
+        rx.menu.root(
+            rx.menu.trigger(
+                rx.button(
+                    rx.hstack(
+                        rx.icon("arrow-up-down", size=12),
+                        rx.text(State.selected_sort_option),
+                        align="center",
+                        justify="between"
+                    ),
+                    variant='outline',
+                )
+            ),
+            rx.menu.content(
+                rx.foreach(
+                    State.sort_options,
+                    lambda option: rx.menu.sub(
+                        rx.menu.sub_trigger(option),
+                        rx.menu.sub_content(
+                            rx.foreach(
+                                State.sort_orders,
+                                lambda order: rx.menu.item(
+                                    rx.hstack(
+                                        rx.cond(order.to(str) == "ASC", rx.icon("arrow-down-a-z", size=12), rx.icon("arrow-down-z-a", size=12)),
+                                        rx.text(order),
+                                        align="center",
+                                        justify="between"
+                                    ),
+                                    on_click=[State.set_sort_option(option), State.set_sort_order(order)]
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+    
+    # return rx.fragment(
+    #     rx.select.root(
+    #         rx.select.trigger(State.selected_sort_option),
+    #         rx.select.content(
+    #             rx.select.group(
+    #                 rx.foreach(
+    #                     State.sort_options,
+    #                     lambda option: rx.select.item(option, value=option)
+    #                 )
+    #             )
+    #         ),
+    #         name="select",
+    #         value=State.selected_sort_option,
+    #         on_change=State.set_sort_option
+    #     ),
+    #     variant='ghost',
+    #     color_scheme="violet",
+    #     radius="medium"
+    # )
 
 
 def selected_filters():
@@ -796,7 +854,8 @@ def selected_filters():
                 ),
                 color_scheme="violet",
                 radius="large",
-                align="center"
+                align="center",
+                variant="solid",
             ),
         ),
         rx.foreach(
@@ -815,7 +874,8 @@ def selected_filters():
                 ),
                 color_scheme="violet",
                 radius="large",
-                align="center"
+                align="center",
+                variant="solid",
             ),
         ),
         width="100%",
