@@ -3,6 +3,7 @@
 *.db
 .web
 assets/external/
+database.ini
 # Python-generated files
 __pycache__/
 *.py[oc]
