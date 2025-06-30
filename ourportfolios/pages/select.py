@@ -1,6 +1,7 @@
 import reflex as rx
 import sqlite3
 import pandas as pd
+import itertools
 from typing import List, Dict, Any, Optional
 
 from ..components.navbar import navbar
@@ -48,9 +49,22 @@ class State(rx.State):
     def get_all_tickers(self) -> List[Dict[str, Any]]:
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
 
-        # Isolate query & clause for dynamic filters and sorting criteria
         query = [
-            "SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change FROM data_vni WHERE 1=1"]
+            """SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change 
+            FROM data_vni 
+            WHERE """]
+                
+        if self.search_query != "":
+            match_conditions, params = self.fetch_ticker()
+            query.append(match_conditions)
+        else: 
+            query.append("1=1")
+            params = None
+        
+        query = [' '.join(query)]
+
+        # Order and filter
+
         order_by_clause = ""
 
         # Filter by industry
@@ -84,10 +98,55 @@ class State(rx.State):
 
         full_query = " ".join(
             query) + f" {order_by_clause}" if order_by_clause else " ".join(query)
-        df = pd.read_sql(full_query, conn)
+
+        df = pd.read_sql(full_query, conn, params=params)
         conn.close()
 
         return df[['ticker', 'organ_name', 'current_price', 'accumulated_volume', 'pct_price_change']].to_dict('records')
+
+    # Search bar
+
+    def fetch_ticker(self) -> tuple[str, Any]:
+        # At first, try to fetch exact ticker
+        match_conditions = "ticker LIKE ?"
+        params = (f"{self.search_query}%", )
+        result: bool = self.validate_search_query(
+            match_conditions=match_conditions, params=params)
+
+        # In-case of mistype or no ticker returned, calculate all possible permutation of provided search_query with fixed length
+        if not result:
+            # All possible combination of ticker's letter
+            combos = list(itertools.permutations(
+                list(self.search_query), len(self.search_query)))
+            params = [f"{''.join(combo)}%" for combo in combos]
+
+            match_conditions = " OR ".join(["ticker LIKE ?"] * len(combos))
+            result: bool = self.validate_search_query(
+                match_conditions=match_conditions, params=params)
+
+        # Suggest base of the first letter if still no ticker matched
+        if not result:
+            match_conditions = "ticker LIKE ?"
+            params = (f"{self.search_query[0]}%", )
+            result: bool = self.validate_search_query(
+                match_conditions=match_conditions, params=params)
+
+        return match_conditions, params
+
+
+    def validate_search_query(self, match_conditions: str, params: Any) -> bool:
+        """ Attempt to fetch data 
+        """
+        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
+        query: str = f"""
+                        SELECT ticker
+                        FROM data_vni 
+                        WHERE {match_conditions}
+                    """
+        if pd.read_sql(query, conn, params=params).empty:
+            return False
+        return True
+
 
     @rx.var(cache=True)
     def get_all_tickers_length(self) -> int:
@@ -202,6 +261,12 @@ class State(rx.State):
         self.get_all_exchanges()
         self.selected_exchange = []  # Default
 
+    # Search bar
+
+    @rx.event
+    def set_search_query(self, value: str):
+        self.search_query = value
+
 # Filter section
 
 
@@ -211,8 +276,10 @@ class State(rx.State):
     State.get_all_exchanges,
     State.get_fundamental_metrics,
     State.get_technical_metrics,
+    State.set_search_query("")
 ])
 def index():
+
     return rx.vstack(
         navbar(),
         page_selection(),
@@ -522,15 +589,18 @@ def ticker_list():
 
 def ticker_filter():
     return rx.flex(
+        rx.container(
+            ticker_filter_search_bar(),
+            width="40%"
+        ),
         rx.spacer(),  # Push filter button far right
         rx.scroll_area(
             selected_filter_tags(),
             scrollbars="horizontal",
-            width="30vw",
+            width="40vw",
             type="hover",
             height="2vw",
         ),
-        # rx.text(f"{State.get_all_filters_length}"),
         rx.menu.root(
             rx.menu.trigger(
                 rx.button(
@@ -695,7 +765,7 @@ def metric_silder(metric_tag: str, option: str):
     return rx.vstack(
         # Metric
         rx.badge(
-            rx.text(metric_tag, font_size="lg",
+            rx.text(metric_tag.replace("_"," ").capitalize(), font_size="lg",
                     font_weight="bold", size="2"),
             variant="soft",
             radius="full",
@@ -860,4 +930,18 @@ def selected_filter_tags():
         width="100%",
         spacing="2",
         direction="row-reverse"
+    ),
+
+
+def ticker_filter_search_bar():
+    return rx.input(
+        rx.input.slot(rx.icon(tag="search", size=16)),
+        placeholder="Search for a ticker here!",
+        type="search",
+        size="2",
+        width="100%",
+        color_scheme="violet",
+        radius="large",
+        value=State.search_query,
+        on_change=State.set_search_query,
     ),
