@@ -21,6 +21,7 @@ class State(rx.State):
     # Search bar
     search_query = ""
 
+    # Metrics
     fundamental_metrics: List[str] = ["pe", "pb", "roe", "alpha", "beta",
                                       "eps", "gross_margin", "net_margin", "ev_ebitda", "dividend_yield"]
     technical_metrics: List[str] = ["rsi14"]
@@ -37,13 +38,17 @@ class State(rx.State):
     sort_options: List[str] = ['A-Z', 'Market Cap', '% Change', "Volume"]
     exchange_filter: Dict[str, bool] = {}
     industry_filter: Dict[str, bool] = {}
-    # Init value, will be overwrite when the page loaded
-    technical_metric_filter: Dict[str, List[float]] = {"rsi14": [0.00, 0.00]}
-    # Init value, will be overwrite when the page loaded
-    fundamental_metric_filter: Dict[str, List[float]] = {"pe": [0.00, 0.00]}
+    technical_metric_filter: Dict[str, List[float]] = {}
+    fundamental_metric_filter: Dict[str, List[float]] = {}
 
     def update_arrow(self, scroll_position: int, max_scroll: int):
         self.show_arrow = scroll_position < max_scroll - 10
+
+    @rx.var
+    def has_filter(self) -> bool:
+        if (self.selected_industry or self.selected_exchange or self.selected_fundamental_metric or self.selected_technical_metric):
+            return True
+        return False
 
     @rx.var(cache=True)
     def get_all_tickers(self) -> List[Dict[str, Any]]:
@@ -53,18 +58,17 @@ class State(rx.State):
             """SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change 
             FROM data_vni 
             WHERE """]
-                
+
         if self.search_query != "":
             match_conditions, params = self.fetch_ticker()
             query.append(match_conditions)
-        else: 
+        else:
             query.append("1=1")
             params = None
-        
+
         query = [' '.join(query)]
 
         # Order and filter
-
         order_by_clause = ""
 
         # Filter by industry
@@ -103,50 +107,6 @@ class State(rx.State):
         conn.close()
 
         return df[['ticker', 'organ_name', 'current_price', 'accumulated_volume', 'pct_price_change']].to_dict('records')
-
-    # Search bar
-
-    def fetch_ticker(self) -> tuple[str, Any]:
-        # At first, try to fetch exact ticker
-        match_conditions = "ticker LIKE ?"
-        params = (f"{self.search_query}%", )
-        result: bool = self.validate_search_query(
-            match_conditions=match_conditions, params=params)
-
-        # In-case of mistype or no ticker returned, calculate all possible permutation of provided search_query with fixed length
-        if not result:
-            # All possible combination of ticker's letter
-            combos = list(itertools.permutations(
-                list(self.search_query), len(self.search_query)))
-            params = [f"{''.join(combo)}%" for combo in combos]
-
-            match_conditions = " OR ".join(["ticker LIKE ?"] * len(combos))
-            result: bool = self.validate_search_query(
-                match_conditions=match_conditions, params=params)
-
-        # Suggest base of the first letter if still no ticker matched
-        if not result:
-            match_conditions = "ticker LIKE ?"
-            params = (f"{self.search_query[0]}%", )
-            result: bool = self.validate_search_query(
-                match_conditions=match_conditions, params=params)
-
-        return match_conditions, params
-
-
-    def validate_search_query(self, match_conditions: str, params: Any) -> bool:
-        """ Attempt to fetch data 
-        """
-        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
-        query: str = f"""
-                        SELECT ticker
-                        FROM data_vni 
-                        WHERE {match_conditions}
-                    """
-        if pd.read_sql(query, conn, params=params).empty:
-            return False
-        return True
-
 
     @rx.var(cache=True)
     def get_all_tickers_length(self) -> int:
@@ -267,6 +227,47 @@ class State(rx.State):
     def set_search_query(self, value: str):
         self.search_query = value
 
+    def fetch_ticker(self) -> tuple[str, Any]:
+        # At first, try to fetch exact ticker
+        match_conditions = "ticker LIKE ?"
+        params = (f"{self.search_query}%", )
+        result: bool = self.validate_search_query(
+            match_conditions=match_conditions, params=params)
+
+        # In-case of mistype or no ticker returned, calculate all possible permutation of provided search_query with fixed length
+        if not result:
+            # All possible combination of ticker's letter
+            combos = list(itertools.permutations(
+                list(self.search_query), len(self.search_query)))
+            params = [f"{''.join(combo)}%" for combo in combos]
+
+            match_conditions = " OR ".join(["ticker LIKE ?"] * len(combos))
+            result: bool = self.validate_search_query(
+                match_conditions=match_conditions, params=params)
+
+        # Suggest base of the first letter if still no ticker matched
+        if not result:
+            match_conditions = "ticker LIKE ?"
+            params = (f"{self.search_query[0]}%", )
+            result: bool = self.validate_search_query(
+                match_conditions=match_conditions, params=params)
+
+        return match_conditions, params
+
+    def validate_search_query(self, match_conditions: str, params: Any) -> bool:
+        """ Attempt to fetch data 
+        """
+        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
+        query: str = f"""
+                        SELECT ticker
+                        FROM data_vni 
+                        WHERE {match_conditions}
+                    """
+        if pd.read_sql(query, conn, params=params).empty:
+            return False
+        return True
+
+
 # Filter section
 
 
@@ -276,7 +277,7 @@ class State(rx.State):
     State.get_all_exchanges,
     State.get_fundamental_metrics,
     State.get_technical_metrics,
-    State.set_search_query("")
+    State.set_search_query(""),
 ])
 def index():
 
@@ -556,13 +557,13 @@ def ticker_list():
     return rx.box(
         rx.card(
             rx.hstack(
-                rx.box(rx.text("Mã CK", weight="bold", color="white",
+                rx.box(rx.text("Symbol", weight="bold", color="white",
                                size="3"), width="50%", align="center", justify="center"),
-                rx.box(rx.text("Giá", weight="bold", color="white", size="3"),
+                rx.box(rx.text("Price", weight="bold", color="white", size="3"),
                        width="15%", align="center", justify="center"),
                 rx.box(rx.text("%", weight="bold", color="white", size="3"),
                        width="17%", align="center", justify="center"),
-                rx.box(rx.text("Tổng KL", weight="bold", color="white",
+                rx.box(rx.text("Volume", weight="bold", color="white",
                                size="3"), width="18%", align="center", justify="center"),
                 width="100%",
                 padding="1em",
@@ -610,7 +611,11 @@ def ticker_filter():
                         align="center",
                         justify="between"
                     ),
-                    variant='outline',
+                    variant=rx.cond(
+                        State.has_filter,
+                        "solid",
+                        'outline'
+                    ),
                 )
             ),
             rx.menu.content(
@@ -670,56 +675,72 @@ def ticker_filter():
 
 
 def category_filter():
-    return rx.grid(
-        rx.vstack(
-            rx.heading("Industry"),
-            rx.scroll_area(
-                rx.flex(
-                    rx.foreach(
-                        State.industry_filter.items(),
-                        lambda item: rx.checkbox(
-                            # item = {'<industry_tag>': bool=False}
-                            rx.badge(item[0]),
-                            checked=item[1],
-                            on_change=lambda value: State.set_industry(
-                                value=value, industry=item[0]),
+    return rx.fragment(
+        rx.hstack(
+            rx.text("Category:", size="6", font_weight="bold"),
+            rx.spacer(),
+            rx.button(
+                rx.icon("filter-x", size=15),
+                variant='outline',
+                on_click=State.clear_category_filter,
+            ),
+            spacing="2",
+            width="100%",
+            paddingTop="1em",
+            paddingLeft="1em"
+        ),
+        rx.grid(
+            # Industry
+            rx.vstack(
+                rx.heading("Industry"),
+                rx.scroll_area(
+                    rx.flex(
+                        rx.foreach(
+                            State.industry_filter.items(),
+                            lambda item: rx.checkbox(
+                                # item = {'<industry_tag>': bool=False}
+                                rx.badge(item[0]),
+                                checked=item[1],
+                                on_change=lambda value: State.set_industry(
+                                    value=value, industry=item[0]),
+                            ),
                         ),
+                        spacing="3",
+                        direction="column",
                     ),
-                    spacing="3",
-                    direction="column",
+                    height="17vw",
+                    scrollbars="vertical",
+                    type="always",
                 ),
-                height="20vw",
-                scrollbars="vertical",
-                type="always",
             ),
-        ),
-
-        rx.vstack(
-            rx.heading("Exchange"),
-            rx.scroll_area(
-                rx.flex(
-                    rx.foreach(
-                        State.exchange_filter.items(),
-                        lambda item: rx.checkbox(
-                            rx.badge(item[0]),
-                            checked=item[1],
-                            on_change=lambda value: State.set_exchange(
-                                value=value, exchange=item[0])
-                        )
+            # Exchange
+            rx.vstack(
+                rx.heading("Exchange"),
+                rx.scroll_area(
+                    rx.flex(
+                        rx.foreach(
+                            State.exchange_filter.items(),
+                            lambda item: rx.checkbox(
+                                rx.badge(item[0]),
+                                checked=item[1],
+                                on_change=lambda value: State.set_exchange(
+                                    value=value, exchange=item[0])
+                            )
+                        ),
+                        spacing="3",
+                        direction="column",
                     ),
-                    spacing="3",
-                    direction="column",
+                    height="17vw",
+                    scrollbars="vertical",
+                    type="always",
                 ),
-                height="21vw",
-                scrollbars="vertical",
-                type="always",
             ),
-        ),
-        width="100%",
-        align='center',
-        padding="1em",
-        spacing="3",
-        columns="2",
+            width="100%",
+            align='center',
+            padding="1em",
+            spacing="3",
+            columns="2",
+        )
     )
 
 
@@ -742,13 +763,14 @@ def metrics_filter(option: str = "F") -> rx.Component:
             spacing="2",
             width="100%",
             paddingTop="1em",
+            paddingLeft="1em"
         ),
         rx.scroll_area(
             rx.flex(
                 rx.foreach(
                     rx.cond(option == "F", State.fundamental_metrics,
                             State.technical_metrics),
-                    lambda metric_tag: metric_silder(metric_tag, option)
+                    lambda metric_tag: metric_slider(metric_tag, option)
                 ),
                 direction="row",
                 wrap="wrap",
@@ -761,11 +783,11 @@ def metrics_filter(option: str = "F") -> rx.Component:
     )
 
 
-def metric_silder(metric_tag: str, option: str):
+def metric_slider(metric_tag: str, option: str):
     return rx.vstack(
         # Metric
         rx.badge(
-            rx.text(metric_tag.replace("_"," ").capitalize(), font_size="lg",
+            rx.text(metric_tag.replace("_", " ").capitalize(), font_size="lg",
                     font_weight="bold", size="2"),
             variant="soft",
             radius="full",
@@ -817,7 +839,14 @@ def sort_options():
             rx.menu.trigger(
                 rx.button(
                     rx.hstack(
-                        rx.icon("arrow-up-down", size=12),
+                        rx.icon(
+                            rx.cond(
+                                State.selected_sort_order == "ASC",
+                                "arrow-down-a-z",
+                                "arrow-up-a-z"
+                            ),
+                            size=12
+                        ),
                         rx.text(State.selected_sort_option),
                         align="center",
                         justify="between"
@@ -910,12 +939,35 @@ def selected_filter_tags():
             State.selected_fundamental_metric,
             lambda item: rx.badge(
                 rx.hstack(
-                    f"{item.upper()}: {State.fundamental_metric_filter[item][0]} - {State.fundamental_metric_filter[item][1]}",
+                    f"{item.upper()}: {State.fundamental_metric_filter.get(item, [0.00, 0.00])[0]} - {State.fundamental_metric_filter.get(item, [0.00, 0.00])[1]}",
                     rx.button(
                         rx.icon("x", size=12),
                         variant="ghost",
                         size="1",
                         on_click=State.set_fundamental_metric(
+                            item, [0.00, 0.00])
+                    ),
+                    spacing="1",
+                    align="center"
+                ),
+                color_scheme="violet",
+                radius="large",
+                align="center",
+                variant="solid",
+            ),
+        ),
+
+        # Technical metrics
+        rx.foreach(
+            State.selected_technical_metric,
+            lambda item: rx.badge(
+                rx.hstack(
+                    f"{item.upper()}: {State.technical_metric_filter.get(item, [0.00, 0.00])[0]} - {State.technical_metric_filter.get(item, [0.00, 0.00])[1]}",
+                    rx.button(
+                        rx.icon("x", size=12),
+                        variant="ghost",
+                        size="1",
+                        on_click=State.set_technical_metric(
                             item, [0.00, 0.00])
                     ),
                     spacing="1",
