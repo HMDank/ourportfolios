@@ -328,12 +328,12 @@ def page_selection():
                 rx.hstack(
                     rx.icon("chevron_left", size=32),
                     rx.vstack(
-                        rx.heading("Recommend", weight="bold", size="5"),
+                        rx.heading("Recommend", weight="regular", size="5"),
                         rx.text("caijdo", size="1"),
                         align="center",
                         justify="center",
                         height="100%",
-                        spacing="1"
+                        spacing="1",
                     ),
                     align="center",
                     justify="center",
@@ -342,24 +342,24 @@ def page_selection():
             ),
             card_link(
                 rx.vstack(
-                    rx.heading("Select", weight="bold", size="7"),
+                    rx.heading("Select", weight="regular", size="7"),
                     rx.text("caijdo", size="3"),
                     align="center",
                     justify="center",
                     height="100%",
-                    spacing="1"
+                    spacing="1",
                 ),
                 href="/select",
             ),
             card_link(
                 rx.hstack(
                     rx.vstack(
-                        rx.heading("Analyze", weight="bold", size="5"),
+                        rx.heading("Analyze", weight="regular", size="5"),
                         rx.text("caijdo", size="1"),
                         align="center",
                         justify="center",
                         height="100%",
-                        spacing="1"
+                        spacing="1",
                     ),
                     rx.icon("chevron_right", size=32),
                     align="center",
@@ -386,7 +386,7 @@ def card_with_scrollable_area():
             on_change=State.setvar("control"),
             value=State.control,
             size="1",
-            style={"height": "2em"}
+            style={"height": "2em"},
         ),
         rx.scroll_area(
             rx.vstack(
@@ -451,7 +451,7 @@ def industry_roller():
                                 href=f'/select/{item[0].lower()}',
                                 underline='none',
                             )
-                        )
+                        ),
                     ),
                     spacing="2",
                     height="100%",
