@@ -3,16 +3,13 @@ import reflex as rx
 from ..components.navbar import navbar
 from ..components.cards import portfolio_card
 from ..components.graph import mini_price_graph
-from ..utils.load_data import fetch_data_for_symbols, populate_db
+from ..utils.load_data import fetch_data_for_symbols
 
 cards = [
-    {"title": "Recommend", "details": "Card 1 details",
-        "link": "/recommend"},
-    {"title": "Select", "details": "Card 2 details",
-        "link": "/select"},
+    {"title": "Recommend", "details": "Card 1 details", "link": "/recommend"},
+    {"title": "Select", "details": "Card 2 details", "link": "/select"},
     {"title": "Analyze", "details": "Card 3 details", "link": "/analyze"},
-    {"title": "Simulate", "details": "Card 4 details",
-        "link": "/simulate"},
+    {"title": "Simulate", "details": "Card 4 details", "link": "/simulate"},
 ]
 
 
@@ -22,7 +19,7 @@ class State(rx.State):
 
     @rx.event
     def initiate(self):
-        self.data = fetch_data_for_symbols(['VNINDEX'])
+        self.data = fetch_data_for_symbols(["VNINDEX"])
 
 
 @rx.page(route="/")
@@ -38,16 +35,11 @@ def index() -> rx.Component:
                 ),
             ),
         ),
-
         rx.vstack(
             rx.center(
                 rx.vstack(
-                    rx.heading(
-                        "OurPortfolios",
-                        size="9",
-                        font_size="5rem"
-                    ),
-                    rx.text("Build your portfolios. We'll build ours"),
+                    rx.heading("OurPortfolios", size="9", font_size="5rem", weight="medium"),
+                    rx.text("Build your portfolios. We'll build ours", size="4"),
                     spacing="5",
                     align="center",
                 ),
@@ -58,8 +50,10 @@ def index() -> rx.Component:
             ),
             rx.center(
                 rx.box(
-                    *[portfolio_card(card, idx, len(cards))
-                      for idx, card in enumerate(cards)],
+                    *[
+                        portfolio_card(card, idx, len(cards))
+                        for idx, card in enumerate(cards)
+                    ],
                     width="100vw",
                     height="60vh",
                     min_height="40vh",

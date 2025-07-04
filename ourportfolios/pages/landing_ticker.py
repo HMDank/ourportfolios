@@ -337,7 +337,7 @@ def graph_card(
     return rx.card(
         rx.vstack(
             rx.hstack(
-                rx.heading(title, size="4", weight="bold"),
+                rx.heading(title, size="4", weight="medium"),
                 rx.spacer(),
                 rx.select(
                     metric_options,
@@ -410,7 +410,7 @@ def create_placeholder_chart_a():
     return rx.card(
         rx.vstack(
             rx.hstack(
-                rx.heading("Chart A", size="4", weight="bold"),
+                rx.heading("Chart A", size="4", weight="medium"),
                 rx.spacer(),
                 rx.select(
                     ["Metric A1", "Metric A2", "Metric A3"],
@@ -445,7 +445,7 @@ def create_placeholder_chart_b():
     return rx.card(
         rx.vstack(
             rx.hstack(
-                rx.heading("Chart B", size="4", weight="bold"),
+                rx.heading("Chart B", size="4", weight="medium"),
                 rx.spacer(),
                 rx.select(
                     ["Metric B1", "Metric B2", "Metric B3"],
@@ -480,7 +480,7 @@ def create_placeholder_chart_c():
     return rx.card(
         rx.vstack(
             rx.hstack(
-                rx.heading("Chart C", size="4", weight="bold"),
+                rx.heading("Chart C", size="4", weight="medium"),
                 rx.spacer(),
                 rx.select(
                     ["Metric C1", "Metric C2", "Metric C3"],
@@ -675,7 +675,7 @@ def company_card():
                                         rx.hstack(
                                             rx.heading(
                                                 officer["officer_name"],
-                                                weight="bold",
+                                                weight="medium",
                                                 size='3'
                                             ),
                                             rx.badge(
@@ -712,7 +712,7 @@ def company_card():
                                         rx.hstack(
                                             rx.heading(
                                                 event["event_name"],
-                                                weight="bold",
+                                                weight="medium",
                                                 size='3'),
                                             rx.badge(
                                                 f"{event['price_change_ratio']}%"),
