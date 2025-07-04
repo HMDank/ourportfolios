@@ -29,10 +29,10 @@ class State(rx.State):
     # Sorts
     selected_sort_order: str = 'ASC'
     selected_sort_option: str = "A-Z"
-    
+
     sort_orders: List[str] = ['ASC', 'DESC']
     sort_options: List[str] = ['A-Z', 'Market Cap', '% Change', "Volume"]
-    
+
     # Filters
     selected_exchange: List[str] = []
     selected_industry: List[str] = []
@@ -521,7 +521,7 @@ def ticker_card(
                 # Column 4: Accumulated volume
                 rx.box(
                     rx.text(f"{accumulated_volume:,.3f}",
-                            size="3", weight="medium"),             
+                            size="3", weight="medium"),
                 ),
                 rows="1",
                 columns="3",
@@ -560,13 +560,16 @@ def ticker_list():
                 ),
                 rx.grid(
                     rx.box(
-                        rx.text("Price", weight="bold", color="white", size="5")
+                        rx.text("Price", weight="bold",
+                                color="white", size="5")
                     ),
                     rx.box(
-                        rx.text("%", weight="bold", color="white", size="5")
+                        rx.text("%", weight="bold", 
+                                color="white", size="5")
                     ),
                     rx.box(
-                        rx.text("Volume", weight="bold", color="white", size="5")
+                        rx.text("Volume", weight="bold",
+                                color="white", size="5")
                     ),
                     rows="1",
                     columns="3",
@@ -575,7 +578,7 @@ def ticker_list():
                 ),
                 rx.box(
                 ),
-                
+
                 width="100%",
                 justify="between",
                 align="center",
