@@ -10,7 +10,7 @@ from ..utils.load_data import load_historical_data
 
 class Echarts(rx.Component):
     library = "echarts-for-react@3.0.2"
-    lib_dependencies = ['fast-deep-equal', 'size-sensor']
+    lib_dependencies = ["fast-deep-equal", "size-sensor"]
     tag = "Reactecharts"
     is_default = True
 
@@ -23,17 +23,20 @@ class PriceChartState(rx.State):
     chart_selection: str = "Candlestick"
     ma_period: int = 200
     rsi_period: int = 14
-    selections: list[str] = ['Candlestick', 'Price', 'Return']
+    selections: list[str] = ["Candlestick", "Price", "Return"]
 
     @rx.event
     def load_data(self):
         """An event to refresh/recall historical data given new ticker"""
-        ticker: str = self.router.page.params.get("ticker","")
-        chart_data: pd.DataFrame = load_historical_data(symbol=ticker,
-                                       start=(date.today() - relativedelta(years=6)).strftime("%Y-%m-%d"),
-                                       end=(date.today()+ relativedelta(days=1)).strftime("%Y-%m-%d"),
-                                       interval="1D")
-        if not chart_data.empty: self.set_df(chart_data.to_dict("records"))
+        ticker: str = self.router.page.params.get("ticker", "")
+        chart_data: pd.DataFrame = load_historical_data(
+            symbol=ticker,
+            start=(date.today() - relativedelta(years=6)).strftime("%Y-%m-%d"),
+            end=(date.today() + relativedelta(days=1)).strftime("%Y-%m-%d"),
+            interval="1D",
+        )
+        if not chart_data.empty:
+            self.set_df(chart_data.to_dict("records"))
 
     @rx.event
     def set_ma_period(self, value: int):
@@ -42,14 +45,12 @@ class PriceChartState(rx.State):
         self.ma_period = value
         self.chart_configs
 
-
     @rx.event
     def set_rsi_period(self, value: int):
         if not value:
             value = 0
         self.rsi_period = value
         self.chart_configs
-
 
     @rx.event
     def set_selection(self, selection: str):
@@ -132,17 +133,17 @@ class PriceChartState(rx.State):
         if not self.df:
             return {}
 
-        if self.chart_selection == 'Candlestick':
+        if self.chart_selection == "Candlestick":
             df = self.ohlc_data
-            data = df[['open', 'high', 'low', 'close']].values.tolist()
+            data = df[["open", "high", "low", "close"]].values.tolist()
 
-        elif self.chart_selection == 'Price':
+        elif self.chart_selection == "Price":
             df = self.price_data
-            data = df[['time', 'value']].values.tolist()
+            data = df[["time", "value"]].values.tolist()
 
-        elif self.chart_selection == 'Return':
+        elif self.chart_selection == "Return":
             df = self.returns_data
-            data = df[['time', 'value']].values.tolist()
+            data = df[["time", "value"]].values.tolist()
 
         dates = df["time"].tolist()
 
@@ -178,11 +179,10 @@ class PriceChartState(rx.State):
                 "borderColor": "#777",
                 "borderWidth": 1,
                 "textStyle": {"color": "#fff"},
-
             },
             "grid": [
-                {"left": "6%", "right": "4%", "top": "4%",  "height": "70%"},  # price
-                {"left": "6%", "right": "4%", "top": "85%", "height": "15%"}  # rsi
+                {"left": "6%", "right": "4%", "top": "4%", "height": "70%"},  # price
+                {"left": "6%", "right": "4%", "top": "85%", "height": "15%"},  # rsi
             ],
             "xAxis": [
                 {
@@ -215,9 +215,7 @@ class PriceChartState(rx.State):
                     "axisLine": {"lineStyle": {"color": "#888"}},
                     "axisLabel": {"color": "#ccc"},
                     "splitLine": {"lineStyle": {"color": "#333"}},
-                    "axisPointer": {
-                        "label": {"show": True, "formatter": "{value}"}
-                    }
+                    "axisPointer": {"label": {"show": True, "formatter": "{value}"}},
                 },
                 # RSI
                 {
@@ -252,7 +250,9 @@ class PriceChartState(rx.State):
             "series": [
                 {
                     "name": "Main-chart",
-                    "type": "candlestick" if self.chart_selection == "Candlestick" else 'line',
+                    "type": "candlestick"
+                    if self.chart_selection == "Candlestick"
+                    else "line",
                     "data": data,
                     "itemStyle": {
                         "color": "#26a69a",
@@ -262,15 +262,15 @@ class PriceChartState(rx.State):
                     },
                     "barMaxWidth": "60%",
                     "markLine": {
-                    "symbol": ["none", "none"],
-                },
-            }
-        ],
-    }
-        
+                        "symbol": ["none", "none"],
+                    },
+                }
+            ],
+        }
+
         # MA period
         ma_data = self.ma_data
-        options['series'].append(
+        options["series"].append(
             {
                 "name": f"MA{self.ma_period}",
                 "type": "line",
@@ -285,20 +285,21 @@ class PriceChartState(rx.State):
         rsi_data = self.rsi_data
         options["series"].append(
             {
-                "name": f"RSI{self.rsi_period}", "type": "line",
-                "xAxisIndex": 1, "yAxisIndex": 1,
-                "data": rsi_data, "smooth": True,
+                "name": f"RSI{self.rsi_period}",
+                "type": "line",
+                "xAxisIndex": 1,
+                "yAxisIndex": 1,
+                "data": rsi_data,
+                "smooth": True,
                 "lineStyle": {"width": 1.5, "color": "#f4d35e"},
                 "showSymbol": False,
                 "connectNulls": False,
                 "markLine": {
                     "data": [
-                        {"yAxis": 70, "lineStyle": {
-                            "type": "dashed", "color": "#888"}},
-                        {"yAxis": 30, "lineStyle": {
-                            "type": "dashed", "color": "#888"}},
+                        {"yAxis": 70, "lineStyle": {"type": "dashed", "color": "#888"}},
+                        {"yAxis": 30, "lineStyle": {"type": "dashed", "color": "#888"}},
                     ]
-                }
+                },
             },
         )
 
@@ -315,8 +316,11 @@ def render_price_chart():
                         selection,
                         on_click=PriceChartState.set_selection(selection),
                         variant=rx.cond(
-                            selection == PriceChartState.chart_selection, 'solid', 'outline')
-                    )
+                            selection == PriceChartState.chart_selection,
+                            "solid",
+                            "outline",
+                        ),
+                    ),
                 )
             ),
             rx.hstack(
@@ -329,7 +333,8 @@ def render_price_chart():
                         value=PriceChartState.ma_period.to(str),
                         placeholder="e.g 200",
                         on_change=lambda value: PriceChartState.set_ma_period(
-                            rx.cond(value, value.to(int), None)),
+                            rx.cond(value, value.to(int), None)
+                        ),
                         style={"width": "5rem", "marginRight": "1rem"},
                     ),
                 ),
@@ -342,11 +347,12 @@ def render_price_chart():
                         value=PriceChartState.rsi_period.to(str),
                         placeholder="e.g 14",
                         on_change=lambda value: PriceChartState.set_rsi_period(
-                            rx.cond(value, value.to(int), None)),
+                            rx.cond(value, value.to(int), None)
+                        ),
                         style={"width": "5rem"},
                     ),
-                )
-            )
+                ),
+            ),
         ),
         style={"display": "flex", "alignItems": "center", "marginBottom": "1rem"},
     )
@@ -360,6 +366,6 @@ def render_price_chart():
                 "padding": "0",
                 "margin": "0 auto",
             },
-            on_mount=PriceChartState.load_data
+            on_mount=PriceChartState.load_data,
         ),
     )
