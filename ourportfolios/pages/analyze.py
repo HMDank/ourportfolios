@@ -17,7 +17,7 @@ def page_selection():
                         align="center",
                         justify="center",
                         height="100%",
-                        spacing="1"
+                        spacing="1",
                     ),
                     align="center",
                     justify="center",
@@ -31,7 +31,7 @@ def page_selection():
                     align="center",
                     justify="center",
                     height="100%",
-                    spacing="1"
+                    spacing="1",
                 ),
                 href="/analyze",
             ),
@@ -43,7 +43,7 @@ def page_selection():
                         align="center",
                         justify="center",
                         height="100%",
-                        spacing="1"
+                        spacing="1",
                     ),
                     rx.icon("chevron_right", size=32),
                     align="center",
@@ -72,7 +72,7 @@ def compare_blocks():
                     align="center",
                     justify="center",
                     height="100%",
-                    spacing="2"
+                    spacing="2",
                 ),
                 width="300px",
                 height="150px",
@@ -91,7 +91,7 @@ def compare_blocks():
                     align="center",
                     justify="center",
                     height="100%",
-                    spacing="2"
+                    spacing="2",
                 ),
                 width="300px",
                 height="150px",
@@ -117,5 +117,5 @@ def index() -> rx.Component:
         page_selection(),
         compare_blocks(),
         drawer_button(),
-        spacing='0',
+        spacing="0",
     )

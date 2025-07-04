@@ -5,42 +5,56 @@ from typing import List, Dict, Any
 
 from ..components.navbar import navbar
 from ..components.drawer import CartState, drawer_button
-from ..components.page_roller import card_link, card_wrapper
 
 
 class StockComparisonState(rx.State):
     stocks: List[Dict[str, Any]] = []
     compare_list: List[str] = []  # New: list of tickers for comparison
     selected_metrics: List[str] = [
-        'roe', 'pe', 'pb', 'dividend_yield',
-        'revenue_growth_1y', 'eps_growth_1y', 'gross_margin',
-        'net_margin', 'beta', 'rsi14'
+        "roe",
+        "pe",
+        "pb",
+        "dividend_yield",
+        "revenue_growth_1y",
+        "eps_growth_1y",
+        "gross_margin",
+        "net_margin",
+        "beta",
+        "rsi14",
     ]  # Changed from @rx.var to state variable
 
     @rx.var
     def available_metrics(self) -> List[str]:
         """All available metrics that can be selected"""
         return [
-            'roe', 'pe', 'pb', 'dividend_yield',
-            'revenue_growth_1y', 'eps_growth_1y', 'gross_margin',
-            'net_margin', 'beta', 'rsi14', 'tcbs_recommend'
+            "roe",
+            "pe",
+            "pb",
+            "dividend_yield",
+            "revenue_growth_1y",
+            "eps_growth_1y",
+            "gross_margin",
+            "net_margin",
+            "beta",
+            "rsi14",
+            "tcbs_recommend",
         ]
 
     @rx.var
     def metric_labels(self) -> Dict[str, str]:
         """Get human-readable labels for metrics"""
         return {
-            'roe': 'ROE',
-            'pe': 'P/E Ratio',
-            'pb': 'P/B Ratio',
-            'dividend_yield': 'Dividend Yield',
-            'revenue_growth_1y': 'Revenue Growth (1Y)',
-            'eps_growth_1y': 'EPS Growth (1Y)',
-            'gross_margin': 'Gross Margin',
-            'net_margin': 'Net Margin',
-            'beta': 'Beta',
-            'rsi14': 'RSI (14)',
-            'tcbs_recommend': 'Recommendation'
+            "roe": "ROE",
+            "pe": "P/E Ratio",
+            "pb": "P/B Ratio",
+            "dividend_yield": "Dividend Yield",
+            "revenue_growth_1y": "Revenue Growth (1Y)",
+            "eps_growth_1y": "EPS Growth (1Y)",
+            "gross_margin": "Gross Margin",
+            "net_margin": "Net Margin",
+            "beta": "Beta",
+            "rsi14": "RSI (14)",
+            "tcbs_recommend": "Recommendation",
         }
 
     @rx.var
@@ -62,8 +76,12 @@ class StockComparisonState(rx.State):
         """Get the index of best performing stock for each metric"""
         best = {}
         higher_better = [
-            'roe', 'dividend_yield', 'revenue_growth_1y',
-            'eps_growth_1y', 'gross_margin', 'net_margin'
+            "roe",
+            "dividend_yield",
+            "revenue_growth_1y",
+            "eps_growth_1y",
+            "gross_margin",
+            "net_margin",
         ]
 
         for metric in self.selected_metrics:
@@ -76,7 +94,7 @@ class StockComparisonState(rx.State):
             if values:
                 if metric in higher_better:
                     best[metric] = max(values, key=lambda x: x[0])[1]
-                elif metric in ['pe', 'pb']:  # Lower is better
+                elif metric in ["pe", "pb"]:  # Lower is better
                     best[metric] = min(values, key=lambda x: x[0])[1]
                 else:
                     best[metric] = -1
@@ -90,16 +108,20 @@ class StockComparisonState(rx.State):
         if value is None:
             return "N/A"
 
-        if key == 'market_cap':
+        if key == "market_cap":
             return f"{value}B VND"
         elif key in [
-            'roe', 'dividend_yield', 'revenue_growth_1y',
-            'eps_growth_1y', 'gross_margin', 'net_margin'
+            "roe",
+            "dividend_yield",
+            "revenue_growth_1y",
+            "eps_growth_1y",
+            "gross_margin",
+            "net_margin",
         ]:
-            return f"{value*100:.1f}%"
-        elif key in ['pe', 'pb', 'beta']:
+            return f"{value * 100:.1f}%"
+        elif key in ["pe", "pb", "beta"]:
             return f"{value:.1f}"
-        elif key == 'rsi14':
+        elif key == "rsi14":
             return f"{value:.0f}"
         else:
             return str(value)
@@ -108,8 +130,7 @@ class StockComparisonState(rx.State):
     def toggle_metric(self, metric: str):
         """Toggle a metric in the selected_metrics list"""
         if metric in self.selected_metrics:
-            self.selected_metrics = [
-                m for m in self.selected_metrics if m != metric]
+            self.selected_metrics = [m for m in self.selected_metrics if m != metric]
         else:
             self.selected_metrics = self.selected_metrics + [metric]
 
@@ -129,7 +150,7 @@ class StockComparisonState(rx.State):
         # Remove from compare_list
         self.compare_list = [t for t in self.compare_list if t != ticker]
         # Remove from stocks data
-        self.stocks = [s for s in self.stocks if s.get('ticker') != ticker]
+        self.stocks = [s for s in self.stocks if s.get("ticker") != ticker]
 
     @rx.event
     async def import_cart_to_compare(self):
@@ -181,29 +202,21 @@ def metric_selector_popover() -> rx.Component:
     return rx.popover.root(
         rx.popover.trigger(
             rx.button(
-                rx.hstack(
-                    rx.icon("settings", size=16),
-                    spacing="2"
-                ),
+                rx.hstack(rx.icon("settings", size=16), spacing="2"),
                 variant="outline",
-                size="2"
+                size="2",
             )
         ),
-
         rx.popover.content(
             rx.vstack(
                 rx.hstack(
-                    rx.heading('Select metrics'),
+                    rx.heading("Select metrics"),
                     rx.spacer(),
                     rx.popover.close(
-                        rx.button(
-                            rx.icon("x", size=16),
-                            variant="ghost",
-                            size="1"
-                        )
+                        rx.button(rx.icon("x", size=16), variant="ghost", size="1")
                     ),
                     width="100%",
-                    align="center"
+                    align="center",
                 ),
                 rx.scroll_area(
                     rx.vstack(
@@ -212,28 +225,27 @@ def metric_selector_popover() -> rx.Component:
                             lambda metric: rx.hstack(
                                 rx.checkbox(
                                     checked=StockComparisonState.selected_metrics.contains(
-                                        metric),
+                                        metric
+                                    ),
                                     on_change=lambda: StockComparisonState.toggle_metric(
-                                        metric),
-                                    size="2"
+                                        metric
+                                    ),
+                                    size="2",
                                 ),
                                 rx.text(
-                                    StockComparisonState.metric_labels[
-                                        metric
-                                    ],
-                                    size="2"
+                                    StockComparisonState.metric_labels[metric], size="2"
                                 ),
                                 spacing="2",
                                 align="center",
-                                width="100%"
-                            )
+                                width="100%",
+                            ),
                         ),
                         spacing="2",
                         align="start",
-                        width="100%"
+                        width="100%",
                     ),
                     height="300px",
-                    width="100%"
+                    width="100%",
                 ),
                 rx.spacer(),
                 rx.hstack(
@@ -242,31 +254,31 @@ def metric_selector_popover() -> rx.Component:
                         "Select All",
                         on_click=StockComparisonState.select_all_metrics,
                         size="1",
-                        variant="soft"
+                        variant="soft",
                     ),
                     rx.button(
                         "Clear All",
                         on_click=StockComparisonState.clear_all_metrics,
                         size="1",
-                        variant="soft"
+                        variant="soft",
                     ),
                     spacing="2",
-                    width="100%"
+                    width="100%",
                 ),
                 spacing="3",
                 width="300px",
-                padding="0.7em"
+                padding="0.7em",
             ),
             side="bottom",
-            align="start"
-        )
+            align="start",
+        ),
     )
 
 
 def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
     """Create a column with separate header card and metrics card for each stock"""
-    market_cap = stock.get('market_cap', "")
-    ticker = stock.get('ticker', '')
+    market_cap = stock.get("market_cap", "")
+    ticker = stock.get("ticker", "")
 
     return rx.vstack(
         # Header card - separate from metrics
@@ -275,7 +287,8 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                 rx.button(
                     rx.icon("x", size=12),
                     on_click=lambda: StockComparisonState.remove_stock_from_compare(
-                        ticker),
+                        ticker
+                    ),
                     variant="ghost",
                     size="2",
                     style={
@@ -285,8 +298,8 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                         # "padding": "0.25em",
                         "min_width": "auto",
                         "height": "auto",
-                        "opacity": "0.7"
-                    }
+                        "opacity": "0.7",
+                    },
                 ),
                 rx.link(
                     rx.vstack(
@@ -295,34 +308,34 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                             weight="bold",
                             size="6",
                             color=rx.color("gray", 12),
-                            letter_spacing="0.05em"
+                            letter_spacing="0.05em",
                         ),
                         rx.badge(
-                            stock.get('industry', ''),
+                            stock.get("industry", ""),
                             size="1",
                             variant="soft",
-                            style={"font_size": "0.7em"}
+                            style={"font_size": "0.7em"},
                         ),
                         rx.text(
                             f"{market_cap} B. VND",
                             size="1",
                             color=rx.color("gray", 10),
-                            weight="medium"
+                            weight="medium",
                         ),
                         spacing="2",
                         justify="center",
                         width="100%",
-                        padding_bottom="0.8em"
+                        padding_bottom="0.8em",
                     ),
                     href=f"/analyze/{ticker}",
                     text_decoration="none",
                     _hover={
                         "text_decoration": "none",
                     },
-                    width="100%"
+                    width="100%",
                 ),
                 position="relative",
-                width="100%"
+                width="100%",
             ),
             width="12em",  # Header card stays the same width
             min_width="12em",
@@ -332,9 +345,8 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
             },
             _hover={
                 "transform": "translateY(-0.4em)",
-            }
+            },
         ),
-
         # Metrics card - NARROWER WIDTH
         rx.card(
             rx.vstack(
@@ -345,14 +357,16 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                             stock[metric_key],
                             size="2",
                             weight=rx.cond(
-                                StockComparisonState.best_performers[metric_key] == index,
+                                StockComparisonState.best_performers[metric_key]
+                                == index,
                                 "bold",
-                                "medium"
+                                "medium",
                             ),
                             color=rx.cond(
-                                StockComparisonState.best_performers[metric_key] == index,
+                                StockComparisonState.best_performers[metric_key]
+                                == index,
                                 rx.color("green", 11),
-                                rx.color("gray", 11)
+                                rx.color("gray", 11),
                             ),
                         ),
                         width="100%",
@@ -361,26 +375,21 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                         display="flex",
                         align_items="center",
                         justify_content="center",
-                        border_bottom=f"1px solid {rx.color('gray', 4)}"
-                    )
+                        border_bottom=f"1px solid {rx.color('gray', 4)}",
+                    ),
                 ),
                 spacing="0",
                 width="100%",
             ),
             width="11em",  # Reduced from 12em to 8em
-            style={
-                "flex_shrink": "0"
-            }
+            style={"flex_shrink": "0"},
         ),
-
         spacing="5",  # Space between header and metrics cards
         align="center",
         # Overall column width stays the same (determined by header)
         width="12em",
         min_width="12em",
-        style={
-            "flex_shrink": "0"
-        }
+        style={"flex_shrink": "0"},
     )
 
 
@@ -399,10 +408,9 @@ def metric_labels_column() -> rx.Component:
             min_width="12em",
             style={
                 "flex_shrink": "0",
-                "visibility": "hidden"  # Hide but maintain space
-            }
+                "visibility": "hidden",  # Hide but maintain space
+            },
         ),
-
         # Metrics labels card
         rx.card(
             rx.vstack(
@@ -413,31 +421,26 @@ def metric_labels_column() -> rx.Component:
                             StockComparisonState.metric_labels[metric_key],
                             size="2",
                             weight="medium",
-                            color=rx.color("gray", 12)
+                            color=rx.color("gray", 12),
                         ),
                         width="100%",
                         min_height="2.5em",
                         display="flex",
                         align_items="center",
                         justify_content="start",
-                        border_bottom=f"1px solid {rx.color('gray', 4)}"
-                    )
+                        border_bottom=f"1px solid {rx.color('gray', 4)}",
+                    ),
                 ),
                 spacing="0",
-                width="100%"
+                width="100%",
             ),
             width="12em",
             min_width="12em",
-            style={
-                "flex_shrink": "0"
-            }
+            style={"flex_shrink": "0"},
         ),
-
         spacing="2",  # Match spacing of stock columns
         align="start",
-        style={
-            "flex_shrink": "0"
-        }
+        style={"flex_shrink": "0"},
     )
 
 
@@ -447,21 +450,18 @@ def comparison_controls() -> rx.Component:
         rx.spacer(),  # Push everything to the right
         rx.hstack(
             rx.button(
-                rx.hstack(
-                    rx.icon("import", size=16),
-                    spacing="2"
-                ),
+                rx.hstack(rx.icon("import", size=16), spacing="2"),
                 on_click=StockComparisonState.import_and_fetch_compare,
                 size="2",
             ),
             metric_selector_popover(),  # Settings button
             spacing="3",  # Space between the two buttons
-            align="center"
+            align="center",
         ),
         spacing="0",
         align="center",
         width="100%",
-        margin_bottom="2em"
+        margin_bottom="2em",
     )
 
 
@@ -488,14 +488,15 @@ def comparison_section() -> rx.Component:
                                     rx.foreach(
                                         StockComparisonState.formatted_stocks,
                                         lambda stock, index: stock_column_card(
-                                            stock, index)
+                                            stock, index
+                                        ),
                                     ),
                                     spacing="3",
                                     align="start",
-                                    style={"flex_wrap": "nowrap"}
+                                    style={"flex_wrap": "nowrap"},
                                 ),
                                 padding_top="0.5em",
-                                padding_bottom="0.5em"
+                                padding_bottom="0.5em",
                             ),
                             direction="horizontal",
                             scrollbars="horizontal",
@@ -503,8 +504,8 @@ def comparison_section() -> rx.Component:
                                 "width": "100%",
                                 "maxWidth": "90vw",
                                 "overflowX": "auto",
-                                "overflowY": "hidden"
-                            }
+                                "overflowY": "hidden",
+                            },
                         ),
                         width="100%",
                         margin_left="1.8em",
@@ -512,24 +513,24 @@ def comparison_section() -> rx.Component:
                             "maxWidth": "90vw",
                             "overflowX": "auto",
                             "overflowY": "hidden",
-                            "position": "relative"
-                        }
+                            "position": "relative",
+                        },
                     ),
                     spacing="0",
                     align="start",
                     width="100%",
-                    style={"flex_wrap": "nowrap"}
+                    style={"flex_wrap": "nowrap"},
                 ),
                 spacing="0",
-                width="100%"
+                width="100%",
             ),
             width="100%",
             style={
                 "max_width": "100vw",
                 "margin": "0 auto",
                 "padding": "1.5em",
-                "overflowX": "hidden"
-            }
+                "overflowX": "hidden",
+            },
         ),
         rx.center(
             rx.vstack(
@@ -543,7 +544,7 @@ def comparison_section() -> rx.Component:
                     rx.hstack(
                         rx.icon("shopping_cart", size=16),
                         rx.text("Import from Cart"),
-                        spacing="2"
+                        spacing="2",
                     ),
                     on_click=StockComparisonState.import_and_fetch_compare,
                     size="3",
@@ -564,10 +565,13 @@ def index() -> rx.Component:
         navbar(),
         rx.box(
             rx.link(
-                rx.hstack(rx.icon("chevron_left", size=22),
-                          rx.text("analyze", margin_top="-2px"), spacing="0"),
-                href='/analyze',
-                underline="none"
+                rx.hstack(
+                    rx.icon("chevron_left", size=22),
+                    rx.text("analyze", margin_top="-2px"),
+                    spacing="0",
+                ),
+                href="/analyze",
+                underline="none",
             ),
             position="fixed",
             justify="center",
@@ -583,5 +587,5 @@ def index() -> rx.Component:
             },
         ),
         drawer_button(),
-        spacing='0',
+        spacing="0",
     )

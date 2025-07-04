@@ -34,18 +34,19 @@ class State(rx.State):
             writer.writerow(row)
         csv_data = output.getvalue()
         output.close()
-        return rx.download(
-            data=csv_data,
-            filename=f"{ticker}_{titles[idx]}.csv"
-        )
+        return rx.download(data=csv_data, filename=f"{ticker}_{titles[idx]}.csv")
 
 
 def financial_statements(df_list):
     return rx.vstack(
-        *[rx.box(preview_table(tbl, i), expanded_dialog(tbl, i), style={"minWidth": "0"})
-          for i, tbl in enumerate(df_list)],
-        spacing='4',
-        style={"minWidth": "0"}
+        *[
+            rx.box(
+                preview_table(tbl, i), expanded_dialog(tbl, i), style={"minWidth": "0"}
+            )
+            for i, tbl in enumerate(df_list)
+        ],
+        spacing="4",
+        style={"minWidth": "0"},
     )
 
 
@@ -63,24 +64,32 @@ def preview_table(data, idx):
                         white_space="pre-line",
                     ),
                     rx.hstack(
-                        rx.icon("maximize", on_click=lambda: State.expand(idx), style={
-                            "cursor": "pointer",
-                            "userSelect": "none",
-                            "color": rx.color("accent", 10),
-                            "_hover": {"color": rx.color("accent", 7)},
-                        }),
-                        rx.icon("download", on_click=lambda: State.download_table_csv(data, idx), style={
-                            "cursor": "pointer",
-                            "userSelect": "none",
-                            "color": rx.color("accent", 10),
-                            "_hover": {"color": rx.color("accent", 7)},
-                        }),
+                        rx.icon(
+                            "maximize",
+                            on_click=lambda: State.expand(idx),
+                            style={
+                                "cursor": "pointer",
+                                "userSelect": "none",
+                                "color": rx.color("accent", 10),
+                                "_hover": {"color": rx.color("accent", 7)},
+                            },
+                        ),
+                        rx.icon(
+                            "download",
+                            on_click=lambda: State.download_table_csv(data, idx),
+                            style={
+                                "cursor": "pointer",
+                                "userSelect": "none",
+                                "color": rx.color("accent", 10),
+                                "_hover": {"color": rx.color("accent", 7)},
+                            },
+                        ),
                         spacing="2",
                     ),
                     width="12em",
                     flex_shrink="0",
-                    justify='center',
-                    padding_left='1em',
+                    justify="center",
+                    padding_left="1em",
                 ),
                 # Use rx.scroll_area here:
                 rx.scroll_area(
@@ -89,7 +98,7 @@ def preview_table(data, idx):
                             rx.table.row(
                                 rx.foreach(
                                     data[0].keys(),
-                                    lambda h: rx.table.column_header_cell(h)
+                                    lambda h: rx.table.column_header_cell(h),
                                 )
                             )
                         ),
@@ -100,11 +109,12 @@ def preview_table(data, idx):
                                     rx.foreach(
                                         data[0].keys(),
                                         lambda h: rx.table.cell(
-                                            rx.text(
-                                                row[h]) if row[h] is not None else rx.text("")
-                                        )
+                                            rx.text(row[h])
+                                            if row[h] is not None
+                                            else rx.text("")
+                                        ),
                                     )
-                                )
+                                ),
                             )
                         ),
                         size="1",
@@ -113,7 +123,7 @@ def preview_table(data, idx):
                             "minWidth": "max-content",
                             "width": "auto",
                             "display": "table",
-                        }
+                        },
                     ),
                     # Control scrolling here
                     scrollbars="horizontal",
@@ -123,17 +133,14 @@ def preview_table(data, idx):
                         "maxWidth": "650px",
                         "position": "relative",
                         "display": "block",
-                    }
+                    },
                 ),
                 spacing="4",
-                style={
-                    "width": "100%",
-                    "alignItems": "center"
-                }
+                style={"width": "100%", "alignItems": "center"},
             ),
             width="100%",
         ),
-        rx.text("No data available")
+        rx.text("No data available"),
     )
 
 
@@ -141,9 +148,7 @@ def expanded_dialog(data, idx):
     return rx.cond(
         State.expanded_table == idx,
         rx.dialog.root(
-            rx.dialog.trigger(
-                rx.button("hidden", style={"display": "none"})
-            ),
+            rx.dialog.trigger(rx.button("hidden", style={"display": "none"})),
             rx.dialog.content(
                 rx.vstack(
                     rx.hstack(
@@ -178,8 +183,7 @@ def expanded_dialog(data, idx):
                                     rx.table.row(
                                         rx.foreach(
                                             data[0].keys(),
-                                            lambda h: rx.table.column_header_cell(
-                                                h)
+                                            lambda h: rx.table.column_header_cell(h),
                                         )
                                     )
                                 ),
@@ -193,11 +197,11 @@ def expanded_dialog(data, idx):
                                                     rx.cond(
                                                         row[h] != None,
                                                         rx.text(row[h]),
-                                                        rx.text("")
+                                                        rx.text(""),
                                                     )
-                                                )
+                                                ),
                                             )
-                                        )
+                                        ),
                                     )
                                 ),
                                 size="2",
@@ -210,22 +214,21 @@ def expanded_dialog(data, idx):
                             },
                             scrollbars="both",
                         ),
-                        width="100%"
+                        width="100%",
                     ),
-
                     spacing="4",  # Space between elements in vstack
                     align="center",  # Center align the vstack contents
                     width="100%",
-                    height="100%"
+                    height="100%",
                 ),
                 max_width="90vw",
                 style={
                     "height": "80vh",
-                    "padding": "1.5rem"  # Add padding to the entire dialog content
+                    "padding": "1.5rem",  # Add padding to the entire dialog content
                 },
             ),
             open=True,
             on_open_change=State.handle_dialog_open,
         ),
-        None
+        None,
     )

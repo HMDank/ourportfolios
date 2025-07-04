@@ -26,12 +26,10 @@ def mini_price_graph(label, data, diff, size=(80, 40)):
                 ),
                 color_scheme="grass",
                 size="1",
-                style={
-                    "padding": "0.1em 0.3em"
-                },
-            )
+                style={"padding": "0.1em 0.3em"},
+            ),
         ),
         spacing="1",
         align="center",
-        justify="center"
+        justify="center",
     )
