@@ -360,7 +360,7 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                                 StockComparisonState.best_performers[metric_key]
                                 == index,
                                 "medium",
-                                "medium",
+                                "regular",
                             ),
                             color=rx.cond(
                                 StockComparisonState.best_performers[metric_key]
