@@ -22,16 +22,26 @@ class State(rx.State):
     search_query = ""
 
     # Metrics
-    fundamental_metrics: List[str] = ["pe", "pb", "roe", "alpha", "beta",
-                                      "eps", "gross_margin", "net_margin", "ev_ebitda", "dividend_yield"]
+    fundamental_metrics: List[str] = [
+        "pe",
+        "pb",
+        "roe",
+        "alpha",
+        "beta",
+        "eps",
+        "gross_margin",
+        "net_margin",
+        "ev_ebitda",
+        "dividend_yield",
+    ]
     technical_metrics: List[str] = ["rsi14"]
 
     # Sorts
-    selected_sort_order: str = 'ASC'
+    selected_sort_order: str = "ASC"
     selected_sort_option: str = "A-Z"
 
-    sort_orders: List[str] = ['ASC', 'DESC']
-    sort_options: List[str] = ['A-Z', 'Market Cap', '% Change', "Volume"]
+    sort_orders: List[str] = ["ASC", "DESC"]
+    sort_options: List[str] = ["A-Z", "Market Cap", "% Change", "Volume"]
 
     # Filters
     selected_exchange: List[str] = []
@@ -49,7 +59,12 @@ class State(rx.State):
 
     @rx.var
     def has_filter(self) -> bool:
-        if (self.selected_industry or self.selected_exchange or self.selected_fundamental_metric or self.selected_technical_metric):
+        if (
+            self.selected_industry
+            or self.selected_exchange
+            or self.selected_fundamental_metric
+            or self.selected_technical_metric
+        ):
             return True
         return False
 
@@ -60,7 +75,8 @@ class State(rx.State):
         query = [
             """SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change 
             FROM data_vni 
-            WHERE """]
+            WHERE """
+        ]
 
         if self.search_query != "":
             match_conditions, params = self.fetch_ticker()
@@ -69,7 +85,7 @@ class State(rx.State):
             query.append("1=1")
             params = None
 
-        query = [' '.join(query)]
+        query = [" ".join(query)]
 
         # Order and filter
         order_by_clause = ""
@@ -77,39 +93,64 @@ class State(rx.State):
         # Filter by industry
         if self.selected_industry:
             query.append(
-                f"AND industry IN ({', '.join(f"'{industry}'" for industry in self.selected_industry)})")
+                f"AND industry IN ({', '.join(f"'{industry}'" for industry in self.selected_industry)})"
+            )
 
         # Filter by exchange
         if self.selected_exchange:
             query.append(
-                f"AND exchange IN ({', '.join(f"'{exchange}'" for exchange in self.selected_exchange)})")
+                f"AND exchange IN ({', '.join(f"'{exchange}'" for exchange in self.selected_exchange)})"
+            )
 
         # Order by condition
         if self.selected_sort_option == "A-Z":
             order_by_clause = f"ORDER BY ticker {self.selected_sort_order}"
         if self.selected_sort_option == "Market Cap":
             order_by_clause = f"ORDER BY market_cap {self.selected_sort_order}"
-        if self.selected_sort_option == '% Change':
+        if self.selected_sort_option == "% Change":
             order_by_clause = f"ORDER BY pct_price_change {self.selected_sort_order}"
-        if self.selected_sort_option == 'Volume':
+        if self.selected_sort_option == "Volume":
             order_by_clause = f"ORDER BY accumulated_volume {self.selected_sort_order}"
 
         # Filter by metrics
         if self.selected_fundamental_metric:  # Fundamental
             query.append(
-                ' '.join([f"AND {metric} BETWEEN {self.fundamental_metric_filter.get(metric, [0.00, 0.00])[0]} AND {self.fundamental_metric_filter.get(metric, [0.00, 0.00])[1]}" for metric in self.selected_fundamental_metric]))
+                " ".join(
+                    [
+                        f"AND {metric} BETWEEN {self.fundamental_metric_filter.get(metric, [0.00, 0.00])[0]} AND {self.fundamental_metric_filter.get(metric, [0.00, 0.00])[1]}"
+                        for metric in self.selected_fundamental_metric
+                    ]
+                )
+            )
 
         if self.selected_technical_metric:  # Technical
             query.append(
-                ' '.join([f"AND {metric} BETWEEN {self.technical_metric_filter.get(metric, [0.00, 0.00])[0]} AND {self.technical_metric_filter.get(metric, [0.00, 0.00])[1]}" for metric in self.selected_technical_metric]))
+                " ".join(
+                    [
+                        f"AND {metric} BETWEEN {self.technical_metric_filter.get(metric, [0.00, 0.00])[0]} AND {self.technical_metric_filter.get(metric, [0.00, 0.00])[1]}"
+                        for metric in self.selected_technical_metric
+                    ]
+                )
+            )
 
-        full_query = " ".join(
-            query) + f" {order_by_clause}" if order_by_clause else " ".join(query)
+        full_query = (
+            " ".join(query) + f" {order_by_clause}"
+            if order_by_clause
+            else " ".join(query)
+        )
 
         df = pd.read_sql(full_query, conn, params=params)
         conn.close()
 
-        return df[['ticker', 'organ_name', 'current_price', 'accumulated_volume', 'pct_price_change']].to_dict('records')
+        return df[
+            [
+                "ticker",
+                "organ_name",
+                "current_price",
+                "accumulated_volume",
+                "pct_price_change",
+            ]
+        ].to_dict("records")
 
     @rx.var(cache=True)
     def get_all_tickers_length(self) -> int:
@@ -120,36 +161,42 @@ class State(rx.State):
     def get_all_industries(self):
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         industries: pd.DataFrame = pd.read_sql(
-            "SELECT DISTINCT industry FROM data_vni", con=conn)
+            "SELECT DISTINCT industry FROM data_vni", con=conn
+        )
 
         self.industry_filter: Dict[str, bool] = {
-            item: False for item in industries['industry'].tolist()}
+            item: False for item in industries["industry"].tolist()
+        }
 
     @rx.event
     def get_all_exchanges(self):
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         exchanges: pd.DataFrame = pd.read_sql(
-            "SELECT DISTINCT exchange FROM data_vni", con=conn)
+            "SELECT DISTINCT exchange FROM data_vni", con=conn
+        )
 
         self.exchange_filter: Dict[str, bool] = {
-            item: False for item in exchanges['exchange'].tolist()}
+            item: False for item in exchanges["exchange"].tolist()
+        }
 
     @rx.event
     def get_fundamental_metrics(self):
         self.fundamental_metric_filter: Dict[str, List[float]] = {
-            item: [0.00, 0.00] for item in self.fundamental_metrics}
+            item: [0.00, 0.00] for item in self.fundamental_metrics
+        }
 
     @rx.event
     def get_technical_metrics(self):
         self.technical_metric_filter: Dict[str, List[float]] = {
-            item: [0.00, 0.00] for item in self.technical_metrics}
+            item: [0.00, 0.00] for item in self.technical_metrics
+        }
 
     # Page navigation
 
     @rx.var
     def paged_tickers(self) -> List[Dict]:
         tickers = self.get_all_tickers
-        return tickers[self.offset: self.offset + self.limit]
+        return tickers[self.offset : self.offset + self.limit]
 
     @rx.event
     def next_page(self):
@@ -178,26 +225,34 @@ class State(rx.State):
     @rx.event
     def set_exchange(self, value: bool, exchange: str):
         self.exchange_filter[exchange] = value
-        self.selected_exchange = [item[0]
-                                  for item in self.exchange_filter.items() if item[1]]
+        self.selected_exchange = [
+            item[0] for item in self.exchange_filter.items() if item[1]
+        ]
 
     @rx.event
     def set_industry(self, value: bool, industry: str):
         self.industry_filter[industry] = value
-        self.selected_industry = [item[0]
-                                  for item in self.industry_filter.items() if item[1]]
+        self.selected_industry = [
+            item[0] for item in self.industry_filter.items() if item[1]
+        ]
 
     @rx.event
-    def set_fundamental_metric(self, metric: str,  value: List[float]):
+    def set_fundamental_metric(self, metric: str, value: List[float]):
         self.fundamental_metric_filter[metric] = value
         self.selected_fundamental_metric = [
-            item[0] for item in self.fundamental_metric_filter.items() if sum(item[1]) > 0.00]
+            item[0]
+            for item in self.fundamental_metric_filter.items()
+            if sum(item[1]) > 0.00
+        ]
 
     @rx.event
-    def set_technical_metric(self, metric: str,  value: List[float]):
+    def set_technical_metric(self, metric: str, value: List[float]):
         self.technical_metric_filter[metric] = value
         self.selected_technical_metric = [
-            item[0] for item in self.technical_metric_filter.items() if sum(item[1]) > 0.00]
+            item[0]
+            for item in self.technical_metric_filter.items()
+            if sum(item[1]) > 0.00
+        ]
 
     # Clear filters
 
@@ -233,33 +288,36 @@ class State(rx.State):
     def fetch_ticker(self) -> tuple[str, Any]:
         # At first, try to fetch exact ticker
         match_conditions = "ticker LIKE ?"
-        params = (f"{self.search_query}%", )
+        params = (f"{self.search_query}%",)
         result: bool = self.validate_search_query(
-            match_conditions=match_conditions, params=params)
+            match_conditions=match_conditions, params=params
+        )
 
         # In-case of mistype or no ticker returned, calculate all possible permutation of provided search_query with fixed length
         if not result:
             # All possible combination of ticker's letter
-            combos = list(itertools.permutations(
-                list(self.search_query), len(self.search_query)))
+            combos = list(
+                itertools.permutations(list(self.search_query), len(self.search_query))
+            )
             params = [f"{''.join(combo)}%" for combo in combos]
 
             match_conditions = " OR ".join(["ticker LIKE ?"] * len(combos))
             result: bool = self.validate_search_query(
-                match_conditions=match_conditions, params=params)
+                match_conditions=match_conditions, params=params
+            )
 
         # Suggest base of the first letter if still no ticker matched
         if not result:
             match_conditions = "ticker LIKE ?"
-            params = (f"{self.search_query[0]}%", )
+            params = (f"{self.search_query[0]}%",)
             result: bool = self.validate_search_query(
-                match_conditions=match_conditions, params=params)
+                match_conditions=match_conditions, params=params
+            )
 
         return match_conditions, params
 
     def validate_search_query(self, match_conditions: str, params: Any) -> bool:
-        """ Attempt to fetch data 
-        """
+        """Attempt to fetch data"""
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         query: str = f"""
                         SELECT ticker
@@ -274,16 +332,18 @@ class State(rx.State):
 # Filter section
 
 
-@rx.page(route="/select", on_load=[
-    State.get_graph(['VNINDEX', 'UPCOMINDEX', "HNXINDEX"]),
-    State.get_all_industries,
-    State.get_all_exchanges,
-    State.get_fundamental_metrics,
-    State.get_technical_metrics,
-    State.set_search_query(""),
-])
+@rx.page(
+    route="/select",
+    on_load=[
+        State.get_graph(["VNINDEX", "UPCOMINDEX", "HNXINDEX"]),
+        State.get_all_industries,
+        State.get_all_exchanges,
+        State.get_fundamental_metrics,
+        State.get_technical_metrics,
+        State.set_search_query(""),
+    ],
+)
 def index():
-
     return rx.vstack(
         navbar(),
         page_selection(),
@@ -296,14 +356,17 @@ def index():
                     ticker_filter(),
                     # Tickers info
                     ticker_list(),
-
                     rx.hstack(
-                        rx.button("Previous", on_click=State.prev_page,
-                                  disabled=State.offset == 0),
+                        rx.button(
+                            "Previous",
+                            on_click=State.prev_page,
+                            disabled=State.offset == 0,
+                        ),
                         rx.button(
                             "Next",
                             on_click=State.next_page,
-                            disabled=State.offset + State.limit >= State.get_all_tickers_length,
+                            disabled=State.offset + State.limit
+                            >= State.get_all_tickers_length,
                         ),
                         spacing="2",
                     ),
@@ -315,7 +378,7 @@ def index():
             ),
             width="100%",
             padding="2em",
-            padding_top="5em"
+            padding_top="5em",
         ),
         drawer_button(),
     )
@@ -448,8 +511,8 @@ def industry_roller():
                                     },
                                     side="right",
                                 ),
-                                href=f'/select/{item[0].lower()}',
-                                underline='none',
+                                href=f"/select/{item[0].lower()}",
+                                underline="none",
                             )
                         ),
                     ),
@@ -490,29 +553,33 @@ def ticker_card(
     organ_name: str,
     current_price: float,
     accumulated_volume: int,
-    pct_price_change: float
+    pct_price_change: float,
 ):
-    color = rx.cond(pct_price_change.to(int) > 0, rx.color('green', 11), rx.cond(
-        pct_price_change.to(int) < 0, rx.color('red', 9), rx.color('gray', 7)))
+    color = rx.cond(
+        pct_price_change.to(int) > 0,
+        rx.color("green", 11),
+        rx.cond(pct_price_change.to(int) < 0, rx.color("red", 9), rx.color("gray", 7)),
+    )
     return rx.card(
         rx.flex(
             # Column 1: Ticker and organ_name
             rx.box(
                 rx.vstack(
                     rx.link(
-                        rx.text(ticker, weight="bold", size="4"),
+                        rx.text(ticker, weight="medium", size="4"),
                         href=f"/analyze/{ticker}",
                         style={"textDecoration": "none", "color": "inherit"},
                     ),
-                    rx.text(organ_name, color=rx.color('gray', 7), size="2"),
+                    rx.text(organ_name, color=rx.color("gray", 7), size="2"),
                 ),
                 width="40%",
             ),
             rx.grid(
                 # Column 2: Current price
                 rx.box(
-                    rx.text(f"{current_price}", weight="medium",
-                            size="3", color=color),
+                    rx.text(
+                        f"{current_price}", weight="regular", size="3", color=color
+                    ),
                 ),
                 # Column 3: Percentage change
                 rx.box(
@@ -520,8 +587,7 @@ def ticker_card(
                 ),
                 # Column 4: Accumulated volume
                 rx.box(
-                    rx.text(f"{accumulated_volume:,.3f}",
-                            size="3", weight="medium"),
+                    rx.text(f"{accumulated_volume:,.3f}", size="3", weight="regular"),
                 ),
                 rows="1",
                 columns="3",
@@ -541,68 +607,63 @@ def ticker_card(
             justify="between",
             align="center",
             direction="row",
-            wrap="wrap"
+            wrap="wrap",
         ),
         padding="1em",
         width="100%",
-        marginBottom="1em"
+        marginBottom="1em",
     )
 
 
 def ticker_list():
-    return rx.box(
-        rx.card(
-            rx.flex(
-                rx.box(
-                    rx.text("Symbol", weight="bold", color="white", size="5"),
-                    width="40%",
-                    paddingLeft="1em"
-                ),
-                rx.grid(
+    return (
+        rx.box(
+            rx.card(
+                rx.flex(
                     rx.box(
-                        rx.text("Price", weight="bold",
-                                color="white", size="5")
+                        rx.text("Symbol", weight="medium", color="white", size="5"),
+                        width="40%",
+                        paddingLeft="1em",
                     ),
-                    rx.box(
-                        rx.text("%", weight="bold", 
-                                color="white", size="5")
+                    rx.grid(
+                        rx.box(
+                            rx.text("Price", weight="medium", color="white", size="5")
+                        ),
+                        rx.box(rx.text("%", weight="medium", color="white", size="5")),
+                        rx.box(
+                            rx.text("Volume", weight="medium", color="white", size="5")
+                        ),
+                        rows="1",
+                        columns="3",
+                        width="50%",
+                        flow="row-dense",
                     ),
-                    rx.box(
-                        rx.text("Volume", weight="bold",
-                                color="white", size="5")
-                    ),
-                    rows="1",
-                    columns="3",
-                    width="50%",
-                    flow="row-dense",
+                    rx.box(),
+                    width="100%",
+                    justify="between",
+                    align="center",
+                    direction="row",
+                    wrap="wrap",
+                    paddingBottom="1em",
                 ),
-                rx.box(
+                rx.foreach(
+                    State.paged_tickers,
+                    lambda value: ticker_card(
+                        ticker=value.ticker,
+                        organ_name=value.organ_name,
+                        current_price=value.current_price,
+                        accumulated_volume=value.accumulated_volume,
+                        pct_price_change=value.pct_price_change,
+                    ),
                 ),
-
-                width="100%",
-                justify="between",
-                align="center",
-                direction="row",
-                wrap="wrap",
-                paddingBottom="1em",
             ),
-            rx.foreach(
-                State.paged_tickers,
-                lambda value: ticker_card(
-                    ticker=value.ticker,
-                    organ_name=value.organ_name,
-                    current_price=value.current_price,
-                    accumulated_volume=value.accumulated_volume,
-                    pct_price_change=value.pct_price_change
-                )
-            ),
+            style={
+                "backgroundColor": "#000000",
+                "borderRadius": "4px",
+                "width": "100%",
+            },
         ),
-        style={
-            "backgroundColor": "#000000",
-            "borderRadius": "4px",
-            "width": "100%",
-        },
-    ),
+    )
 
 
 def ticker_filter():
@@ -619,7 +680,7 @@ def ticker_filter():
                 value=State.search_query,
                 on_change=State.set_search_query,
             ),
-            width="40%"
+            width="40%",
         ),
         rx.spacer(),  # Push filter button far right
         rx.scroll_area(
@@ -636,20 +697,15 @@ def ticker_filter():
                         rx.icon("filter", size=12),
                         rx.text("Filter"),
                         align="center",
-                        justify="between"
+                        justify="between",
                     ),
-                    variant=rx.cond(
-                        State.has_filter,
-                        "solid",
-                        'outline'
-                    ),
+                    variant=rx.cond(State.has_filter, "solid", "outline"),
                 )
             ),
             rx.menu.content(
                 rx.tabs.root(
                     rx.tabs.list(
-                        rx.tabs.trigger(
-                            "Fundamental", value="fundamental"),
+                        rx.tabs.trigger("Fundamental", value="fundamental"),
                         rx.tabs.trigger("Category", value="category"),
                         rx.tabs.trigger("Technical", value="technical"),
                         rx.spacer(),
@@ -663,11 +719,13 @@ def ticker_filter():
                                     rx.text("Clear all"),
                                     align="center",
                                 ),
-                                variant='outline',
-                                on_click=[State.clear_category_filter,
-                                          State.clear_sort_option,
-                                          State.clear_fundamental_metric_filter,
-                                          State.clear_technical_metric_filter]
+                                variant="outline",
+                                on_click=[
+                                    State.clear_category_filter,
+                                    State.clear_sort_option,
+                                    State.clear_fundamental_metric_filter,
+                                    State.clear_technical_metric_filter,
+                                ],
                             ),
                             align="center",
                             direction="row",
@@ -690,7 +748,7 @@ def ticker_filter():
                 ),
                 width="60vw",
                 height="30vw",
-                avoid_collisions=True
+                avoid_collisions=True,
             ),
             modal=False,
         ),
@@ -704,17 +762,17 @@ def ticker_filter():
 def category_filter():
     return rx.vstack(
         rx.hstack(
-            rx.text("Category", size="6", font_weight="bold"),
+            rx.text("Category", size="6", font_weight="medium"),
             rx.spacer(),
             rx.button(
                 rx.icon("filter-x", size=15),
-                variant='outline',
+                variant="outline",
                 on_click=State.clear_category_filter,
             ),
             spacing="2",
             width="100%",
             paddingTop="1em",
-            paddingLeft="1em"
+            paddingLeft="1em",
         ),
         # Exchange
         rx.vstack(
@@ -726,7 +784,8 @@ def category_filter():
                         rx.badge(item[0]),
                         checked=item[1],
                         on_change=lambda value: State.set_exchange(
-                            value=value, exchange=item[0])
+                            value=value, exchange=item[0]
+                        ),
                     ),
                 ),
                 rows=f"{State.exchange_filter.length() // 4}",
@@ -748,7 +807,8 @@ def category_filter():
                         rx.badge(item[0]),
                         checked=item[1],
                         on_change=lambda value: State.set_industry(
-                            value=value, industry=item[0]),
+                            value=value, industry=item[0]
+                        ),
                     ),
                 ),
                 rows=f"{State.industry_filter.length() // 4}",
@@ -765,32 +825,41 @@ def category_filter():
 
 
 def metrics_filter(option: str = "F") -> rx.Component:
-    """ Reusable slider section for both fundamentals & technicals
-        option(str): {"F": for Fundamental-metrics, 
-                       "T" for Technical-metrics}
+    """Reusable slider section for both fundamentals & technicals
+    option(str): {"F": for Fundamental-metrics,
+                   "T" for Technical-metrics}
     """
     return rx.fragment(
         rx.hstack(
-            rx.text(rx.cond(option == "F", "Fundamentals:",
-                    "Technicals:"), size="6", font_weight="bold"),
+            rx.text(
+                rx.cond(option == "F", "Fundamentals:", "Technicals:"),
+                size="6",
+                font_weight="medium",
+            ),
             rx.spacer(),
             rx.button(
                 rx.icon("filter-x", size=15),
-                variant='outline',
+                variant="outline",
                 on_click=rx.cond(
-                    option == "F", State.clear_fundamental_metric_filter, State.clear_technical_metric_filter),
+                    option == "F",
+                    State.clear_fundamental_metric_filter,
+                    State.clear_technical_metric_filter,
+                ),
             ),
             spacing="3",
             width="100%",
             paddingTop="1em",
-            paddingLeft="1em"
+            paddingLeft="1em",
         ),
         rx.scroll_area(
             rx.flex(
                 rx.foreach(
-                    rx.cond(option == "F", State.fundamental_metrics,
-                            State.technical_metrics),
-                    lambda metric_tag: metric_slider(metric_tag, option)
+                    rx.cond(
+                        option == "F",
+                        State.fundamental_metrics,
+                        State.technical_metrics,
+                    ),
+                    lambda metric_tag: metric_slider(metric_tag, option),
                 ),
                 direction="row",
                 wrap="wrap",
@@ -799,7 +868,7 @@ def metrics_filter(option: str = "F") -> rx.Component:
             height="23vw",
             scrollbars="vertical",
             type="always",
-        )
+        ),
     )
 
 
@@ -807,11 +876,9 @@ def metric_slider(metric_tag: str, option: str):
     return rx.vstack(
         # Metric
         rx.badge(
-            rx.text(metric_tag.capitalize(),
-                    font_size="lg",
-                    font_weight="bold",
-                    size="2"
-                    ),
+            rx.text(
+                metric_tag.capitalize(), font_size="lg", font_weight="medium", size="2"
+            ),
             variant="soft",
             radius="small",
             box_shadow="md",
@@ -824,18 +891,16 @@ def metric_slider(metric_tag: str, option: str):
                 value=rx.cond(
                     option == "F",
                     State.fundamental_metric_filter[metric_tag],
-                    State.technical_metric_filter[metric_tag]
+                    State.technical_metric_filter[metric_tag],
                 ),
                 min_=0,
                 max=100,
                 on_change=lambda val: rx.cond(
                     option == "F",
-                    State.set_fundamental_metric(
-                        metric_tag, value=val).throttle(100),
-                    State.set_technical_metric(
-                        metric_tag, value=val).throttle(100)
+                    State.set_fundamental_metric(metric_tag, value=val).throttle(100),
+                    State.set_technical_metric(metric_tag, value=val).throttle(100),
                 ),
-                variant='surface',
+                variant="surface",
                 size="1",
                 radius="small",
                 orientation="horizontal",
@@ -870,15 +935,15 @@ def display_sort_options():
                             rx.cond(
                                 State.selected_sort_order == "ASC",
                                 "arrow-down-a-z",
-                                "arrow-down-z-a"
+                                "arrow-down-z-a",
                             ),
-                            size=12
+                            size=12,
                         ),
                         rx.text(State.selected_sort_option),
                         align="center",
-                        justify="between"
+                        justify="between",
                     ),
-                    variant='outline',
+                    variant="outline",
                 )
             ),
             rx.menu.content(
@@ -895,118 +960,117 @@ def display_sort_options():
                                             rx.cond(
                                                 order.to(str) == "ASC",
                                                 "arrow-down-a-z",
-                                                "arrow-down-z-a"
+                                                "arrow-down-z-a",
                                             ),
-                                            size=13
+                                            size=13,
                                         ),
                                         rx.text(order),
                                         align="center",
-                                        justify="between"
+                                        justify="between",
                                     ),
-                                    on_click=[State.set_sort_option(
-                                        option), State.set_sort_order(order)]
-                                )
+                                    on_click=[
+                                        State.set_sort_option(option),
+                                        State.set_sort_order(order),
+                                    ],
+                                ),
                             )
-                        )
-                    )
+                        ),
+                    ),
                 )
-            )
+            ),
         )
     )
 
 
 def selected_filter_tags():
-    return rx.hstack(
-        # Industry
-        rx.foreach(
-            State.selected_industry,
-            lambda item: rx.badge(
-                rx.hstack(
-                    item,
-                    rx.button(
-                        rx.icon("x", size=12),
-                        variant="ghost",
-                        size="1",
-                        on_click=State.set_industry(False, item)
+    return (
+        rx.hstack(
+            # Industry
+            rx.foreach(
+                State.selected_industry,
+                lambda item: rx.badge(
+                    rx.hstack(
+                        item,
+                        rx.button(
+                            rx.icon("x", size=12),
+                            variant="ghost",
+                            size="1",
+                            on_click=State.set_industry(False, item),
+                        ),
+                        spacing="1",
+                        align="center",
                     ),
-                    spacing="1",
-                    align="center"
+                    color_scheme="violet",
+                    radius="large",
+                    align="center",
+                    variant="solid",
                 ),
-                color_scheme="violet",
-                radius="large",
-                align="center",
-                variant="solid",
             ),
-        ),
-
-        # Exchange
-        rx.foreach(
-            State.selected_exchange,
-            lambda item: rx.badge(
-                rx.hstack(
-                    item,
-                    rx.button(
-                        rx.icon("x", size=12),
-                        variant="ghost",
-                        size="1",
-                        on_click=State.set_exchange(False, item)
+            # Exchange
+            rx.foreach(
+                State.selected_exchange,
+                lambda item: rx.badge(
+                    rx.hstack(
+                        item,
+                        rx.button(
+                            rx.icon("x", size=12),
+                            variant="ghost",
+                            size="1",
+                            on_click=State.set_exchange(False, item),
+                        ),
+                        spacing="1",
+                        align="center",
                     ),
-                    spacing="1",
-                    align="center"
+                    color_scheme="violet",
+                    radius="large",
+                    align="center",
+                    variant="solid",
                 ),
-                color_scheme="violet",
-                radius="large",
-                align="center",
-                variant="solid",
             ),
-        ),
-
-        # Fundamental metrics
-        rx.foreach(
-            State.selected_fundamental_metric,
-            lambda item: rx.badge(
-                rx.hstack(
-                    f"{item.upper()}: {State.fundamental_metric_filter.get(item, [0.00, 0.00])[0]} - {State.fundamental_metric_filter.get(item, [0.00, 0.00])[1]}",
-                    rx.button(
-                        rx.icon("x", size=12),
-                        variant="ghost",
-                        size="1",
-                        on_click=State.set_fundamental_metric(
-                            item, [0.00, 0.00])
+            # Fundamental metrics
+            rx.foreach(
+                State.selected_fundamental_metric,
+                lambda item: rx.badge(
+                    rx.hstack(
+                        f"{item.upper()}: {State.fundamental_metric_filter.get(item, [0.00, 0.00])[0]} - {State.fundamental_metric_filter.get(item, [0.00, 0.00])[1]}",
+                        rx.button(
+                            rx.icon("x", size=12),
+                            variant="ghost",
+                            size="1",
+                            on_click=State.set_fundamental_metric(item, [0.00, 0.00]),
+                        ),
+                        spacing="1",
+                        align="center",
                     ),
-                    spacing="1",
-                    align="center"
+                    color_scheme="violet",
+                    radius="large",
+                    align="center",
+                    variant="solid",
                 ),
-                color_scheme="violet",
-                radius="large",
-                align="center",
-                variant="solid",
             ),
-        ),
-
-        # Technical metrics
-        rx.foreach(
-            State.selected_technical_metric,
-            lambda item: rx.badge(
-                rx.hstack(
-                    f"{item.upper()}: {State.technical_metric_filter.get(item, [0.00, 0.00])[0]} - {State.technical_metric_filter.get(item, [0.00, 0.00])[1]}",
-                    rx.button(
-                        rx.icon("x", size=12),
-                        variant="ghost",
-                        size="1",
-                        on_click=State.set_technical_metric(
-                            item, [0.00, 0.00])
+            # Technical metrics
+            rx.foreach(
+                State.selected_technical_metric,
+                lambda item: rx.badge(
+                    rx.hstack(
+                        f"{item.upper()}: {State.technical_metric_filter.get(item, [0.00, 0.00])[0]} - {State.technical_metric_filter.get(item, [0.00, 0.00])[1]}",
+                        rx.button(
+                            rx.icon("x", size=12),
+                            variant="ghost",
+                            size="1",
+                            on_click=State.set_technical_metric(item, [0.00, 0.00]),
+                        ),
+                        spacing="1",
+                        align="center",
                     ),
-                    spacing="1",
-                    align="center"
+                    color_scheme="violet",
+                    radius="large",
+                    align="center",
+                    variant="solid",
                 ),
-                color_scheme="violet",
-                radius="large",
-                align="center",
-                variant="solid",
             ),
+            width="100%",
+            spacing="2",
+            direction="row-reverse",
         ),
-        width="100%",
-        spacing="2",
-        direction="row-reverse"
-    ),
+    )
