@@ -12,8 +12,6 @@ def news_card(text):
             side="top",
             pb="current",
         ),
-        rx.text(
-            f"{text}"
-        ),
+        rx.text(f"{text}"),
         width="25vw",
     )

@@ -27,12 +27,12 @@ class State(rx.State):
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         df = pd.read_sql("SELECT * FROM data_vni", conn)
         conn.close()
-        return df[["ticker", "industry"]].to_dict('records')
+        return df[["ticker", "industry"]].to_dict("records")
 
     @rx.var(cache=True)
     def paged_tickers(self) -> list[dict]:
         tickers = self.get_all_tickers
-        return (tickers[self.offset: self.offset + self.limit])
+        return tickers[self.offset : self.offset + self.limit]
 
     @rx.var(cache=True)
     def get_all_tickers_length(self) -> int:
@@ -55,10 +55,9 @@ class State(rx.State):
     @rx.event
     def get_all_industries(self):
         conn = sqlite3.connect("ourportfolios/data/data_vni.db")
-        industries = pd.read_sql(
-            "SELECT DISTINCT industry FROM data_vni;", conn)
+        industries = pd.read_sql("SELECT DISTINCT industry FROM data_vni;", conn)
         conn.close()
-        self.industries = industries['industry'].tolist()
+        self.industries = industries["industry"].tolist()
 
 
 def page_selection():
@@ -68,12 +67,12 @@ def page_selection():
                 rx.hstack(
                     rx.icon("chevron_left", size=32),
                     rx.vstack(
-                        rx.heading("Recommend", weight="bold", size="5"),
+                        rx.heading("Recommend", weight="regular", size="5"),
                         rx.text("caijdo", size="1"),
                         align="center",
                         justify="center",
                         height="100%",
-                        spacing="1"
+                        spacing="1",
                     ),
                     align="center",
                     justify="center",
@@ -82,24 +81,24 @@ def page_selection():
             ),
             card_link(
                 rx.vstack(
-                    rx.heading("Select", weight="bold", size="7"),
+                    rx.heading("Select", weight="regular", size="7"),
                     rx.text("caijdo", size="3"),
                     align="center",
                     justify="center",
                     height="100%",
-                    spacing="1"
+                    spacing="1",
                 ),
                 href="/select",
             ),
             card_link(
                 rx.hstack(
                     rx.vstack(
-                        rx.heading("Analyze", weight="bold", size="5"),
+                        rx.heading("Analyze", weight="regular", size="5"),
                         rx.text("caijdo", size="1"),
                         align="center",
                         justify="center",
                         height="100%",
-                        spacing="1"
+                        spacing="1",
                     ),
                     rx.icon("chevron_right", size=32),
                     align="center",
@@ -126,7 +125,7 @@ def card_with_scrollable_area():
             on_change=State.setvar("control"),
             value=State.control,
             size="1",
-            style={"height": "2em"}
+            style={"height": "2em"},
         ),
         rx.scroll_area(
             rx.vstack(
@@ -188,10 +187,10 @@ def industry_roller():
                                     },
                                     side="right",
                                 ),
-                                href=f'/select/{item.lower()}',
-                                underline='none',
+                                href=f"/select/{item.lower()}",
+                                underline="none",
                             )
-                        )
+                        ),
                     ),
                     spacing="2",
                     height="100%",
@@ -226,13 +225,13 @@ def industry_roller():
 
 
 def ticker_card(df: str):
-    ticker = df['ticker']
-    industry = df['industry']
+    ticker = df["ticker"]
+    industry = df["industry"]
     return rx.card(
         rx.hstack(
             rx.hstack(
                 rx.link(
-                    rx.text(ticker, weight="bold", size="4"),
+                    rx.text(ticker, weight="regular", size="4"),
                     href=f"/analyze/{ticker}",
                     style={
                         "textDecoration": "none",
@@ -241,7 +240,7 @@ def ticker_card(df: str):
                 ),
                 rx.badge(
                     f"{industry}",
-                    size='2',
+                    size="2",
                     color_scheme="gray",
                     variant="soft",
                     high_contrast=False,
@@ -257,10 +256,10 @@ def ticker_card(df: str):
                 on_click=lambda: CartState.add_item(ticker),
             ),
             align_items="center",
-            width="100%"
+            width="100%",
         ),
         padding="1em",
-        style={"marginBottom": "0.75em", "width": "100%"}
+        style={"marginBottom": "0.75em", "width": "100%"},
     )
 
 
@@ -277,25 +276,25 @@ def index():
                     rx.hstack(
                         rx.button("Filter", variant="solid"),
                         width="100%",
-                        padding_top="1em"
+                        padding_top="1em",
                     ),
                     rx.card(
                         rx.foreach(
-                            State.paged_tickers,
-                            lambda ticker: ticker_card(ticker)
+                            State.paged_tickers, lambda ticker: ticker_card(ticker)
                         ),
-                        style={
-                            "width": "100%",
-                            "marginTop": "1em"
-                        }
+                        style={"width": "100%", "marginTop": "1em"},
                     ),
                     rx.hstack(
-                        rx.button("Previous", on_click=State.prev_page,
-                                  disabled=State.offset == 0),
+                        rx.button(
+                            "Previous",
+                            on_click=State.prev_page,
+                            disabled=State.offset == 0,
+                        ),
                         rx.button(
                             "Next",
                             on_click=State.next_page,
-                            disabled=State.offset + State.limit >= State.get_all_tickers_length,
+                            disabled=State.offset + State.limit
+                            >= State.get_all_tickers_length,
                         ),
                         spacing="2",
                     ),
@@ -310,5 +309,5 @@ def index():
             style={"maxWidth": "90vw", "margin": "0 auto"},
         ),
         drawer_button(),
-        spacing='0',
+        spacing="0",
     )

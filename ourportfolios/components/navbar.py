@@ -1,4 +1,3 @@
-from turtle import width
 import reflex as rx
 from .search_bar import search_bar
 
@@ -8,7 +7,7 @@ def navbar(*children) -> rx.Component:
         rx.hstack(
             rx.hstack(
                 rx.box(
-                    rx.heading("OurPortfolios", size="5", weight="bold"),
+                    rx.heading("OurPortfolios", size="5", weight="medium"),
                     rx.link(
                         "",
                         href="/",
@@ -49,11 +48,11 @@ def navbar(*children) -> rx.Component:
                 rx.button("Log In", size="2"),
                 spacing="4",
                 justify="end",
-                align_items="center"
+                align_items="center",
             ),
             justify="between",
             align_items="center",
-            height="4.1em"
+            height="4.1em",
         ),
         bg=rx.color("accent", 3),
         padding="0.4em 1em",

@@ -12,10 +12,10 @@ def landing_industry():
                 rx.hstack(
                     rx.icon("chevron_left", size=22),
                     rx.text("select", margin_top="-2px"),
-                    spacing="0"
+                    spacing="0",
                 ),
-                href='/select',
-                underline="none"
+                href="/select",
+                underline="none",
             ),
             position="fixed",
             justify="center",
