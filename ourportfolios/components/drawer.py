@@ -69,7 +69,7 @@ def cart_drawer_content():
                 rx.heading(
                     "Tickers Cart",
                     size="6",
-                    weight="bold",
+                    weight="medium",
                 ),
                 rx.cond(
                     CartState.cart_items,
@@ -105,7 +105,7 @@ def cart_drawer_content():
                                                     size="1",
                                                     variant="soft",
                                                     style={
-                                                        "fontWeight": "bold",
+                                                        "fontWeight": "medium",
                                                         "padding": "0.3em 0.7em",
                                                         "fontSize": "0.9em",
                                                     },
@@ -158,7 +158,7 @@ def cart_drawer_content():
                                                 size="1",
                                                 variant="soft",
                                                 style={
-                                                    "fontWeight": "bold",
+                                                    "fontWeight": "medium",
                                                     "padding": "0.3em 0.7em",
                                                     "fontSize": "0.9em",
                                                 },

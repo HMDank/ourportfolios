@@ -305,7 +305,7 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                     rx.vstack(
                         rx.text(
                             ticker,
-                            weight="bold",
+                            weight="medium",
                             size="6",
                             color=rx.color("gray", 12),
                             letter_spacing="0.05em",
@@ -359,7 +359,7 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                             weight=rx.cond(
                                 StockComparisonState.best_performers[metric_key]
                                 == index,
-                                "bold",
+                                "medium",
                                 "medium",
                             ),
                             color=rx.cond(

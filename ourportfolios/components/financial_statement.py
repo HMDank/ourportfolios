@@ -59,7 +59,7 @@ def preview_table(data, idx):
                 rx.vstack(
                     rx.text(
                         title,
-                        weight="bold",
+                        weight="medium",
                         size="7",
                         white_space="pre-line",
                     ),
@@ -168,7 +168,7 @@ def expanded_dialog(data, idx):
                         ),
                         rx.text(
                             ["Income Statement", "Balance Sheet", "Cash Flow"][idx],
-                            weight="bold",
+                            weight="medium",
                             size="6",
                         ),
                         width="100%",

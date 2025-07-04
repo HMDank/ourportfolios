@@ -67,7 +67,7 @@ def page_selection():
                 rx.hstack(
                     rx.icon("chevron_left", size=32),
                     rx.vstack(
-                        rx.heading("Recommend", weight="bold", size="5"),
+                        rx.heading("Recommend", weight="regular", size="5"),
                         rx.text("caijdo", size="1"),
                         align="center",
                         justify="center",
@@ -81,7 +81,7 @@ def page_selection():
             ),
             card_link(
                 rx.vstack(
-                    rx.heading("Select", weight="bold", size="7"),
+                    rx.heading("Select", weight="regular", size="7"),
                     rx.text("caijdo", size="3"),
                     align="center",
                     justify="center",
@@ -93,7 +93,7 @@ def page_selection():
             card_link(
                 rx.hstack(
                     rx.vstack(
-                        rx.heading("Analyze", weight="bold", size="5"),
+                        rx.heading("Analyze", weight="regular", size="5"),
                         rx.text("caijdo", size="1"),
                         align="center",
                         justify="center",
@@ -231,7 +231,7 @@ def ticker_card(df: str):
         rx.hstack(
             rx.hstack(
                 rx.link(
-                    rx.text(ticker, weight="bold", size="4"),
+                    rx.text(ticker, weight="regular", size="4"),
                     href=f"/analyze/{ticker}",
                     style={
                         "textDecoration": "none",

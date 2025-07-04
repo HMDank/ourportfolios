@@ -29,7 +29,7 @@ def portfolio_card(card, idx, total):
     top, left, width, height = get_card_position_size(idx, total)
     return rx.link(
         rx.card(
-            rx.text(card["title"], size="3", weight="bold"),
+            rx.text(card["title"], size="3", weight="medium"),
             rx.text(card["details"], size="2"),
             height=height,
             width=width,

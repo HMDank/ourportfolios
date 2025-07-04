@@ -7,7 +7,7 @@ def navbar(*children) -> rx.Component:
         rx.hstack(
             rx.hstack(
                 rx.box(
-                    rx.heading("OurPortfolios", size="5", weight="bold"),
+                    rx.heading("OurPortfolios", size="5", weight="medium"),
                     rx.link(
                         "",
                         href="/",

@@ -12,7 +12,7 @@ def page_selection():
                 rx.hstack(
                     rx.icon("chevron_left", size=32),
                     rx.vstack(
-                        rx.heading("Select", weight="bold", size="5"),
+                        rx.heading("Select", weight="medium", size="5"),
                         rx.text("caijdo", size="1"),
                         align="center",
                         justify="center",
@@ -26,7 +26,7 @@ def page_selection():
             ),
             card_link(
                 rx.vstack(
-                    rx.heading("Analyze", weight="bold", size="7"),
+                    rx.heading("Analyze", weight="medium", size="7"),
                     rx.text("caijdo", size="3"),
                     align="center",
                     justify="center",
@@ -38,7 +38,7 @@ def page_selection():
             card_link(
                 rx.hstack(
                     rx.vstack(
-                        rx.heading("Simulate", weight="bold", size="5"),
+                        rx.heading("Simulate", weight="medium", size="5"),
                         rx.text("caijdo", size="1"),
                         align="center",
                         justify="center",
@@ -67,7 +67,7 @@ def compare_blocks():
         rx.link(
             rx.card(
                 rx.vstack(
-                    rx.heading("Quant", weight="bold", size="6"),
+                    rx.heading("Quant", weight="medium", size="6"),
                     rx.text("Quantify stats etc.", size="2"),
                     align="center",
                     justify="center",
@@ -86,7 +86,7 @@ def compare_blocks():
         rx.link(
             rx.card(
                 rx.vstack(
-                    rx.heading("Compare Stocks", weight="bold", size="6"),
+                    rx.heading("Compare Stocks", weight="medium", size="6"),
                     rx.text("Side by side analysis", size="2"),
                     align="center",
                     justify="center",
