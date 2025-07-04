@@ -9,22 +9,18 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
         series_sorted = series.sort_index()
         return series_sorted.pct_change() * 100
 
-    # Note: Using direct column access df[column] instead of safe_get for cleaner code
-
     stock = Vnstock().stock(symbol=ticker_symbol, source="VCI")
     income_statement = stock.finance.income_statement(period=period, lang="en")
     balance_sheet = stock.finance.balance_sheet(period=period, lang="en")
     cash_flow = stock.finance.cash_flow(period=period, lang="en")
     key_ratios_raw = stock.finance.ratio(period=period, lang="en")
 
-    # Flatten MultiIndex columns by keeping only the second level (actual metric names)
     if isinstance(key_ratios_raw.columns, pd.MultiIndex):
         key_ratios = key_ratios_raw.copy()
         key_ratios.columns = [col[1] for col in key_ratios_raw.columns]
     else:
         key_ratios = key_ratios_raw
 
-    # Detect company type (bank vs non-bank)
     bank_indicators = [
         "Net Interest Income",
         "Interest and Similar Income",
@@ -43,7 +39,6 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
         transformed_income.index = income_df.index
 
     if is_bank:
-        # Bank income statement mapping
         income_mapping = {
             "Year": "yearReport",
             "Quarter": "lengthReport" if period == "quarter" else None,
@@ -72,7 +67,6 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
             "Minority interest": "Minority Interest",
         }
     else:
-        # Non-bank income statement mapping
         income_mapping = {
             "Year": "yearReport",
             "Quarter": "lengthReport" if period == "quarter" else None,
