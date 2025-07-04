@@ -554,18 +554,19 @@ def ticker_list():
         rx.card(
             rx.flex(
                 rx.box(
-                    rx.text("Symbol", weight="bold", color="white", size="3"),
-                    width="40%"
+                    rx.text("Symbol", weight="bold", color="white", size="5"),
+                    width="40%",
+                    paddingLeft="1em"
                 ),
                 rx.grid(
                     rx.box(
-                        rx.text("Price", weight="bold", color="white", size="3")
+                        rx.text("Price", weight="bold", color="white", size="5")
                     ),
                     rx.box(
-                        rx.text("%", weight="bold", color="white", size="3")
+                        rx.text("%", weight="bold", color="white", size="5")
                     ),
                     rx.box(
-                        rx.text("Volume", weight="bold", color="white", size="3")
+                        rx.text("Volume", weight="bold", color="white", size="5")
                     ),
                     rows="1",
                     columns="3",
@@ -579,7 +580,8 @@ def ticker_list():
                 justify="between",
                 align="center",
                 direction="row",
-                wrap="wrap"
+                wrap="wrap",
+                paddingBottom="1em",
             ),
             rx.foreach(
                 State.paged_tickers,
