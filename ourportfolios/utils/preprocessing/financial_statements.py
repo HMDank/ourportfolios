@@ -1,39 +1,5 @@
-from vnstock import Screener, Vnstock
+from vnstock import Vnstock
 import pandas as pd
-
-pd.set_option("display.max_columns", None)
-pd.set_option("display.max_rows", None)
-screener = Screener(source="TCBS")
-default_params = {
-    "exchangeName": "HOSE,HNX",
-    "marketCap": (2000, 99999999999),
-}
-df = screener.stock(default_params, limit=1700, lang="en")
-
-def safe_get_multiindex(df, category, column_name, default=pd.NA):
-    """
-    Safely get data from MultiIndex DataFrame
-
-    Args:
-        df: MultiIndex DataFrame
-        category: Level 0 category (e.g., "Chỉ tiêu cơ cấu nguồn vốn")
-        column_name: Level 1 column name (e.g., "Debt/Equity")
-        default: Default value if not found
-    """
-    try:
-        if isinstance(df.columns, pd.MultiIndex):
-            if (category, column_name) in df.columns:
-                return df[(category, column_name)]
-            else:
-                return pd.Series([default] * len(df.index), index=df.index)
-        else:
-            # Fallback for regular columns
-            if column_name in df.columns:
-                return df[column_name]
-            else:
-                return pd.Series([default] * len(df.index), index=df.index)
-    except Exception:
-        return pd.Series([default] * len(df.index), index=df.index)
 
 
 def get_transformed_dataframes(ticker_symbol, period="year"):
@@ -43,18 +9,20 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
         series_sorted = series.sort_index()
         return series_sorted.pct_change() * 100
 
-    # Helper function to safely get column data (for regular DataFrames)
-    def safe_get(df, column_name, default=pd.NA):
-        if column_name in df.columns:
-            return df[column_name]
-        else:
-            return pd.Series([default] * len(df.index), index=df.index)
+    # Note: Using direct column access df[column] instead of safe_get for cleaner code
 
     stock = Vnstock().stock(symbol=ticker_symbol, source="VCI")
     income_statement = stock.finance.income_statement(period=period, lang="en")
     balance_sheet = stock.finance.balance_sheet(period=period, lang="en")
     cash_flow = stock.finance.cash_flow(period=period, lang="en")
-    key_ratios = stock.finance.ratio(period=period, lang="en")
+    key_ratios_raw = stock.finance.ratio(period=period, lang="en")
+
+    # Flatten MultiIndex columns by keeping only the second level (actual metric names)
+    if isinstance(key_ratios_raw.columns, pd.MultiIndex):
+        key_ratios = key_ratios_raw.copy()
+        key_ratios.columns = [col[1] for col in key_ratios_raw.columns]
+    else:
+        key_ratios = key_ratios_raw
 
     # Detect company type (bank vs non-bank)
     bank_indicators = [
@@ -132,31 +100,26 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
 
     # Apply income statement mappings
     for new_name, old_name in income_mapping.items():
-        transformed_income[new_name] = safe_get(income_df, old_name)
+        if old_name and old_name in income_df.columns:
+            transformed_income[new_name] = income_df[old_name]
+        else:
+            transformed_income[new_name] = pd.NA
 
     # Add ratio-based columns AFTER the mappings (at the end of the table)
     if is_bank:
-        # Add ratio-based columns for banks using MultiIndex access
-        transformed_income["EPS"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu định giá", "EPS (VND)"
-        )
-        transformed_income["Outstanding Share"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu định giá", "Outstanding Share (Mil. Shares)"
-        )
+        # Add ratio-based columns for banks using regular column access
+        transformed_income["EPS"] = key_ratios["EPS (VND)"]
+        transformed_income["Outstanding Share"] = key_ratios[
+            "Outstanding Share (Mil. Shares)"
+        ]
     else:
-        # Add ratio-based columns for non-banks using MultiIndex access
-        transformed_income["EPS"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu định giá", "EPS (VND)"
-        )
-        transformed_income["Outstanding Share"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu định giá", "Outstanding Share (Mil. Shares)"
-        )
-        transformed_income["EBITDA"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu khả năng sinh lợi", "EBITDA (Bn. VND)"
-        )
-        transformed_income["EBIT"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu khả năng sinh lợi", "EBIT (Bn. VND)"
-        )
+        # Add ratio-based columns for non-banks using regular column access
+        transformed_income["EPS"] = key_ratios["EPS (VND)"]
+        transformed_income["Outstanding Share"] = key_ratios[
+            "Outstanding Share (Mil. Shares)"
+        ]
+        transformed_income["EBITDA"] = key_ratios["EBITDA (Bn. VND)"]
+        transformed_income["EBIT"] = key_ratios["EBIT (Bn. VND)"]
 
     # === TRANSFORM BALANCE SHEET ===
     balance_df = balance_sheet.copy()
@@ -246,7 +209,10 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
 
     # Apply balance sheet mappings
     for new_name, old_name in balance_mapping.items():
-        transformed_balance[new_name] = safe_get(balance_df, old_name)
+        if old_name and old_name in balance_df.columns:
+            transformed_balance[new_name] = balance_df[old_name]
+        else:
+            transformed_balance[new_name] = pd.NA
 
     # === TRANSFORM CASH FLOW ===
     cash_flow_df = cash_flow.copy()
@@ -268,7 +234,10 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
     }
 
     for new_name, old_name in cash_flow_mapping.items():
-        transformed_cash_flow[new_name] = safe_get(cash_flow_df, old_name)
+        if old_name and old_name in cash_flow_df.columns:
+            transformed_cash_flow[new_name] = cash_flow_df[old_name]
+        else:
+            transformed_cash_flow[new_name] = pd.NA
 
     # Calculate Free Cash Flow
     operating_cf = transformed_cash_flow.get(
@@ -282,7 +251,7 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
     else:
         transformed_cash_flow["Free cash flow"] = pd.NA
 
-    # === TRANSFORM KEY RATIOS (CATEGORIZED) - FIXED FOR MULTIINDEX ===
+    # === TRANSFORM KEY RATIOS (CATEGORIZED) ===
     ratios_index = key_ratios.index if not key_ratios.empty else []
 
     # Initialize categorized ratio DataFrames
@@ -294,49 +263,43 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
     efficiency = pd.DataFrame(index=ratios_index)
 
     if is_bank:
-        # === BANK RATIOS - FIXED FOR MULTIINDEX ===
+        # === BANK RATIOS - USING FLATTENED COLUMNS ===
 
         # Add time period columns based on period type
-        per_share["Year"] = safe_get_multiindex(key_ratios, "Meta", "yearReport")
-        growth_rate["Year"] = safe_get_multiindex(key_ratios, "Meta", "yearReport")
-        profitability["Year"] = safe_get_multiindex(key_ratios, "Meta", "yearReport")
-        valuation["Year"] = safe_get_multiindex(key_ratios, "Meta", "yearReport")
-        leverage_liquidity["Year"] = safe_get_multiindex(
-            key_ratios, "Meta", "yearReport"
-        )
-        efficiency["Year"] = safe_get_multiindex(key_ratios, "Meta", "yearReport")
+        per_share["Year"] = key_ratios["yearReport"]
+        growth_rate["Year"] = key_ratios["yearReport"]
+        profitability["Year"] = key_ratios["yearReport"]
+        valuation["Year"] = key_ratios["yearReport"]
+        leverage_liquidity["Year"] = key_ratios["yearReport"]
+        efficiency["Year"] = key_ratios["yearReport"]
 
         if period == "quarter":
-            per_share["Quarter"] = safe_get_multiindex(
-                key_ratios, "Meta", "lengthReport"
-            )
-            growth_rate["Quarter"] = safe_get_multiindex(
-                key_ratios, "Meta", "lengthReport"
-            )
-            profitability["Quarter"] = safe_get_multiindex(
-                key_ratios, "Meta", "lengthReport"
-            )
-            valuation["Quarter"] = safe_get_multiindex(
-                key_ratios, "Meta", "lengthReport"
-            )
-            leverage_liquidity["Quarter"] = safe_get_multiindex(
-                key_ratios, "Meta", "lengthReport"
-            )
-            efficiency["Quarter"] = safe_get_multiindex(
-                key_ratios, "Meta", "lengthReport"
-            )
+            per_share["Quarter"] = key_ratios["lengthReport"]
+            growth_rate["Quarter"] = key_ratios["lengthReport"]
+            profitability["Quarter"] = key_ratios["lengthReport"]
+            valuation["Quarter"] = key_ratios["lengthReport"]
+            leverage_liquidity["Quarter"] = key_ratios["lengthReport"]
+            efficiency["Quarter"] = key_ratios["lengthReport"]
 
         # Per Share Value
-        per_share["Earnings"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu định giá", "EPS (VND)"
-        )
+        per_share["Earnings"] = key_ratios["EPS (VND)"]
 
-        outstanding_shares = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu định giá", "Outstanding Share (Mil. Shares)"
+        outstanding_shares = key_ratios["Outstanding Share (Mil. Shares)"]
+        operating_cf = (
+            transformed_cash_flow["Operating cash flow"]
+            if "Operating cash flow" in transformed_cash_flow.columns
+            else pd.Series(dtype=float)
         )
-        operating_cf = safe_get(transformed_cash_flow, "Operating cash flow")
-        capex = safe_get(transformed_cash_flow, "Capital expenditure")
-        dividends_paid = safe_get(transformed_cash_flow, "Dividends paid")
+        capex = (
+            transformed_cash_flow["Capital expenditure"]
+            if "Capital expenditure" in transformed_cash_flow.columns
+            else pd.Series(dtype=float)
+        )
+        dividends_paid = (
+            transformed_cash_flow["Dividends paid"]
+            if "Dividends paid" in transformed_cash_flow.columns
+            else pd.Series(dtype=float)
+        )
 
         # Free Cash Flow per share
         if not operating_cf.isna().all() and not outstanding_shares.isna().all():
@@ -355,9 +318,7 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
         else:
             per_share["Dividend"] = pd.NA
 
-        per_share["Book Value"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu định giá", "BVPS (VND)"
-        )
+        per_share["Book Value"] = key_ratios["BVPS (VND)"]
 
         # Growth Rates
         growth_rate["Earnings YoY"] = calculate_yoy_growth(per_share["Earnings"])
@@ -368,40 +329,40 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
         growth_rate["Book Value YoY"] = calculate_yoy_growth(per_share["Book Value"])
 
         # Profitability
-        profitability["Net Margin"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu khả năng sinh lợi", "Net Profit Margin (%)"
-        )
-        profitability["ROE"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu khả năng sinh lợi", "ROE (%)"
-        )
+        profitability["Net Margin"] = key_ratios["Net Profit Margin (%)"]
+        profitability["ROE"] = key_ratios["ROE (%)"]
 
         # Valuation
-        valuation["P/E"] = safe_get_multiindex(key_ratios, "Chỉ tiêu định giá", "P/E")
-        valuation["P/S"] = safe_get_multiindex(key_ratios, "Chỉ tiêu định giá", "P/S")
-        valuation["P/B"] = safe_get_multiindex(key_ratios, "Chỉ tiêu định giá", "P/B")
-        valuation["P/Cash Flow"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu định giá", "P/Cash Flow"
-        )
+        valuation["P/E"] = key_ratios["P/E"]
+        valuation["P/S"] = key_ratios["P/S"]
+        valuation["P/B"] = key_ratios["P/B"]
+        valuation["P/Cash Flow"] = key_ratios["P/Cash Flow"]
 
         # Leverage & Liquidity
-        liabilities = safe_get(transformed_balance, "Liabilities")
-        equity = safe_get(transformed_balance, "Shareholders' Equity")
+        liabilities = (
+            transformed_balance["Liabilities"]
+            if "Liabilities" in transformed_balance.columns
+            else pd.Series(dtype=float)
+        )
+        equity = (
+            transformed_balance["Shareholders' Equity"]
+            if "Shareholders' Equity" in transformed_balance.columns
+            else pd.Series(dtype=float)
+        )
         if not liabilities.isna().all() and not equity.isna().all():
             leverage_liquidity["Debt/Equity"] = liabilities / equity.replace(0, pd.NA)
         else:
             leverage_liquidity["Debt/Equity"] = pd.NA
 
-        leverage_liquidity["Financial Leverage"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu thanh khoản", "Financial Leverage"
-        )
+        leverage_liquidity["Financial Leverage"] = key_ratios["Financial Leverage"]
 
         # Efficiency
-        efficiency["ROA"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu khả năng sinh lợi", "ROA (%)"
-        )
+        efficiency["ROA"] = key_ratios["ROA (%)"]
 
-        attributable_profit = safe_get(
-            transformed_income, "Attributable to parent company"
+        attributable_profit = (
+            transformed_income["Attributable to parent company"]
+            if "Attributable to parent company" in transformed_income.columns
+            else pd.Series(dtype=float)
         )
         if not dividends_paid.isna().all() and not attributable_profit.isna().all():
             efficiency["Dividend Payout %"] = (
@@ -411,46 +372,46 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
             efficiency["Dividend Payout %"] = pd.NA
 
     else:
-        # === NON-BANK RATIOS - FIXED FOR MULTIINDEX ===
+        # === NON-BANK RATIOS - USING FLATTENED COLUMNS ===
 
         # Add time period columns based on period type
-        per_share["Year"] = safe_get_multiindex(key_ratios, "Meta", "yearReport")
-        growth_rate["Year"] = safe_get_multiindex(key_ratios, "Meta", "yearReport")
-        profitability["Year"] = safe_get_multiindex(key_ratios, "Meta", "yearReport")
-        valuation["Year"] = safe_get_multiindex(key_ratios, "Meta", "yearReport")
-        leverage_liquidity["Year"] = safe_get_multiindex(
-            key_ratios, "Meta", "yearReport"
-        )
-        efficiency["Year"] = safe_get_multiindex(key_ratios, "Meta", "yearReport")
+        per_share["Year"] = key_ratios["yearReport"]
+        growth_rate["Year"] = key_ratios["yearReport"]
+        profitability["Year"] = key_ratios["yearReport"]
+        valuation["Year"] = key_ratios["yearReport"]
+        leverage_liquidity["Year"] = key_ratios["yearReport"]
+        efficiency["Year"] = key_ratios["yearReport"]
 
         if period == "quarter":
-            per_share["Quarter"] = safe_get_multiindex(
-                key_ratios, "Meta", "lengthReport"
-            )
-            growth_rate["Quarter"] = safe_get_multiindex(
-                key_ratios, "Meta", "lengthReport"
-            )
-            profitability["Quarter"] = safe_get_multiindex(
-                key_ratios, "Meta", "lengthReport"
-            )
-            valuation["Quarter"] = safe_get_multiindex(
-                key_ratios, "Meta", "lengthReport"
-            )
-            leverage_liquidity["Quarter"] = safe_get_multiindex(
-                key_ratios, "Meta", "lengthReport"
-            )
-            efficiency["Quarter"] = safe_get_multiindex(
-                key_ratios, "Meta", "lengthReport"
-            )
+            per_share["Quarter"] = key_ratios["lengthReport"]
+            growth_rate["Quarter"] = key_ratios["lengthReport"]
+            profitability["Quarter"] = key_ratios["lengthReport"]
+            valuation["Quarter"] = key_ratios["lengthReport"]
+            leverage_liquidity["Quarter"] = key_ratios["lengthReport"]
+            efficiency["Quarter"] = key_ratios["lengthReport"]
 
         # Per Share Value
-        net_sales = safe_get(transformed_income, "Net sales")
-        outstanding_shares = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu định giá", "Outstanding Share (Mil. Shares)"
+        net_sales = (
+            transformed_income["Net sales"]
+            if "Net sales" in transformed_income.columns
+            else pd.Series(dtype=float)
         )
-        operating_cf = safe_get(transformed_cash_flow, "Operating cash flow")
-        capex = safe_get(transformed_cash_flow, "Capital expenditure")
-        dividends_paid = safe_get(transformed_cash_flow, "Dividends paid")
+        outstanding_shares = key_ratios["Outstanding Share (Mil. Shares)"]
+        operating_cf = (
+            transformed_cash_flow["Operating cash flow"]
+            if "Operating cash flow" in transformed_cash_flow.columns
+            else pd.Series(dtype=float)
+        )
+        capex = (
+            transformed_cash_flow["Capital expenditure"]
+            if "Capital expenditure" in transformed_cash_flow.columns
+            else pd.Series(dtype=float)
+        )
+        dividends_paid = (
+            transformed_cash_flow["Dividends paid"]
+            if "Dividends paid" in transformed_cash_flow.columns
+            else pd.Series(dtype=float)
+        )
 
         # Revenue per share
         if not net_sales.isna().all() and not outstanding_shares.isna().all():
@@ -458,9 +419,7 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
         else:
             per_share["Revenues"] = pd.NA
 
-        per_share["Earnings"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu định giá", "EPS (VND)"
-        )
+        per_share["Earnings"] = key_ratios["EPS (VND)"]
 
         # Free Cash Flow per share
         if not operating_cf.isna().all() and not outstanding_shares.isna().all():
@@ -479,9 +438,7 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
         else:
             per_share["Dividend"] = pd.NA
 
-        per_share["Book Value"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu định giá", "BVPS (VND)"
-        )
+        per_share["Book Value"] = key_ratios["BVPS (VND)"]
 
         # Growth Rates
         growth_rate["Revenues YoY"] = calculate_yoy_growth(per_share["Revenues"])
@@ -493,11 +450,13 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
         growth_rate["Book Value YoY"] = calculate_yoy_growth(per_share["Book Value"])
 
         # Profitability
-        profitability["Gross Margin"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu khả năng sinh lợi", "Gross Profit Margin (%)"
-        )
+        profitability["Gross Margin"] = key_ratios["Gross Profit Margin (%)"]
 
-        operating_profit = safe_get(transformed_income, "Operating income")
+        operating_profit = (
+            transformed_income["Operating income"]
+            if "Operating income" in transformed_income.columns
+            else pd.Series(dtype=float)
+        )
         if not operating_profit.isna().all() and not net_sales.isna().all():
             profitability["Operating Margin"] = (
                 operating_profit / net_sales.replace(0, pd.NA)
@@ -505,22 +464,22 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
         else:
             profitability["Operating Margin"] = pd.NA
 
-        profitability["Net Margin"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu khả năng sinh lợi", "Net Profit Margin (%)"
-        )
-        profitability["ROE"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu khả năng sinh lợi", "ROE (%)"
-        )
-        profitability["ROIC"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu khả năng sinh lợi", "ROIC (%)"
-        )
+        profitability["Net Margin"] = key_ratios["Net Profit Margin (%)"]
+        profitability["ROE"] = key_ratios["ROE (%)"]
+        profitability["ROIC"] = key_ratios["ROIC (%)"]
 
         # ROCE calculation
-        ebit = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu khả năng sinh lợi", "EBIT (Bn. VND)"
+        ebit = key_ratios["EBIT (Bn. VND)"]
+        total_assets = (
+            transformed_balance["TOTAL ASSETS"]
+            if "TOTAL ASSETS" in transformed_balance.columns
+            else pd.Series(dtype=float)
         )
-        total_assets = safe_get(transformed_balance, "TOTAL ASSETS")
-        current_liabilities = safe_get(transformed_balance, "Current liabilities")
+        current_liabilities = (
+            transformed_balance["Current liabilities"]
+            if "Current liabilities" in transformed_balance.columns
+            else pd.Series(dtype=float)
+        )
         if (
             not ebit.isna().all()
             and not total_assets.isna().all()
@@ -532,9 +491,7 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
             profitability["ROCE"] = pd.NA
 
         # Margin calculations
-        ebitda = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu khả năng sinh lợi", "EBITDA (Bn. VND)"
-        )
+        ebitda = key_ratios["EBITDA (Bn. VND)"]
         if not ebitda.isna().all() and not net_sales.isna().all():
             profitability["EBITDA Margin"] = (
                 ebitda / net_sales.replace(0, pd.NA)
@@ -542,20 +499,16 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
         else:
             profitability["EBITDA Margin"] = pd.NA
 
-        profitability["EBIT Margin"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu khả năng sinh lợi", "EBIT Margin (%)"
-        )
+        profitability["EBIT Margin"] = key_ratios["EBIT Margin (%)"]
 
         # Valuation
-        valuation["P/E"] = safe_get_multiindex(key_ratios, "Chỉ tiêu định giá", "P/E")
-        valuation["P/S"] = safe_get_multiindex(key_ratios, "Chỉ tiêu định giá", "P/S")
-        valuation["P/B"] = safe_get_multiindex(key_ratios, "Chỉ tiêu định giá", "P/B")
-        valuation["P/Cash Flow"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu định giá", "P/Cash Flow"
-        )
+        valuation["P/E"] = key_ratios["P/E"]
+        valuation["P/S"] = key_ratios["P/S"]
+        valuation["P/B"] = key_ratios["P/B"]
+        valuation["P/Cash Flow"] = key_ratios["P/Cash Flow"]
 
         # EV calculations
-        ev_ebitda = safe_get_multiindex(key_ratios, "Chỉ tiêu định giá", "EV/EBITDA")
+        ev_ebitda = key_ratios["EV/EBITDA"]
         if not ev_ebitda.isna().all() and not ebitda.isna().all():
             valuation["EV"] = ev_ebitda * ebitda
         else:
@@ -569,54 +522,44 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
             valuation["EV/Revenue"] = pd.NA
 
         # Leverage & Liquidity
-        leverage_liquidity["Debt/Equity"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu cơ cấu nguồn vốn", "Debt/Equity"
-        )
+        leverage_liquidity["Debt/Equity"] = key_ratios["Debt/Equity"]
 
         # Debt to EBITDA
-        lt_debt = safe_get(transformed_balance, "Long Term Debt")
-        st_debt = safe_get(transformed_balance, "Short Term Debt")
+        lt_debt = (
+            transformed_balance["Long Term Debt"]
+            if "Long Term Debt" in transformed_balance.columns
+            else pd.Series(dtype=float)
+        )
+        st_debt = (
+            transformed_balance["Short Term Debt"]
+            if "Short Term Debt" in transformed_balance.columns
+            else pd.Series(dtype=float)
+        )
         total_debt = lt_debt.fillna(0) + st_debt.fillna(0)
         if not total_debt.isna().all() and not ebitda.isna().all():
             leverage_liquidity["Debt to EBITDA"] = total_debt / ebitda.replace(0, pd.NA)
         else:
             leverage_liquidity["Debt to EBITDA"] = pd.NA
 
-        leverage_liquidity["Short and Long Term Borrowings to Equity"] = (
-            safe_get_multiindex(
-                key_ratios, "Chỉ tiêu cơ cấu nguồn vốn", "(ST+LT borrowings)/Equity"
-            )
-        )
-        leverage_liquidity["Financial Leverage"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu thanh khoản", "Financial Leverage"
-        )
-        leverage_liquidity["Quick Ratio"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu thanh khoản", "Quick Ratio"
-        )
-        leverage_liquidity["Current Ratio"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu thanh khoản", "Current Ratio"
-        )
-        leverage_liquidity["Cash Ratio"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu thanh khoản", "Cash Ratio"
-        )
-        leverage_liquidity["Interest Coverage"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu thanh khoản", "Interest Coverage"
-        )
+        leverage_liquidity["Short and Long Term Borrowings to Equity"] = key_ratios[
+            "(ST+LT borrowings)/Equity"
+        ]
+        leverage_liquidity["Financial Leverage"] = key_ratios["Financial Leverage"]
+        leverage_liquidity["Quick Ratio"] = key_ratios["Quick Ratio"]
+        leverage_liquidity["Current Ratio"] = key_ratios["Current Ratio"]
+        leverage_liquidity["Cash Ratio"] = key_ratios["Cash Ratio"]
+        leverage_liquidity["Interest Coverage"] = key_ratios["Interest Coverage"]
 
         # Efficiency
-        efficiency["Asset Turnover"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu hiệu quả hoạt động", "Asset Turnover"
-        )
-        efficiency["Inventory Turnover"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu hiệu quả hoạt động", "Inventory Turnover"
-        )
-        efficiency["ROA"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu khả năng sinh lợi", "ROA (%)"
-        )
+        efficiency["Asset Turnover"] = key_ratios["Asset Turnover"]
+        efficiency["Inventory Turnover"] = key_ratios["Inventory Turnover"]
+        efficiency["ROA"] = key_ratios["ROA (%)"]
 
         # Dividend Payout %
-        attributable_profit = safe_get(
-            transformed_income, "Attributable to parent company"
+        attributable_profit = (
+            transformed_income["Attributable to parent company"]
+            if "Attributable to parent company" in transformed_income.columns
+            else pd.Series(dtype=float)
         )
         if not dividends_paid.isna().all() and not attributable_profit.isna().all():
             efficiency["Dividend Payout %"] = (
@@ -625,9 +568,8 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
         else:
             efficiency["Dividend Payout %"] = pd.NA
 
-        efficiency["Cash Conversion Cycle"] = safe_get_multiindex(
-            key_ratios, "Chỉ tiêu hiệu quả hoạt động", "Cash Cycle"
-        )
+        efficiency["Cash Conversion Cycle"] = key_ratios["Cash Cycle"]
+
     return {
         # Transformed statements
         "transformed_income_statement": transformed_income,
