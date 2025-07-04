@@ -36,9 +36,7 @@ def safe_get_multiindex(df, category, column_name, default=pd.NA):
         return pd.Series([default] * len(df.index), index=df.index)
 
 
-def analyze_fixed(
-    ticker_symbol, source="VCI", period="year", lang="en"
-):
+def get_transformed_dataframes(ticker_symbol, period="year"):
     def calculate_yoy_growth(series):
         if len(series) < 2:
             return pd.Series(dtype=float, index=series.index)
@@ -52,11 +50,11 @@ def analyze_fixed(
         else:
             return pd.Series([default] * len(df.index), index=df.index)
 
-    stock = Vnstock().stock(symbol=ticker_symbol, source=source)
-    income_statement = stock.finance.income_statement(period=period, lang=lang)
-    balance_sheet = stock.finance.balance_sheet(period=period, lang=lang)
-    cash_flow = stock.finance.cash_flow(period=period, lang=lang)
-    key_ratios = stock.finance.ratio(period=period, lang=lang)
+    stock = Vnstock().stock(symbol=ticker_symbol, source="VCI")
+    income_statement = stock.finance.income_statement(period=period, lang="en")
+    balance_sheet = stock.finance.balance_sheet(period=period, lang="en")
+    cash_flow = stock.finance.cash_flow(period=period, lang="en")
+    key_ratios = stock.finance.ratio(period=period, lang="en")
 
     # Detect company type (bank vs non-bank)
     bank_indicators = [
@@ -630,15 +628,7 @@ def analyze_fixed(
         efficiency["Cash Conversion Cycle"] = safe_get_multiindex(
             key_ratios, "Chỉ tiêu hiệu quả hoạt động", "Cash Cycle"
         )
-
-    # === RETURN COMPLETE RESULTS ===
     return {
-        # Original data
-        "ticker": ticker_symbol,
-        "income_statement": income_statement,
-        "balance_sheet": balance_sheet,
-        "cash_flow": cash_flow,
-        "key_ratios": key_ratios,
         # Transformed statements
         "transformed_income_statement": transformed_income,
         "transformed_balance_sheet": transformed_balance,
@@ -652,6 +642,4 @@ def analyze_fixed(
             "Leverage & Liquidity": leverage_liquidity,
             "Efficiency": efficiency,
         },
-        # Metadata
-        "is_bank": is_bank,
     }
