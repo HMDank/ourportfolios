@@ -11,6 +11,7 @@ from .graph import pct_change_badge
 class SearchBarState(rx.State):
     search_query: str = ""
     display_suggestion: bool = False
+    outstanding_tickers: Dict[str, Any] = {}
 
     @rx.event
     def set_query(self, text: str = ""):
@@ -51,6 +52,12 @@ class SearchBarState(rx.State):
                 match_conditions="ticker LIKE ?", params=(f"{self.search_query[0]}%",)
             )
 
+        # Fetch and store the top 3 trending tickers in memory, get calls only once on initial load
+        if not self.outstanding_tickers:
+            self.outstanding_tickers: Dict[str, Any] = {
+                item: 1 for item in result["ticker"].to_list()[:3]
+            }
+
         return result.to_dict("records")[:50]
 
     def fetch_ticker(self, match_conditions: str, params: Any) -> pd.DataFrame:
@@ -89,8 +96,8 @@ def search_bar():
                         rx.scroll_area(
                             rx.foreach(
                                 SearchBarState.get_suggest_ticker,
-                                lambda ticker_value, index: suggestion_card(
-                                    value=ticker_value, index=index
+                                lambda ticker_value: suggestion_card(
+                                    value=ticker_value
                                 ),
                             ),
                             scrollbars="vertical",
@@ -114,9 +121,9 @@ def search_bar():
     )
 
 
-def suggestion_card(value: Dict[str, Any], index: int) -> rx.Component:
-    ticker = value["ticker"]
-    industry = value["industry"]
+def suggestion_card(value: Dict[str, Any]) -> rx.Component:
+    ticker = value["ticker"].to(str)
+    industry = value["industry"].to(str)
     pct_price_change: float = value["pct_price_change"].to(float)
 
     return rx.box(
@@ -143,7 +150,7 @@ def suggestion_card(value: Dict[str, Any], index: int) -> rx.Component:
             # pct badge
             rx.flex(
                 rx.cond(
-                    index < 3,
+                    SearchBarState.outstanding_tickers.get(ticker, None),
                     rx.icon("flame", size=20, color=rx.color("tomato", 9)),
                     rx.fragment(),
                 ),
