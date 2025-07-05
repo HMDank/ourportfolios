@@ -11,8 +11,6 @@ from .graph import pct_change_badge
 class SearchBarState(rx.State):
     search_query: str = ""
     display_suggestion: bool = False
-    on_load_tickers: List[Dict[str, Any]] = {}
-    remain_tickers: List[Dict[str, Any]] = {}
 
     @rx.event
     def set_query(self, text: str = ""):
@@ -22,10 +20,6 @@ class SearchBarState(rx.State):
     def set_display_suggestions(self, mode: bool):
         yield time.sleep(0.2)  # Delay the set action
         self.display_suggestion = mode
-
-    @rx.event
-    def load_suggest_ticker(self):
-        self.tickers_list = self.get_suggest_ticker
 
     @rx.var
     def get_suggest_ticker(self) -> List[Dict[str, Any]]:
