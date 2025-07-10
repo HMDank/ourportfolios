@@ -3,9 +3,8 @@ import pandas as pd
 import numpy as np
 import sqlite3
 from datetime import date, timedelta
-from vnstock import Vnstock, Screener, Trading
+from vnstock import Vnstock, Screener
 import warnings
-from typing import List
 
 warnings.filterwarnings("ignore")
 
