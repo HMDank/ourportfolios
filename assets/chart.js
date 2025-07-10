@@ -1,9 +1,17 @@
-function render_price_chart(chart_layout, chart_options) {
+function render_price_chart(chart_configs, chart_options) {
     container = document.getElementById("price_chart");
     container.innerHTML = "";
+    const info = document.getElementById('chart_info');
 
+    // Chart layout settings
+    chart_layout = chart_configs.chart_layout; // Dict[str, Any]
+    series_configs = chart_configs.series_configs; // Dict[str, Any]
+    rsi_configs = chart_configs.rsi_configs?? null; // Dict[str, Any]
+    ma_line_configs = chart_configs.ma_line_configs?? null; // Dict[Dict[str, Any]]
+
+    // Chart data
     chart_type = chart_options['type'];
-    price_data = chart_options['price_data'];
+    chart_data = chart_options['price_data'];
     ma_line_data = chart_options['ma_line_data'];
     rsi_line_data = chart_options['rsi_line_data'];
 
@@ -12,60 +20,25 @@ function render_price_chart(chart_layout, chart_options) {
     
     // Default price value
     if (chart_type === "Candlestick") {
-        series = chart.addSeries(LightweightCharts.CandlestickSeries, {
-            upColor: "#26a69a",
-            wickUpColor: "#26a69a",
-            downColor: "#ef5350",
-            wickDownColor: "#ef5350",
-            borderVisible: false,
-        },
-        0);
-    } else {
-        series = chart.addSeries(LightweightCharts.LineSeries, {
-            color: 'rgba(0, 102, 204, 1)',
-            lineWidth: 2,
-            priceLineVisible: false,
-            lastValueVisible: true,
-            crosshairMarkerVisible: true,
-            crosshairMarkerRadius: 4,
-            crosshairMarkerBorderColor: 'rgba(0, 102, 204, 0.8)',
-        }, 
-        0);
+        series = chart.addSeries(LightweightCharts.CandlestickSeries, series_configs, 0);
+    } 
+    else {
+        series = chart.addSeries(LightweightCharts.LineSeries, series_configs, 0);
     }
 
-    series.setData(price_data);
+    series.setData(chart_data);
 
     // MA lines
-    if ( Object.keys(ma_line_data).length > 0 ) {
-        Object.keys(ma_line_data).forEach(period => {
-            ma_series = chart.addSeries(LightweightCharts.LineSeries, {
-                color: 'rgba(0, 102, 204, 1)',
-                lineWidth: 1,
-                priceLineVisible: false,
-                lastValueVisible: true,
-                crosshairMarkerVisible: true,
-                crosshairMarkerRadius: 4,
-                crosshairMarkerBorderColor: 'rgba(0, 128, 255, 0.8)',
-            });
-
-            ma_series.setData(ma_line_data[period]);
-        },
-        0);
-    }
+    let selected_ma_series = {}; // Assign each MA period with its specific data
+    Object.keys(ma_line_data).forEach(period => {
+        ma_series = chart.addSeries(LightweightCharts.LineSeries, ma_line_configs[period]);
+        ma_series.setData(ma_line_data[period]);
+        selected_ma_series[period] = ma_series;
+    });
 
     // RSI line
     if (rsi_line_data.length > 0) {
-        const rsiSeries = chart.addSeries(LightweightCharts.LineSeries, {
-            color: '#6E56CF',
-            lineWidth: 2,
-            priceFormat: {
-                type: 'price',
-                precision: 2,
-            },
-            priceScale: 'rsi-scale',
-        },
-        1                                 
-        );
+        const rsiSeries = chart.addSeries(LightweightCharts.LineSeries, rsi_configs, 1);
         // Configure the RSI price scale: fixed 0–100
         rsiSeries.priceScale().applyOptions({
             autoScale:   false,
@@ -77,14 +50,14 @@ function render_price_chart(chart_layout, chart_options) {
         rsiSeries.createPriceLine({
             price:         70,
             color:         '#FFAB00 ',
-            lineWidth:     1,
+            lineWidth:     0.5,
             lineStyle:     LightweightCharts.LineStyle.Dashed,
             axisLabelVisible: true,
         });
         rsiSeries.createPriceLine({
             price:         30,
             color:         '#FF1744',
-            lineWidth:     1,
+            lineWidth:     0.5,
             lineStyle:     LightweightCharts.LineStyle.Dashed,
             axisLabelVisible: true,
         });
@@ -97,9 +70,6 @@ function render_price_chart(chart_layout, chart_options) {
                 { height: totalHeight * 0.3 }, // 30%
             ],
         });
-
         rsiSeries.setData(rsi_line_data);
     }
-
-    chart.timeScale().fitContent();
 }
