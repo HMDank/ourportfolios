@@ -10,10 +10,12 @@ function render_price_chart(chart_configs, chart_options) {
     ma_line_configs = chart_configs.ma_line_configs?? null; // Dict[Dict[str, Any]]
 
     // Chart data
-    chart_type = chart_options['type'];
-    chart_data = chart_options['price_data'];
-    ma_line_data = chart_options['ma_line_data'];
-    rsi_line_data = chart_options['rsi_line_data'];
+    chart_type = chart_options.type;
+    chart_data = chart_options.price_data;
+    ma_line_data = chart_options.ma_line_data;
+    rsi_line_data = chart_options.rsi_line_data;
+    start_date = chart_options.start_date;
+    end_date = chart_options.end_date;
 
     let chart = LightweightCharts.createChart(container, chart_layout);
     let series;
@@ -72,4 +74,9 @@ function render_price_chart(chart_configs, chart_options) {
         });
         rsiSeries.setData(rsi_line_data);
     }
+
+    chart.timeScale().setVisibleRange({
+        from: start_date,
+        to:   end_date,
+    });
 }
