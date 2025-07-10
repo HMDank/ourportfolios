@@ -4,7 +4,7 @@ import sqlite3
 from typing import Any, List, Dict
 from vnstock import Finance
 
-from ..components.price_chart import PriceChartState, render_price_chart
+from ..components.price_chart import PriceChartState
 from ..components.navbar import navbar
 from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
@@ -38,7 +38,6 @@ class State(rx.State):
     balance_sheet: list[dict] = []
     cash_flow: list[dict] = []
 
-    # Financial ratio data
     financial_df: pd.DataFrame = pd.DataFrame()
 
     # Mapping for profitability metrics (display name -> data key)
@@ -266,7 +265,6 @@ class State(rx.State):
             d["fill"] = colors[idx % len(colors)]
         return data
 
-    # Event handlers for setting metrics
     @rx.event
     def set_valuation_metric(self, value: str):
         """Set valuation metric (no mapping needed)"""
@@ -288,7 +286,6 @@ class State(rx.State):
             display_value, display_value
         )
 
-    # Legacy event handlers (keeping for backward compatibility)
     @rx.event
     def set_margin_metric(self, value: str):
         self.selected_margin_metric = value
@@ -307,7 +304,6 @@ class State(rx.State):
             self.selected_dividend_display, self.selected_dividend_display
         )
 
-    # Single metric chart data methods
     @rx.var
     def valuation_chart_data_single(self) -> list[dict]:
         if not self.transformed_financial_data:
@@ -674,6 +670,103 @@ def key_metrics_card():
     )
 
 
+def price_chart_card():
+    return rx.card(
+        rx.flex(
+            rx.script(
+                src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js",
+            ),
+            rx.script(src="/chart.js"),
+            rx.vstack(
+                rx.box(id="price_chart", width="65vw", height="30vw"),
+                rx.hstack(
+                    rx.spacer(),
+                    rx.foreach(
+                        PriceChartState.date_range.keys(),
+                        lambda item: rx.button(
+                            item,
+                            variant=rx.cond(
+                                PriceChartState.selected_date_range == item,
+                                "surface",
+                                "soft",
+                            ),
+                            on_click=PriceChartState.set_date_range(item),
+                        ),
+                    ),
+                    spacing="2",
+                    paddingLeft="2em",
+                    width="100%",
+                ),
+            ),
+            rx.flex(
+                rx.menu.root(
+                    rx.menu.trigger(
+                        rx.button(rx.icon("settings", size=20), variant="ghost")
+                    ),
+                    rx.menu.content(
+                        rx.menu.sub(
+                            rx.menu.sub_trigger(
+                                "MA",
+                            ),
+                            rx.menu.sub_content(
+                                rx.vstack(
+                                    rx.foreach(
+                                        PriceChartState.selected_ma_period.items(),
+                                        lambda item: rx.checkbox(
+                                            rx.text(
+                                                f"MA{item[0]}",
+                                                color=PriceChartState.ma_period[
+                                                    item[0]
+                                                ],
+                                                weight="medium",
+                                            ),
+                                            checked=item[1],
+                                            on_change=lambda value: PriceChartState.add_ma_period(
+                                                value, item[0]
+                                            ),
+                                        ),
+                                    ),
+                                    spacing="3",
+                                )
+                            ),
+                            modal=False,
+                        ),
+                        rx.menu.sub(
+                            rx.menu.sub_trigger("RSI"),
+                            rx.menu.sub_content(
+                                rx.checkbox(
+                                    rx.text("RSI14", weight="medium"),
+                                    checked=PriceChartState.rsi_line,
+                                    on_change=PriceChartState.add_rsi_line,
+                                )
+                            ),
+                        ),
+                    ),
+                    modal=False,
+                ),
+                rx.button(
+                    rx.icon(
+                        rx.cond(
+                            PriceChartState.selected_chart == "Candlestick",
+                            "chart-candlestick",
+                            "chart-spline",
+                        ),
+                        size=15,
+                    ),
+                    variant="ghost",
+                    on_click=PriceChartState.set_selection,
+                ),
+                direction="column",
+                spacing="3",
+            ),
+            width="100%",
+            height="100%",
+            direction="row",
+            spacing="3",
+        ),
+    )
+
+
 def company_card():
     return rx.card(
         rx.vstack(
@@ -867,7 +960,7 @@ def index():
                             spacing="4",
                             align="center",
                         ),
-                        render_price_chart(),
+                        price_chart_card(),
                         paddingBottom="1em",
                         width="100%",
                     ),
