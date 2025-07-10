@@ -12,9 +12,11 @@ from ..utils.load_data import load_historical_data
 # Price chart State
 class PriceChartState(rx.State):
     df: pd.DataFrame = pd.DataFrame()
+    start_date: date = date.today() - relativedelta(months=12)
+    end_date: date = date.today()
     selected_chart: str = "Candlestick"
     selected_ma_period: Dict[str, bool] = {}
-    selected_price_range: str = "1D"
+    selected_date_range: str = "1Y"
     rsi_line: bool = False
 
     ma_period: Dict[str, Any] = {
@@ -25,7 +27,12 @@ class PriceChartState(rx.State):
         "100": "#70B8FF",  # blue 11
         "200": "#3094FEB9",  # blue 8
     }
-
+    date_range: Dict[str, Any] = {
+        "1M": relativedelta(months=1),
+        "3M": relativedelta(months=3),
+        "6M": relativedelta(months=6),
+        "1Y": relativedelta(months=12),
+    }
     rsi_period: int = 14
 
     @rx.event
@@ -47,6 +54,16 @@ class PriceChartState(rx.State):
     def load_chart_options(self):
         # Loads MA options
         self.selected_ma_period = {item: False for item in self.ma_period.keys()}
+
+    @rx.event
+    def set_date_range(self, _range):
+        self.selected_date_range = _range
+        self.start_date = self.end_date - self.date_range.get(
+            _range, relativedelta(days=1)
+        )
+        yield rx.call_script(
+            f"""render_price_chart({self.chart_configs}, {self.chart_options})"""
+        )
 
     @rx.event
     def set_selection(self):
@@ -143,6 +160,8 @@ class PriceChartState(rx.State):
             "price_data": price_data,
             "ma_line_data": ma_line_data,
             "rsi_line_data": rsi_line_data,
+            "start_date": self.start_date.strftime("%Y-%m-%d"),
+            "end_date": self.end_date.strftime("%Y-%m-%d"),
         }
 
         return json.dumps(options)
@@ -237,6 +256,24 @@ def render_price_chart():
             rx.script(src="/chart.js"),
             rx.vstack(
                 rx.box(id="price_chart", width="60vw", height="30vw"),
+                rx.hstack(
+                    rx.spacer(),
+                    rx.foreach(
+                        PriceChartState.date_range.keys(),
+                        lambda item: rx.button(
+                            item,
+                            variant=rx.cond(
+                                PriceChartState.selected_date_range == item,
+                                "outline",
+                                "ghost",
+                            ),
+                            on_click=PriceChartState.set_date_range(item),
+                        ),
+                    ),
+                    spacing="5",
+                    paddingLeft="2em",
+                    width="100%",
+                ),
             ),
             rx.flex(
                 rx.menu.root(
