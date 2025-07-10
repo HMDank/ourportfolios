@@ -14,9 +14,18 @@ class PriceChartState(rx.State):
     df: pd.DataFrame = pd.DataFrame()
     selected_chart: str = "Candlestick"
     selected_ma_period: Dict[str, bool] = {}
+    selected_price_range: str = "1D"
     rsi_line: bool = False
 
-    ma_period: List[str] = ["5", "10", "20", "50", "100", "200"]
+    ma_period: Dict[str, Any] = {
+        "5": "#D19DFF",  # purple 11
+        "10": "#B661FFC2",  # purple 9
+        "20": "#AEFEEDF5",  # mint 10
+        "50": "#41FFDF76",  # mint 8
+        "100": "#70B8FF",  # blue 11
+        "200": "#3094FEB9",  # blue 8
+    }
+
     rsi_period: int = 14
 
     @rx.event
@@ -25,18 +34,19 @@ class PriceChartState(rx.State):
         ticker: str = self.router.page.params.get("ticker", "")
         self.df: pd.DataFrame = load_historical_data(
             symbol=ticker,
-            start=(date.today() - relativedelta(months=3)).strftime("%Y-%m-%d"),
+            start=(date.today() - relativedelta(months=11)).strftime("%Y-%m-%d"),
             end=(date.today() + relativedelta(days=1)).strftime("%Y-%m-%d"),
             interval="1D",
         )
+
         yield rx.call_script(
-            f"""render_price_chart({self.chart_layout}, {self.chart_options})"""
+            f"""render_price_chart({self.chart_configs}, {self.chart_options})"""
         )
 
     @rx.event
     def load_chart_options(self):
         # Loads MA options
-        self.selected_ma_period = {item: False for item in self.ma_period}
+        self.selected_ma_period = {item: False for item in self.ma_period.keys()}
 
     @rx.event
     def set_selection(self):
@@ -45,14 +55,14 @@ class PriceChartState(rx.State):
         else:
             self.selected_chart = "Candlestick"
         yield rx.call_script(
-            f"""render_price_chart({self.chart_layout}, {self.chart_options})"""
+            f"""render_price_chart({self.chart_configs}, {self.chart_options})"""
         )
 
     @rx.event
     def add_ma_period(self, value: bool, period: str):
         self.selected_ma_period[period] = value
         yield rx.call_script(
-            f"""render_price_chart({self.chart_layout}, {self.chart_options})"""
+            f"""render_price_chart({self.chart_configs}, {self.chart_options})"""
         )
 
     @rx.event
@@ -62,7 +72,7 @@ class PriceChartState(rx.State):
         else:
             self.rsi_line = False
         yield rx.call_script(
-            f"""render_price_chart({self.chart_layout}, {self.chart_options})"""
+            f"""render_price_chart({self.chart_configs}, {self.chart_options})"""
         )
 
     @rx.var
@@ -118,7 +128,7 @@ class PriceChartState(rx.State):
 
     @rx.var
     def chart_options(self) -> str:
-        """Summarize chart settings"""
+        """Summarize chart data"""
         # Price
         price_data = (
             self.ohlc_data if self.selected_chart == "Candlestick" else self.price_data
@@ -139,17 +149,18 @@ class PriceChartState(rx.State):
 
     # Chart layout
     @rx.var
-    def chart_layout(self) -> str:
+    def chart_configs(self) -> str:
         """Return chart configurations"""
-        # Default
-        options = {
+        options: Dict[str, Any] = {}
+        # Chart layout
+        options["chart_layout"] = {
             "layout": {
                 "background": {"type": "solid", "color": "#131722"},
-                "textColor": "#d1d4dc",
+                "textColor": "#FFFFFFED",  # gray 12
             },
             "grid": {
-                "horzLines": {"color": "#2a2e36"},
-                "vertLines": {"color": "#2a2e36"},
+                "horzLines": {"color": "#FFFFFF09"},  # gray 2
+                "vertLines": {"color": "#FFFFFF09"},
             },
             "priceScale": {
                 "scaleMargins": {"top": 0.2, "bottom": 0.25},
@@ -159,12 +170,61 @@ class PriceChartState(rx.State):
                 "scaleMargins": {"top": 0.7, "bottom": 0},
             },
             "timeScale": {
-                "borderColor": "#cccccc",
+                "borderColor": "#FFF1E9EC",  # bronze 12
                 "rightOffset": 10,
-                "barSpacing": 12,
+                "minBarSpacing": 3,
                 "lockVisibleTimeRangeOnResize": True,
             },
         }
+        # Series setting
+        if self.selected_chart == "Candlestick":
+            options["series_configs"] = {
+                "upColor": "#46FEA5D4",  # green 11
+                "wickUpColor": "#46FEA5D4",
+                "downColor": "#FF6465EB",  # red 10
+                "wickDownColor": "#FF6465EB",
+                "borderVisible": False,
+            }
+        else:
+            options["series_configs"] = {
+                "color": "#3B9EFF",  # blue 10
+                "lineWidth": 2,
+                "priceLineVisible": False,
+                "lastValueVisible": True,
+                "crosshairMarkerVisible": True,
+                "crosshairMarkerRadius": 4,
+                "crosshairMarkerBorderColor": "#3B9EFF",  # blue 10
+            }
+
+        # RSI setting
+        if self.rsi_line:
+            options["rsi_configs"] = {
+                "color": "#9176FED7",  # violet 10
+                "lineWidth": 2,
+                "priceFormat": {
+                    "type": "price",
+                    "precision": 2,
+                },
+                "priceScale": "rsi-scale",
+            }
+
+        # MA lines
+        options["ma_line_configs"] = {
+            period: {
+                "color": unique_color,
+                "lineWidth": 1.5,
+                "priceLineVisible": False,
+                "lastValueVisible": True,
+                "crosshairMarkerVisible": True,
+                "crosshairMarkerRadius": 4,
+                "crosshairMarkerBorderColor": unique_color,  # blue 10
+            }
+            for period, unique_color in self.ma_period.items()
+            if self.selected_ma_period.get(
+                period, None
+            )  # Each ma line is binded to its unique color
+        }
+
         return json.dumps(options)
 
 
@@ -175,8 +235,55 @@ def render_price_chart():
                 src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js",
             ),
             rx.script(src="/chart.js"),
-            rx.box(id="price_chart", width="60vw", height="25vw"),
+            rx.vstack(
+                rx.box(id="price_chart", width="60vw", height="30vw"),
+            ),
             rx.flex(
+                rx.menu.root(
+                    rx.menu.trigger(
+                        rx.button(rx.icon("settings", size=20), variant="ghost")
+                    ),
+                    rx.menu.content(
+                        rx.menu.sub(
+                            rx.menu.sub_trigger(
+                                "MA",
+                            ),
+                            rx.menu.sub_content(
+                                rx.vstack(
+                                    rx.foreach(
+                                        PriceChartState.selected_ma_period.items(),
+                                        lambda item: rx.checkbox(
+                                            rx.text(
+                                                f"MA{item[0]}",
+                                                color=PriceChartState.ma_period[
+                                                    item[0]
+                                                ],
+                                                weight="medium",
+                                            ),
+                                            checked=item[1],
+                                            on_change=lambda value: PriceChartState.add_ma_period(
+                                                value, item[0]
+                                            ),
+                                        ),
+                                    ),
+                                    spacing="3",
+                                )
+                            ),
+                            modal=False,
+                        ),
+                        rx.menu.sub(
+                            rx.menu.sub_trigger("RSI"),
+                            rx.menu.sub_content(
+                                rx.checkbox(
+                                    rx.text("RSI14", weight="medium"),
+                                    checked=PriceChartState.rsi_line,
+                                    on_change=PriceChartState.add_rsi_line,
+                                )
+                            ),
+                        ),
+                    ),
+                    modal=False,
+                ),
                 rx.button(
                     rx.icon(
                         rx.cond(
@@ -186,32 +293,8 @@ def render_price_chart():
                         ),
                         size=15,
                     ),
-                    variant="outline",
+                    variant="ghost",
                     on_click=PriceChartState.set_selection,
-                ),
-                rx.menu.root(
-                    rx.menu.trigger(rx.button("MA", variant="outline")),
-                    rx.menu.content(
-                        rx.vstack(
-                            rx.foreach(
-                                PriceChartState.selected_ma_period.items(),
-                                lambda item: rx.checkbox(
-                                    rx.badge(f"MA{item[0]}"),
-                                    checked=item[1],
-                                    on_change=lambda value: PriceChartState.add_ma_period(
-                                        value, item[0]
-                                    ),
-                                ),
-                            ),
-                            spacing="3",
-                        )
-                    ),
-                    modal=False,
-                ),
-                rx.button(
-                    "RSI",
-                    variant=rx.cond(PriceChartState.rsi_line, "solid", "outline"),
-                    on_click=PriceChartState.add_rsi_line,
                 ),
                 direction="column",
                 spacing="3",
