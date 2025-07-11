@@ -5,7 +5,6 @@ import sqlite3
 from datetime import date, timedelta
 from vnstock import Vnstock, Screener, Trading
 import warnings
-from typing import List
 
 warnings.filterwarnings("ignore")
 
@@ -63,7 +62,7 @@ def populate_db() -> None:
     print("Data loaded successfully.")
 
 
-def load_price_board(tickers: List[str]) -> pd.DataFrame:
+def load_price_board(tickers: list[str]) -> pd.DataFrame:
     price_board_df = Trading(source="vci", symbol="ACB").price_board(
         symbols_list=tickers
     )
