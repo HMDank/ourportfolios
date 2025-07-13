@@ -1,24 +1,24 @@
-name: Semantic Release
+name: semantic-release
 
 on:
-  pull_request:
   push:
-    branches:
-      - main
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  semantic_release:
+  release:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.head_ref || github.ref }}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
