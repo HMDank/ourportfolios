@@ -2,6 +2,44 @@
 
 <!-- version list -->
 
+## v0.2.0 (2025-07-13)
+
+### Bug Fixes
+
+- **ci**: Automate workflow ([#23](https://github.com/HMDank/ourportfolios/pull/23),
+  [`b33bcc0`](https://github.com/HMDank/ourportfolios/commit/b33bcc04d38742edab159508db2c2860ead264df))
+
+- **ci**: Ensure on correct ref ([#23](https://github.com/HMDank/ourportfolios/pull/23),
+  [`b33bcc0`](https://github.com/HMDank/ourportfolios/commit/b33bcc04d38742edab159508db2c2860ead264df))
+
+### Chores
+
+- Manually update version ([#23](https://github.com/HMDank/ourportfolios/pull/23),
+  [`b33bcc0`](https://github.com/HMDank/ourportfolios/commit/b33bcc04d38742edab159508db2c2860ead264df))
+
+### Continuous Integration
+
+- Update workflow ([#23](https://github.com/HMDank/ourportfolios/pull/23),
+  [`b33bcc0`](https://github.com/HMDank/ourportfolios/commit/b33bcc04d38742edab159508db2c2860ead264df))
+
+### Features
+
+- Remove perf from patch tags
+  ([`6a80cb0`](https://github.com/HMDank/ourportfolios/commit/6a80cb0a7bfac1e22247fb1c4e715dbf7dfa6198))
+
+- Rename workflow ([#23](https://github.com/HMDank/ourportfolios/pull/23),
+  [`b33bcc0`](https://github.com/HMDank/ourportfolios/commit/b33bcc04d38742edab159508db2c2860ead264df))
+
+- **ci**: Add github actions bot config ([#23](https://github.com/HMDank/ourportfolios/pull/23),
+  [`b33bcc0`](https://github.com/HMDank/ourportfolios/commit/b33bcc04d38742edab159508db2c2860ead264df))
+
+- **ci**: Revert to old workflow ([#23](https://github.com/HMDank/ourportfolios/pull/23),
+  [`b33bcc0`](https://github.com/HMDank/ourportfolios/commit/b33bcc04d38742edab159508db2c2860ead264df))
+
+- **ci**: Update workflow ([#23](https://github.com/HMDank/ourportfolios/pull/23),
+  [`b33bcc0`](https://github.com/HMDank/ourportfolios/commit/b33bcc04d38742edab159508db2c2860ead264df))
+
+
 ## v0.1.0 (2025-06-24)
 
 - Initial Release
