@@ -1,3 +1,4 @@
+from turtle import width
 import reflex as rx
 import pandas as pd
 import sqlite3
@@ -5,8 +6,7 @@ import sqlite3
 
 def get_industry(ticker: str) -> str:
     conn = sqlite3.connect(
-        "/home/dank/Documents/Codebases/ourportfolios/"
-        "ourportfolios/data/data_vni.db"
+        "/home/dank/Documents/Codebases/ourportfolios/ourportfolios/data/data_vni.db"
     )
     query = "SELECT industry FROM data_vni WHERE ticker = ?"
     df = pd.read_sql(query, conn, params=(ticker,))
@@ -33,10 +33,12 @@ class CartState(rx.State):
     @rx.event
     def add_item(self, ticker: str):
         if any(item["name"] == ticker for item in self.cart_items):
-            yield rx.toast.error(f"{ticker} already in cart!", )
+            yield rx.toast.error(
+                f"{ticker} already in cart!",
+            )
         else:
             industry = get_industry(ticker)
-            self.cart_items.append({"name": ticker, 'industry': industry})
+            self.cart_items.append({"name": ticker, "industry": industry})
             yield rx.toast(f"{ticker} added to cart!")
 
 
@@ -68,7 +70,7 @@ def cart_drawer_content():
                 rx.heading(
                     "Tickers Cart",
                     size="6",
-                    weight="bold",
+                    weight="medium",
                 ),
                 rx.cond(
                     CartState.cart_items,
@@ -86,38 +88,37 @@ def cart_drawer_content():
                                                         rx.text(
                                                             item["name"],
                                                             size="4",
-                                                            weight="medium"
+                                                            weight="medium",
                                                         ),
-                                                        href=f'/analyze/{item["name"]}',
-                                                        underline='none',
+                                                        href=f"/analyze/{item['name']}",
+                                                        underline="none",
                                                     ),
                                                     rx.badge(
                                                         f"{item['industry']}",
-                                                        size='1',
+                                                        size="1",
                                                     ),
                                                     spacing="3",
                                                     align_items="center",
                                                 ),
                                                 rx.button(
-                                                    rx.icon(
-                                                        "list-minus", size=16),
+                                                    rx.icon("list-minus", size=16),
                                                     color_scheme="ruby",
                                                     size="1",
                                                     variant="soft",
                                                     style={
-                                                        "fontWeight": "bold",
+                                                        "fontWeight": "medium",
                                                         "padding": "0.3em 0.7em",
-                                                        "fontSize": "0.9em"
+                                                        "fontSize": "0.9em",
                                                     },
                                                     on_click=lambda: CartState.remove_item(
-                                                        i),
+                                                        i
+                                                    ),
                                                 ),
                                                 align_items="center",
                                                 justify_content="space-between",
                                                 width="100%",
                                             ),
-                                            background_color=rx.color(
-                                                "accent", 2),
+                                            background_color=rx.color("accent", 2),
                                             padding="0.8em 1em",
                                             margin_bottom="0.7em",
                                             width="100%",  # Changed from "92%" to "100%"
@@ -140,14 +141,14 @@ def cart_drawer_content():
                                                     rx.text(
                                                         item["name"],
                                                         size="4",
-                                                        weight="medium"
+                                                        weight="medium",
                                                     ),
-                                                    href=f'/analyze/{item["name"]}',
-                                                    underline='none',
+                                                    href=f"/analyze/{item['name']}",
+                                                    underline="none",
                                                 ),
                                                 rx.badge(
                                                     f"{item['industry']}",
-                                                    size='1',
+                                                    size="1",
                                                 ),
                                                 spacing="3",
                                                 align_items="center",
@@ -158,12 +159,13 @@ def cart_drawer_content():
                                                 size="1",
                                                 variant="soft",
                                                 style={
-                                                    "fontWeight": "bold",
+                                                    "fontWeight": "medium",
                                                     "padding": "0.3em 0.7em",
-                                                    "fontSize": "0.9em"
+                                                    "fontSize": "0.9em",
                                                 },
                                                 on_click=lambda: CartState.remove_item(
-                                                    i),
+                                                    i
+                                                ),
                                             ),
                                             align_items="center",
                                             justify_content="space-between",
@@ -178,7 +180,7 @@ def cart_drawer_content():
                                 width="100%",
                                 spacing="1",
                                 padding="0 0.5em",  # Add same padding for consistency
-                            )
+                            ),
                         ),
                         # Bottom right button - only shows when cart has items
                         rx.link(
@@ -197,9 +199,9 @@ def cart_drawer_content():
                             href="/analyze/compare",
                         ),
                         position="relative",
-                        width="100%"
+                        width="100%",
                     ),
-                    rx.text('Your cart is empty.'),
+                    rx.text("Your cart is empty."),
                 ),
                 spacing="5",
                 align_items="start",
@@ -232,9 +234,7 @@ def drawer_button():
                 },
             )
         ),
-        rx.drawer.overlay(
-            on_click=CartState.toggle_cart
-        ),
+        rx.drawer.overlay(on_click=CartState.toggle_cart),
         rx.drawer.portal(cart_drawer_content()),
         open=CartState.is_open,
         direction="left",
