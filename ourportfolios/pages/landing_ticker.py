@@ -8,12 +8,7 @@ from ..components.price_chart import PriceChartState
 from ..components.navbar import navbar
 from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
-from ..utils.load_data import (
-    load_company_info,
-    load_officers_info,
-    load_historical_data,
-    load_financial_statements,
-)
+from ..utils.load_data import load_company_data_async
 from ..components.financial_statement import financial_statements
 
 
@@ -94,18 +89,20 @@ class State(rx.State):
         self.technical_metrics = fetch_technical_metrics(ticker)
 
     @rx.event
-    def load_company_data(self):
+    async def load_company_data(self):
         params = self.router.page.params
         ticker = params.get("ticker", "")
 
-        self.overview, self.shareholders, self.events, self.news = load_company_info(
-            ticker
-        )
-        self.officers = load_officers_info(ticker)
-        self.price_data = load_historical_data(ticker)
-        self.income_statement, self.balance_sheet, self.cash_flow = (
-            load_financial_statements(ticker)
-        )
+        data = await load_company_data_async(ticker)
+        self.overview = data["overview"]
+        self.shareholders = data["shareholders"]
+        self.events = data["events"]
+        self.news = data["news"]
+        self.officers = data["officers"]
+        self.price_data = data["price_data"]
+        self.income_statement = data["income_statement"]
+        self.balance_sheet = data["balance_sheet"]
+        self.cash_flow = data["cash_flow"]
 
     @rx.event
     def load_financial_ratios(self):
