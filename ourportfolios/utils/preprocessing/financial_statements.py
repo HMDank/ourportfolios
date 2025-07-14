@@ -1,19 +1,20 @@
 from vnstock import Vnstock
 import pandas as pd
+import asyncio
 
-
-def get_transformed_dataframes(ticker_symbol, period="year"):
+async def get_transformed_dataframes(ticker_symbol, period="year"):
     def calculate_yoy_growth(series):
         if len(series) < 2:
             return pd.Series(dtype=float, index=series.index)
         series_sorted = series.sort_index()
         return series_sorted.pct_change() * 100
 
-    stock = Vnstock().stock(symbol=ticker_symbol, source="VCI")
-    income_statement = stock.finance.income_statement(period=period, lang="en")
-    balance_sheet = stock.finance.balance_sheet(period=period, lang="en")
-    cash_flow = stock.finance.cash_flow(period=period, lang="en")
-    key_ratios_raw = stock.finance.ratio(period=period, lang="en")
+    income_statement, balance_sheet, cash_flow, key_ratios_raw = await asyncio.gather(
+        asyncio.to_thread(lambda: Vnstock().stock(symbol=ticker_symbol, source="VCI").finance.income_statement(period=period, lang="en")),
+        asyncio.to_thread(lambda: Vnstock().stock(symbol=ticker_symbol, source="VCI").finance.balance_sheet(period=period, lang="en")),
+        asyncio.to_thread(lambda: Vnstock().stock(symbol=ticker_symbol, source="VCI").finance.cash_flow(period=period, lang="en")),
+        asyncio.to_thread(lambda: Vnstock().stock(symbol=ticker_symbol, source="VCI").finance.ratio(period=period, lang="en")),
+    )
 
     if isinstance(key_ratios_raw.columns, pd.MultiIndex):
         key_ratios = key_ratios_raw.copy()
@@ -566,16 +567,16 @@ def get_transformed_dataframes(ticker_symbol, period="year"):
 
     return {
         # Transformed statements
-        "transformed_income_statement": transformed_income,
-        "transformed_balance_sheet": transformed_balance,
-        "transformed_cash_flow": transformed_cash_flow,
+        "transformed_income_statement": transformed_income.to_dict(orient="records"),
+        "transformed_balance_sheet": transformed_balance.to_dict(orient="records"),
+        "transformed_cash_flow": transformed_cash_flow.to_dict(orient="records"),
         # Categorized ratios
         "categorized_ratios": {
-            "Per Share Value": per_share,
-            "Growth Rate": growth_rate,
-            "Profitability": profitability,
-            "Valuation": valuation,
-            "Leverage & Liquidity": leverage_liquidity,
-            "Efficiency": efficiency,
+            "Per Share Value": per_share.to_dict(orient="records"),
+            "Growth Rate": growth_rate.to_dict(orient="records"),
+            "Profitability": profitability.to_dict(orient="records"),
+            "Valuation": valuation.to_dict(orient="records"),
+            "Leverage & Liquidity": leverage_liquidity.to_dict(orient="records"),
+            "Efficiency": efficiency.to_dict(orient="records"),
         },
     }
