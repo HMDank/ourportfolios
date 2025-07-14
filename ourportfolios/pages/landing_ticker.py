@@ -8,8 +8,9 @@ from ..components.price_chart import PriceChartState
 from ..components.navbar import navbar
 from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
-from ..utils.load_data import load_company_data_async
 from ..components.financial_statement import financial_statements
+
+from ..utils.load_data import load_company_data_async
 from ..utils.preprocessing.financial_statements import get_transformed_dataframes
 
 
@@ -20,15 +21,10 @@ def fetch_technical_metrics(ticker: str) -> dict:
     return df.iloc[0].to_dict() if not df.empty else {}
 
 
-class SwitchState(rx.State):
-    value: str = "Yearly"
-
-    @rx.event
-    def switch(self, value: bool):
-        self.value = "Yearly" if value else "Quarterly"
-
-
+# Remove the separate SwitchState class - we'll integrate it into State
 class State(rx.State):
+    switch_value: str = "yearly"
+
     company_control: str = "shares"
     technical_metrics: dict = {}
     company_info: dict = {}
@@ -44,7 +40,6 @@ class State(rx.State):
 
     financial_df: pd.DataFrame = pd.DataFrame()
 
-    # New: Store transformed dataframes from get_transformed_dataframes()
     transformed_dataframes: dict = {}
 
     # Store available metrics for each category
@@ -67,6 +62,11 @@ class State(rx.State):
     selected_margin_metric: str = "gross_margin"
 
     @rx.event
+    async def toggle_switch(self, value: bool):
+        self.switch_value = "yearly" if value else "quarterly"
+        await self.load_transformed_dataframes()
+
+    @rx.event
     def load_technical_metrics(self):
         params = self.router.page.params
         ticker = params.get("ticker", "")
@@ -84,9 +84,6 @@ class State(rx.State):
         self.news = data["news"]
         self.officers = data["officers"]
         self.price_data = data["price_data"]
-        self.income_statement = data["income_statement"]
-        self.balance_sheet = data["balance_sheet"]
-        self.cash_flow = data["cash_flow"]
 
     @rx.event
     def load_financial_ratios(self):
@@ -94,8 +91,9 @@ class State(rx.State):
         params = self.router.page.params
         ticker = params.get("ticker", "")
 
+        report_range = self.switch_value
         financial_df = Finance(symbol=ticker, source="VCI").ratio(
-            report_range="quarterly", is_all=True
+            report_range=report_range, is_all=True
         )
         financial_df.columns = financial_df.columns.droplevel(0)
 
@@ -103,13 +101,15 @@ class State(rx.State):
 
     @rx.event
     async def load_transformed_dataframes(self):
-        """Load transformed dataframes from get_transformed_dataframes()"""
         params = self.router.page.params
         ticker = params.get("ticker", "")
 
-        result = await get_transformed_dataframes(ticker)
+        result = await get_transformed_dataframes(ticker, period=self.switch_value)
 
         self.transformed_dataframes = result
+        self.income_statement = result['transformed_income_statement']
+        self.balance_sheet = result['transformed_balance_sheet']
+        self.cash_flow = result['transformed_cash_flow']
 
         # Extract available metrics for each category
         categorized_ratios = result.get("categorized_ratios", {})
@@ -141,11 +141,10 @@ class State(rx.State):
             if data and category in self.selected_metrics:
                 selected_metric = self.selected_metrics[category]
 
-                # Transform data for chart
                 chart_data[category] = [
                     {"year": row["Year"], "value": row.get(selected_metric, 0) or 0}
                     for row in reversed(data)  # Reverse to show chronological order
-                ]
+                ][-8:]
 
         return chart_data
 
@@ -272,12 +271,10 @@ def performance_cards():
 
     return rx.vstack(
         rx.hstack(
-            # First row: 3 charts - use enumerate to get proper index
             rx.foreach(
                 categories[:3],
                 lambda category, index: create_dynamic_chart(category, index),
             ),
-            # Fill remaining slots with placeholders if needed
             rx.cond(
                 categories.length() < 3,
                 rx.vstack(
@@ -316,12 +313,10 @@ def performance_cards():
             justify="between",
         ),
         rx.hstack(
-            # Second row: 3 charts
             rx.foreach(
                 categories[3:6],
                 lambda category, index: create_dynamic_chart(category, index + 3),
             ),
-            # Fill remaining slots with placeholders if needed
             rx.cond(
                 categories.length() < 6,
                 rx.vstack(
@@ -365,7 +360,6 @@ def performance_cards():
     )
 
 
-# Rest of your existing functions remain the same...
 def name_card():
     technical_metrics = State.technical_metrics
     return (
@@ -423,22 +417,18 @@ def key_metrics_card():
                         rx.badge(
                             "Quarterly",
                             color_scheme=rx.cond(
-                                SwitchState.value == "Quarterly",
-                                "accent",
-                                "gray"
-                            )
+                                State.switch_value == "quarterly", "accent", "gray"
+                            ),
                         ),
                         rx.switch(
-                            checked=SwitchState.value == "Yearly",
-                            on_change=SwitchState.switch,
+                            checked=State.switch_value == "yearly",
+                            on_change=State.toggle_switch,
                         ),
                         rx.badge(
                             "Yearly",
                             color_scheme=rx.cond(
-                                SwitchState.value == "Yearly",
-                                "accent",
-                                "gray"
-                            )
+                                State.switch_value == "yearly", "accent", "gray"
+                            ),
                         ),
                         justify="center",
                         align="center",
@@ -740,13 +730,14 @@ def shareholders_pie_chart():
         State.load_technical_metrics,
         State.load_company_data,
         State.load_financial_ratios,
-        State.load_transformed_dataframes,  # Add this new function
+        State.load_transformed_dataframes,
         PriceChartState.load_chart_data,
         PriceChartState.load_chart_options,
     ],
 )
 def index():
     return rx.fragment(
+        loading_screen(),
         navbar(),
         rx.box(
             rx.link(
