@@ -2,6 +2,7 @@ from vnstock import Vnstock
 import pandas as pd
 import asyncio
 
+
 async def get_transformed_dataframes(ticker_symbol, period="year"):
     def calculate_yoy_growth(series):
         if len(series) < 2:
@@ -10,10 +11,26 @@ async def get_transformed_dataframes(ticker_symbol, period="year"):
         return series_sorted.pct_change() * 100
 
     income_statement, balance_sheet, cash_flow, key_ratios_raw = await asyncio.gather(
-        asyncio.to_thread(lambda: Vnstock().stock(symbol=ticker_symbol, source="VCI").finance.income_statement(period=period, lang="en")),
-        asyncio.to_thread(lambda: Vnstock().stock(symbol=ticker_symbol, source="VCI").finance.balance_sheet(period=period, lang="en")),
-        asyncio.to_thread(lambda: Vnstock().stock(symbol=ticker_symbol, source="VCI").finance.cash_flow(period=period, lang="en")),
-        asyncio.to_thread(lambda: Vnstock().stock(symbol=ticker_symbol, source="VCI").finance.ratio(period=period, lang="en")),
+        asyncio.to_thread(
+            lambda: Vnstock()
+            .stock(symbol=ticker_symbol, source="VCI")
+            .finance.income_statement(period=period, lang="en")
+        ),
+        asyncio.to_thread(
+            lambda: Vnstock()
+            .stock(symbol=ticker_symbol, source="VCI")
+            .finance.balance_sheet(period=period, lang="en")
+        ),
+        asyncio.to_thread(
+            lambda: Vnstock()
+            .stock(symbol=ticker_symbol, source="VCI")
+            .finance.cash_flow(period=period, lang="en")
+        ),
+        asyncio.to_thread(
+            lambda: Vnstock()
+            .stock(symbol=ticker_symbol, source="VCI")
+            .finance.ratio(period=period, lang="en")
+        ),
     )
 
     if isinstance(key_ratios_raw.columns, pd.MultiIndex):
@@ -580,3 +597,24 @@ async def get_transformed_dataframes(ticker_symbol, period="year"):
             "Efficiency": efficiency.to_dict(orient="records"),
         },
     }
+
+
+def format_quarter_data(data_list):
+    processed_data = []
+
+    for item in data_list:
+        processed_item = item.copy()
+
+        year = item.get("Year", "")
+        quarter = item.get("Quarter", "")
+
+        if year and quarter:
+            quarter_str = f"Q{quarter} {year}"
+        else:
+            quarter_str = f"{year}" if year else ""
+
+        processed_item["formatted_quarter"] = quarter_str
+        processed_item.pop('Quarter', None)
+        processed_data.append(processed_item)
+
+    return processed_data
