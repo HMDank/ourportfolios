@@ -240,18 +240,18 @@ class State(rx.State):
     def set_fundamental_metric(self, metric: str, value: List[float]):
         self.fundamental_metric_filter[metric] = value
         self.selected_fundamental_metric = [
-            item[0]
-            for item in self.fundamental_metric_filter.items()
-            if sum(item[1]) > 0.00
+            metric
+            for metric, value_range in self.fundamental_metric_filter.items()
+            if sum(value_range) > 0.00
         ]
 
     @rx.event
     def set_technical_metric(self, metric: str, value: List[float]):
         self.technical_metric_filter[metric] = value
         self.selected_technical_metric = [
-            item[0]
-            for item in self.technical_metric_filter.items()
-            if sum(item[1]) > 0.00
+            metric
+            for metric, value_range in self.technical_metric_filter.items()
+            if sum(value_range) > 0.00
         ]
 
     # Clear filters
@@ -572,7 +572,7 @@ def ticker_card(
                     ),
                     rx.text(organ_name, color=rx.color("gray", 7), size="2"),
                 ),
-                width="40%",
+                width="30%",
             ),
             rx.grid(
                 # Column 2: Current price
@@ -668,7 +668,8 @@ def ticker_list():
 
 def ticker_filter():
     return rx.flex(
-        rx.container(
+        # Search box
+        rx.box(
             rx.input(
                 rx.input.slot(rx.icon(tag="search", size=16)),
                 placeholder="Search for a ticker here!",
@@ -681,15 +682,18 @@ def ticker_filter():
                 on_change=State.set_search_query,
             ),
             width="40%",
+            justify="start",
+        ),
+        # Selected filter option
+        rx.scroll_area(
+            display_selected_filter(),
+            scrollbars="horizontal",
+            type="hover",
+            height="2.5vw",
+            width="40vw",
         ),
         rx.spacer(),  # Push filter button far right
-        rx.scroll_area(
-            selected_filter_tags(),
-            scrollbars="horizontal",
-            width="40vw",
-            type="hover",
-            height="2vw",
-        ),
+        # Filter
         rx.menu.root(
             rx.menu.trigger(
                 rx.button(
@@ -748,7 +752,7 @@ def ticker_filter():
                 ),
                 width="60vw",
                 height="30vw",
-                avoid_collisions=True,
+                side="left",
             ),
             modal=False,
         ),
@@ -982,95 +986,27 @@ def display_sort_options():
     )
 
 
-def selected_filter_tags():
-    return (
-        rx.hstack(
-            # Industry
-            rx.foreach(
-                State.selected_industry,
-                lambda item: rx.badge(
-                    rx.hstack(
-                        item,
-                        rx.button(
-                            rx.icon("x", size=12),
-                            variant="ghost",
-                            size="1",
-                            on_click=State.set_industry(False, item),
-                        ),
-                        spacing="1",
-                        align="center",
-                    ),
-                    color_scheme="violet",
-                    radius="large",
-                    align="center",
-                    variant="solid",
-                ),
-            ),
-            # Exchange
-            rx.foreach(
-                State.selected_exchange,
-                lambda item: rx.badge(
-                    rx.hstack(
-                        item,
-                        rx.button(
-                            rx.icon("x", size=12),
-                            variant="ghost",
-                            size="1",
-                            on_click=State.set_exchange(False, item),
-                        ),
-                        spacing="1",
-                        align="center",
-                    ),
-                    color_scheme="violet",
-                    radius="large",
-                    align="center",
-                    variant="solid",
-                ),
-            ),
-            # Fundamental metrics
-            rx.foreach(
-                State.selected_fundamental_metric,
-                lambda item: rx.badge(
-                    rx.hstack(
-                        f"{item.upper()}: {State.fundamental_metric_filter.get(item, [0.00, 0.00])[0]} - {State.fundamental_metric_filter.get(item, [0.00, 0.00])[1]}",
-                        rx.button(
-                            rx.icon("x", size=12),
-                            variant="ghost",
-                            size="1",
-                            on_click=State.set_fundamental_metric(item, [0.00, 0.00]),
-                        ),
-                        spacing="1",
-                        align="center",
-                    ),
-                    color_scheme="violet",
-                    radius="large",
-                    align="center",
-                    variant="solid",
-                ),
-            ),
-            # Technical metrics
-            rx.foreach(
-                State.selected_technical_metric,
-                lambda item: rx.badge(
-                    rx.hstack(
-                        f"{item.upper()}: {State.technical_metric_filter.get(item, [0.00, 0.00])[0]} - {State.technical_metric_filter.get(item, [0.00, 0.00])[1]}",
-                        rx.button(
-                            rx.icon("x", size=12),
-                            variant="ghost",
-                            size="1",
-                            on_click=State.set_technical_metric(item, [0.00, 0.00]),
-                        ),
-                        spacing="1",
-                        align="center",
-                    ),
-                    color_scheme="violet",
-                    radius="large",
-                    align="center",
-                    variant="solid",
-                ),
-            ),
-            width="100%",
-            spacing="2",
-            direction="row-reverse",
+def selected_filter_chip(item: str) -> rx.Component:
+    return rx.badge(
+        rx.text(item, size="2", weight="medium"),
+        rx.button(
+            rx.icon("circle-x", size=11),
+            variant="ghost",
+            on_click=State.set_industry(False, item),
         ),
+        color_scheme="violet",
+        radius="large",
+        variant="outline",
+        _hover={"opacity": 0.75},
+        size="2",
+    )
+
+
+def display_selected_filter() -> rx.Component:
+    return rx.flex(
+        rx.foreach(State.selected_industry, lambda item: selected_filter_chip(item)),
+        direction="row",
+        spacing="2",
+        align="center",
+        justify="start",
     )
