@@ -5,6 +5,7 @@ from typing import List, Dict, Any
 
 from ..components.navbar import navbar
 from ..components.drawer import CartState, drawer_button
+from ..components.loading import loading_screen
 
 
 class StockComparisonState(rx.State):
@@ -562,6 +563,7 @@ def comparison_section() -> rx.Component:
 def index() -> rx.Component:
     """Main page component"""
     return rx.fragment(
+        loading_screen(),
         navbar(),
         rx.box(
             rx.link(

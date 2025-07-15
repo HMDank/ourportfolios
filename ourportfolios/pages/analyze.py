@@ -3,7 +3,7 @@ import reflex as rx
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button
 from ..components.page_roller import card_roller, card_link
-
+from ..components.loading import loading_screen
 
 def page_selection():
     return rx.box(
@@ -113,6 +113,7 @@ def compare_blocks():
 def index() -> rx.Component:
     """Main page component"""
     return rx.vstack(
+        loading_screen(),
         navbar(),
         page_selection(),
         compare_blocks(),
