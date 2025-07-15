@@ -41,7 +41,12 @@ class State(rx.State):
     selected_sort_option: str = "A-Z"
 
     sort_orders: List[str] = ["ASC", "DESC"]
-    sort_options: List[str] = ["A-Z", "Market Cap", "% Change", "Volume"]
+    sort_options: Dict[str, str] = {
+        "A-Z": "ticker",
+        "Market Cap": "market_cap",
+        "% Change":"pct_price_change",
+        "Volume": "accumulated_volume"
+    }
 
     # Filters
     selected_exchange: List[str] = []
@@ -103,14 +108,8 @@ class State(rx.State):
             )
 
         # Order by condition
-        if self.selected_sort_option == "A-Z":
-            order_by_clause = f"ORDER BY ticker {self.selected_sort_order}"
-        if self.selected_sort_option == "Market Cap":
-            order_by_clause = f"ORDER BY market_cap {self.selected_sort_order}"
-        if self.selected_sort_option == "% Change":
-            order_by_clause = f"ORDER BY pct_price_change {self.selected_sort_order}"
-        if self.selected_sort_option == "Volume":
-            order_by_clause = f"ORDER BY accumulated_volume {self.selected_sort_order}"
+        if self.selected_sort_option:
+            order_by_clause = f"ORDER BY {self.sort_options[self.selected_sort_option]} {self.selected_sort_order}"
 
         # Filter by metrics
         if self.selected_fundamental_metric:  # Fundamental
@@ -952,7 +951,7 @@ def display_sort_options():
             ),
             rx.menu.content(
                 rx.foreach(
-                    State.sort_options,
+                    State.sort_options.keys(),
                     lambda option: rx.menu.sub(
                         rx.menu.sub_trigger(option),
                         rx.menu.sub_content(
