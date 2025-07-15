@@ -11,7 +11,10 @@ from ..components.financial_statement import financial_statements
 from ..components.loading import loading_screen
 
 from ..utils.load_data import load_company_data_async
-from ..utils.preprocessing.financial_statements import get_transformed_dataframes
+from ..utils.preprocessing.financial_statements import (
+    get_transformed_dataframes,
+    format_quarter_data,
+)
 
 
 def fetch_technical_metrics(ticker: str) -> dict:
@@ -104,8 +107,7 @@ class State(rx.State):
         self.available_metrics_by_category = {}
         self.selected_metrics = {}
 
-        # Columns to exclude when determining available metrics
-        excluded_columns = {"Year", "quarter"}
+        excluded_columns = {"Year", "Quarter"}
 
         for category, data in categorized_ratios.items():
             if data:
@@ -122,25 +124,32 @@ class State(rx.State):
 
     @rx.var
     def get_chart_data_for_category(self) -> Dict[str, List[Dict[str, Any]]]:
-        """Get chart data for all categories"""
+        """Get chart data for all categories with proper time formatting"""
         chart_data = {}
-
         categorized_ratios = self.transformed_dataframes.get("categorized_ratios", {})
-
-        # Determine the time column based on the current period
-        time_column = "quarter" if self.switch_value == "quarterly" else "Year"
 
         for category, data in categorized_ratios.items():
             selected_metric = self.selected_metrics.get(category)
 
             if selected_metric:
+                if self.switch_value == "quarterly":
+                    formatted_data = format_quarter_data(data)
+                    time_key = "formatted_quarter"
+                else:
+                    formatted_data = data
+                    time_key = "Year"
+
                 chart_data[category] = [
                     {
-                        "year": row.get(time_column, ""),
+                        "year": row.get(
+                            time_key, ""
+                        ),
                         "value": row.get(selected_metric, 0) or 0,
                     }
-                    for row in reversed(data)  # Reverse to show chronological order
-                ][-8:]  # Take last 8 data points
+                    for row in reversed(
+                        formatted_data
+                    )
+                ][-8:]
             else:
                 chart_data[category] = []
 
