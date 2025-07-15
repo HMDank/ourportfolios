@@ -2,7 +2,6 @@ import pandas as pd
 import reflex as rx
 import sqlite3
 from typing import Any, List, Dict
-from vnstock import Finance
 
 from ..components.price_chart import PriceChartState
 from ..components.navbar import navbar
@@ -39,17 +38,11 @@ class State(rx.State):
     balance_sheet: list[dict] = []
     cash_flow: list[dict] = []
 
-    financial_df: pd.DataFrame = pd.DataFrame()
-
     transformed_dataframes: dict = {}
-
-    # Store available metrics for each category
     available_metrics_by_category: Dict[str, List[str]] = {}
 
-    # Store selected metrics for each category
     selected_metrics: Dict[str, str] = {}
 
-    # Legacy fields (keeping for backward compatibility)
     selected_metric: str = "P/E"
     available_metrics: List[str] = [
         "P/E",
@@ -65,6 +58,7 @@ class State(rx.State):
     @rx.event
     async def toggle_switch(self, value: bool):
         self.switch_value = "yearly" if value else "quarterly"
+        yield
         await self.load_transformed_dataframes()
 
     @rx.event
@@ -87,38 +81,36 @@ class State(rx.State):
         self.price_data = data["price_data"]
 
     @rx.event
-    def load_financial_ratios(self):
-        """Load financial ratios data dynamically"""
-        params = self.router.page.params
-        ticker = params.get("ticker", "")
-
-        report_range = self.switch_value
-        financial_df = Finance(symbol=ticker, source="VCI").ratio(
-            report_range=report_range, is_all=True
-        )
-        financial_df.columns = financial_df.columns.droplevel(0)
-
-        self.financial_df = financial_df
-
-    @rx.event
     async def load_transformed_dataframes(self):
         params = self.router.page.params
         ticker = params.get("ticker", "")
 
-        result = get_transformed_dataframes(ticker, period=self.switch_value)
+        # Map the switch_value to the expected parameter format
+        period_mapping = {"quarterly": "quarter", "yearly": "year"}
+
+        # Get the mapped period value
+        mapped_period = period_mapping.get(
+            self.switch_value, "year"
+        )  # Default to "year" if not found
+
+        result = await get_transformed_dataframes(ticker, period=mapped_period)
 
         self.transformed_dataframes = result
-        self.income_statement = result['transformed_income_statement']
-        self.balance_sheet = result['transformed_balance_sheet']
-        self.cash_flow = result['transformed_cash_flow']
+        self.income_statement = result["transformed_income_statement"]
+        self.balance_sheet = result["transformed_balance_sheet"]
+        self.cash_flow = result["transformed_cash_flow"]
 
         categorized_ratios = result.get("categorized_ratios", {})
         self.available_metrics_by_category = {}
         self.selected_metrics = {}
 
+        # Columns to exclude when determining available metrics
+        excluded_columns = {"Year", "quarter"}
+
         for category, data in categorized_ratios.items():
             if data:
-                metrics = [col for col in data[0].keys() if col != "Year"]
+                # Filter out both "Year" and "quarter" columns
+                metrics = [col for col in data[0].keys() if col not in excluded_columns]
                 self.available_metrics_by_category[category] = metrics
                 if metrics:
                     self.selected_metrics[category] = metrics[0]
@@ -135,13 +127,22 @@ class State(rx.State):
 
         categorized_ratios = self.transformed_dataframes.get("categorized_ratios", {})
 
-        for category, data in categorized_ratios.items():
-            selected_metric = self.selected_metrics[category]
+        # Determine the time column based on the current period
+        time_column = "quarter" if self.switch_value == "quarterly" else "Year"
 
-            chart_data[category] = [
-                {"year": row["Year"], "value": row.get(selected_metric, 0) or 0}
-                for row in reversed(data)  # Reverse to show chronological order
-            ][-8:]
+        for category, data in categorized_ratios.items():
+            selected_metric = self.selected_metrics.get(category)
+
+            if selected_metric:
+                chart_data[category] = [
+                    {
+                        "year": row.get(time_column, ""),
+                        "value": row.get(selected_metric, 0) or 0,
+                    }
+                    for row in reversed(data)  # Reverse to show chronological order
+                ][-8:]  # Take last 8 data points
+            else:
+                chart_data[category] = []
 
         return chart_data
 
@@ -726,7 +727,6 @@ def shareholders_pie_chart():
     on_load=[
         State.load_technical_metrics,
         State.load_company_data,
-        State.load_financial_ratios,
         State.load_transformed_dataframes,
         PriceChartState.load_chart_data,
         PriceChartState.load_chart_options,
