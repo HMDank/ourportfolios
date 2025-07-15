@@ -3,6 +3,7 @@ import reflex as rx
 from ..components.navbar import navbar
 from ..components.cards import portfolio_card
 from ..components.graph import mini_price_graph
+from ..components.loading import loading_screen
 from ..utils.load_data import fetch_data_for_symbols
 
 cards = [
@@ -25,6 +26,7 @@ class State(rx.State):
 @rx.page(route="/")
 def index() -> rx.Component:
     return rx.fragment(
+        loading_screen(),
         navbar(
             rx.foreach(
                 State.data,

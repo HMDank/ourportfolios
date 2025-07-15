@@ -9,6 +9,7 @@ from ..components.navbar import navbar
 from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
 from ..components.financial_statement import financial_statements
+from ..components.loading import loading_screen
 
 from ..utils.load_data import load_company_data_async
 from ..utils.preprocessing.financial_statements import get_transformed_dataframes
@@ -104,24 +105,21 @@ class State(rx.State):
         params = self.router.page.params
         ticker = params.get("ticker", "")
 
-        result = await get_transformed_dataframes(ticker, period=self.switch_value)
+        result = get_transformed_dataframes(ticker, period=self.switch_value)
 
         self.transformed_dataframes = result
         self.income_statement = result['transformed_income_statement']
         self.balance_sheet = result['transformed_balance_sheet']
         self.cash_flow = result['transformed_cash_flow']
 
-        # Extract available metrics for each category
         categorized_ratios = result.get("categorized_ratios", {})
         self.available_metrics_by_category = {}
         self.selected_metrics = {}
 
         for category, data in categorized_ratios.items():
-            if data:  # If data is not empty
-                # Get all column names except 'Year'
+            if data:
                 metrics = [col for col in data[0].keys() if col != "Year"]
                 self.available_metrics_by_category[category] = metrics
-                # Set default selected metric (first metric in the list)
                 if metrics:
                     self.selected_metrics[category] = metrics[0]
 
@@ -138,13 +136,12 @@ class State(rx.State):
         categorized_ratios = self.transformed_dataframes.get("categorized_ratios", {})
 
         for category, data in categorized_ratios.items():
-            if data and category in self.selected_metrics:
-                selected_metric = self.selected_metrics[category]
+            selected_metric = self.selected_metrics[category]
 
-                chart_data[category] = [
-                    {"year": row["Year"], "value": row.get(selected_metric, 0) or 0}
-                    for row in reversed(data)  # Reverse to show chronological order
-                ][-8:]
+            chart_data[category] = [
+                {"year": row["Year"], "value": row.get(selected_metric, 0) or 0}
+                for row in reversed(data)  # Reverse to show chronological order
+            ][-8:]
 
         return chart_data
 
