@@ -4,6 +4,7 @@ import numpy as np
 import sqlite3
 from datetime import date, timedelta
 from vnstock import Vnstock, Screener, Trading
+import asyncio
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -75,8 +76,6 @@ def load_price_board(tickers: list[str]) -> pd.DataFrame:
 def compute_instrument(df: pd.DataFrame) -> pd.DataFrame:
     if "match_price" in df.columns:
         df = df.rename(columns={"match_price": "current_price"})
-
-        # latest close price - close price from previous day
         df["price_change"] = df["current_price"] - df["ref_price"]
         df["pct_price_change"] = (df["price_change"] / df["ref_price"]) * 100
 
@@ -150,32 +149,45 @@ def fetch_data_for_symbols(symbols: list[str]):
     return graph_data
 
 
-def load_company_info(ticker: str):
+def load_company_overview(ticker: str):
     stock = Vnstock().stock(symbol=ticker, source="TCBS")
     company = stock.company
-
     overview = company.overview().iloc[0].to_dict()
     overview["website"] = (
         overview["website"].removeprefix("https://").removeprefix("http://")
     )
+    return overview
 
+
+def load_company_shareholders(ticker: str):
+    stock = Vnstock().stock(symbol=ticker, source="TCBS")
+    company = stock.company
     shareholders_df = company.shareholders()
     shareholders_df["share_own_percent"] = (
         shareholders_df["share_own_percent"] * 100
     ).round(2)
-
     shareholders = shareholders_df.to_dict("records")
+    return shareholders
+
+
+def load_company_events(ticker: str):
+    stock = Vnstock().stock(symbol=ticker, source="TCBS")
+    company = stock.company
     events = company.events()
     events["price_change_ratio"] = (events["price_change_ratio"] * 100).round(2)
     events = events.to_dict("records")
     processed_events = process_events_for_display(events)
+    return processed_events
 
+
+def load_company_news(ticker: str):
+    stock = Vnstock().stock(symbol=ticker, source="TCBS")
+    company = stock.company
     news = company.news()
     news = news[~news["title"].str.contains("insider", case=False, na=False)]
     news["price_change_ratio"] = (news["price_change_ratio"] * 100).round(2)
     news = news.to_dict("records")
-
-    return overview, shareholders, processed_events, news
+    return news
 
 
 def load_officers_info(ticker: str):
@@ -212,18 +224,61 @@ def load_officers_info(ticker: str):
     return officers
 
 
-def load_financial_statements(ticker: str):
+def load_income_statement(ticker: str):
     stock = Vnstock().stock(symbol=ticker, source="TCBS")
     finance = stock.finance
     income_statement = finance.income_statement(period="year").reset_index()
-    balance_sheet = finance.balance_sheet(period="year").reset_index()
-    cash_flow = finance.cash_flow(period="year").reset_index()
+    return income_statement.to_dict("records")
 
-    return (
-        income_statement.to_dict("records"),
-        balance_sheet.to_dict("records"),
-        cash_flow.to_dict("records"),
-    )
+
+def load_balance_sheet(ticker: str):
+    stock = Vnstock().stock(symbol=ticker, source="TCBS")
+    finance = stock.finance
+    balance_sheet = finance.balance_sheet(period="year").reset_index()
+    return balance_sheet.to_dict("records")
+
+
+def load_cash_flow(ticker: str):
+    stock = Vnstock().stock(symbol=ticker, source="TCBS")
+    finance = stock.finance
+    cash_flow = finance.cash_flow(period="year").reset_index()
+    return cash_flow.to_dict("records")
+
+
+async def load_company_data_async(ticker: str):
+    tasks = [
+        asyncio.to_thread(load_company_overview, ticker),
+        asyncio.to_thread(load_company_shareholders, ticker),
+        asyncio.to_thread(load_company_events, ticker),
+        asyncio.to_thread(load_company_news, ticker),
+        asyncio.to_thread(load_officers_info, ticker),
+        asyncio.to_thread(load_historical_data, ticker),
+        asyncio.to_thread(load_income_statement, ticker),
+        asyncio.to_thread(load_balance_sheet, ticker),
+        asyncio.to_thread(load_cash_flow, ticker),
+    ]
+    (
+        overview,
+        shareholders,
+        events,
+        news,
+        officers,
+        price_data,
+        income_statement,
+        balance_sheet,
+        cash_flow,
+    ) = await asyncio.gather(*tasks)
+    return {
+        "overview": overview,
+        "shareholders": shareholders,
+        "events": events,
+        "news": news,
+        "officers": officers,
+        "price_data": price_data,
+        "income_statement": income_statement,
+        "balance_sheet": balance_sheet,
+        "cash_flow": cash_flow,
+    }
 
 
 if __name__ == "__main__":
