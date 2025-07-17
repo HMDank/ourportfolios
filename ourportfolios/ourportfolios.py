@@ -1,11 +1,11 @@
 import reflex as rx
 
-from .utils.load_data import populate_db
+from .utils.load_data import run_scheduler
 
 # MUST BE IMPORTED!!!
 from .pages import landing, select, landing_ticker, landing_industry, analyze, compare
 
-populate_db()
+run_scheduler()
 
 
 app = rx.App(

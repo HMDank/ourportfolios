@@ -1,3 +1,5 @@
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
 from .preprocess_texts import process_events_for_display
 import pandas as pd
 import numpy as np
@@ -11,12 +13,14 @@ warnings.filterwarnings("ignore")
 
 
 data_vni_loaded = False
+executors = {"default": ThreadPoolExecutor(2), "processpool": ProcessPoolExecutor(2)}
+background_scheduler = BackgroundScheduler(executors=executors)
 
 
-def populate_db() -> None:
+def run_scheduler() -> None:
     global data_vni_loaded
     if data_vni_loaded:
-        print("Data already loaded. Skipping.")
+        print("Data loaded. Skipping")
         return
 
     conn = sqlite3.connect("ourportfolios/data/data_vni.db")
@@ -25,14 +29,18 @@ def populate_db() -> None:
     cursor.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='data_vni'"
     )
-    if cursor.fetchone():
-        cursor.execute("SELECT COUNT(*) FROM data_vni")
-        if cursor.fetchone()[0] > 0:
-            print("Data already loaded. Skipping.")
-            conn.close()
-            data_vni_loaded = True
-            return
+    if not cursor.fetchone():
+        populate_db()
+        print("Data loaded successfully.")
 
+    background_scheduler.start()
+    data_vni_loaded = True
+    return
+
+
+@background_scheduler.scheduled_job(trigger="interval", minutes=5, id="populate_db")
+def populate_db():
+    conn = sqlite3.connect("ourportfolios/data/data_vni.db")
     # Stocks
     screener = Screener(source="TCBS")
     default_params = {
@@ -50,17 +58,14 @@ def populate_db() -> None:
     price_board_df = load_price_board(tickers=stock_df["ticker"].tolist())
 
     # Result
-    df = pd.merge(
+    combined_df = pd.merge(
         left=stock_df, right=price_board_df, left_on="ticker", right_on="symbol"
     )
 
     # Add additional instrument
-    df = compute_instrument(df)
-
-    df.to_sql("data_vni", conn, if_exists="replace", index=False)
+    result = compute_instrument(df=combined_df)
+    result.to_sql("data_vni", conn, if_exists="replace", index=False)
     conn.close()
-    data_vni_loaded = True
-    print("Data loaded successfully.")
 
 
 def load_price_board(tickers: list[str]) -> pd.DataFrame:
@@ -254,9 +259,6 @@ async def load_company_data_async(ticker: str):
         asyncio.to_thread(load_company_news, ticker),
         asyncio.to_thread(load_officers_info, ticker),
         asyncio.to_thread(load_historical_data, ticker),
-        asyncio.to_thread(load_income_statement, ticker),
-        asyncio.to_thread(load_balance_sheet, ticker),
-        asyncio.to_thread(load_cash_flow, ticker),
     ]
     (
         overview,
@@ -265,9 +267,6 @@ async def load_company_data_async(ticker: str):
         news,
         officers,
         price_data,
-        income_statement,
-        balance_sheet,
-        cash_flow,
     ) = await asyncio.gather(*tasks)
     return {
         "overview": overview,
@@ -276,9 +275,6 @@ async def load_company_data_async(ticker: str):
         "news": news,
         "officers": officers,
         "price_data": price_data,
-        "income_statement": income_statement,
-        "balance_sheet": balance_sheet,
-        "cash_flow": cash_flow,
     }
 
 
