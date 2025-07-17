@@ -401,8 +401,8 @@ def price_chart_card():
                 src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js",
             ),
             rx.script(src="/chart.js"),
-            rx.vstack(
-                rx.box(id="price_chart", width="65vw", height="30vw"),
+            rx.flex(
+                rx.box(id="price_chart", width="100%", height="100%"),
                 rx.hstack(
                     rx.spacer(),
                     rx.foreach(
@@ -418,9 +418,10 @@ def price_chart_card():
                         ),
                     ),
                     spacing="2",
-                    paddingLeft="2em",
-                    width="100%",
                 ),
+                spacing="2",
+                direction="column",
+                width="100%",
             ),
             rx.flex(
                 rx.menu.root(
@@ -429,7 +430,9 @@ def price_chart_card():
                     ),
                     rx.menu.content(
                         rx.menu.sub(
-                            rx.menu.sub_trigger("MA"),
+                            rx.menu.sub_trigger(
+                                "MA",
+                            ),
                             rx.menu.sub_content(
                                 rx.vstack(
                                     rx.foreach(
@@ -486,6 +489,8 @@ def price_chart_card():
             direction="row",
             spacing="3",
         ),
+        width="66vw",
+        height="31vw",
     )
 
 
