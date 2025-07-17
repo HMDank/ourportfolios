@@ -1,5 +1,4 @@
 from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
 from .preprocess_texts import process_events_for_display
 import pandas as pd
@@ -14,18 +13,16 @@ warnings.filterwarnings("ignore")
 
 
 data_vni_loaded = False
-executors = {
-    'default': ThreadPoolExecutor(20),
-    'processpool': ProcessPoolExecutor(5)
-}
+executors = {"default": ThreadPoolExecutor(2), "processpool": ProcessPoolExecutor(2)}
 background_scheduler = BackgroundScheduler(executors=executors)
+
 
 def run_scheduler() -> None:
     global data_vni_loaded
-    if data_vni_loaded: 
+    if data_vni_loaded:
         print("Data loaded. Skipping")
         return
-    
+
     conn = sqlite3.connect("ourportfolios/data/data_vni.db")
     cursor = conn.cursor()
 
@@ -35,12 +32,13 @@ def run_scheduler() -> None:
     if not cursor.fetchone():
         populate_db()
         print("Data loaded successfully.")
-        
+
     background_scheduler.start()
     data_vni_loaded = True
-    return 
-    
-@background_scheduler.scheduled_job(trigger='interval', minutes=5, id='populate_db')
+    return
+
+
+@background_scheduler.scheduled_job(trigger="interval", minutes=5, id="populate_db")
 def populate_db():
     conn = sqlite3.connect("ourportfolios/data/data_vni.db")
     # Stocks
@@ -58,7 +56,7 @@ def populate_db():
 
     # Price board data
     price_board_df = load_price_board(tickers=stock_df["ticker"].tolist())
-    
+
     # Result
     combined_df = pd.merge(
         left=stock_df, right=price_board_df, left_on="ticker", right_on="symbol"
@@ -68,7 +66,6 @@ def populate_db():
     result = compute_instrument(df=combined_df)
     result.to_sql("data_vni", conn, if_exists="replace", index=False)
     conn.close()
-    
 
 
 def load_price_board(tickers: list[str]) -> pd.DataFrame:
