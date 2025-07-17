@@ -661,8 +661,7 @@ def shareholders_pie_chart():
         State.load_technical_metrics,
         State.load_company_data,
         State.load_transformed_dataframes,
-        PriceChartState.load_chart_data,
-        PriceChartState.load_chart_options,
+        PriceChartState.load_state
     ],
 )
 def index():
