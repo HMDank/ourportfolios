@@ -253,9 +253,6 @@ async def load_company_data_async(ticker: str):
         asyncio.to_thread(load_company_news, ticker),
         asyncio.to_thread(load_officers_info, ticker),
         asyncio.to_thread(load_historical_data, ticker),
-        asyncio.to_thread(load_income_statement, ticker),
-        asyncio.to_thread(load_balance_sheet, ticker),
-        asyncio.to_thread(load_cash_flow, ticker),
     ]
     (
         overview,
@@ -264,9 +261,6 @@ async def load_company_data_async(ticker: str):
         news,
         officers,
         price_data,
-        income_statement,
-        balance_sheet,
-        cash_flow,
     ) = await asyncio.gather(*tasks)
     return {
         "overview": overview,
@@ -275,9 +269,6 @@ async def load_company_data_async(ticker: str):
         "news": news,
         "officers": officers,
         "price_data": price_data,
-        "income_statement": income_statement,
-        "balance_sheet": balance_sheet,
-        "cash_flow": cash_flow,
     }
 
 
