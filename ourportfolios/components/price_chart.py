@@ -14,9 +14,9 @@ class PriceChartState(rx.State):
     df: pd.DataFrame = pd.DataFrame()
     start_date: date = date.today() - relativedelta(months=12)
     end_date: date = date.today()
+    selected_date_range: str = "1Y"
     selected_chart: str = "Candlestick"
     selected_ma_period: Dict[str, bool] = {}
-    selected_date_range: str = "1Y"
     rsi_line: bool = False
 
     ma_period: Dict[str, Any] = {
@@ -36,8 +36,8 @@ class PriceChartState(rx.State):
     rsi_period: int = 14
 
     @rx.event
-    def load_chart_data(self):
-        """An event to refresh/recall historical data given new ticker"""
+    def load_state(self):
+        """Initialize chart with default settings"""
         ticker: str = self.router.page.params.get("ticker", "")
         self.df: pd.DataFrame = load_historical_data(
             symbol=ticker,
@@ -46,14 +46,17 @@ class PriceChartState(rx.State):
             interval="1D",
         )
 
-        yield rx.call_script(
-            f"""render_price_chart({self.chart_configs}, {self.chart_options})"""
-        )
-
-    @rx.event
-    def load_chart_options(self):
         # Loads MA options
         self.selected_ma_period = {item: False for item in self.ma_period.keys()}
+
+        # Initialize chart
+        yield from self.render_price_chart()
+
+    @rx.event
+    def render_price_chart(self):
+        yield rx.call_script(
+            f"""render_price_chart({self.chart_options}, {self.chart_data})"""
+        )
 
     @rx.event
     def set_date_range(self, _range):
@@ -61,9 +64,7 @@ class PriceChartState(rx.State):
         self.start_date = self.end_date - self.date_range.get(
             _range, relativedelta(days=1)
         )
-        yield rx.call_script(
-            f"""render_price_chart({self.chart_configs}, {self.chart_options})"""
-        )
+        yield from self.render_price_chart()
 
     @rx.event
     def set_selection(self):
@@ -71,16 +72,12 @@ class PriceChartState(rx.State):
             self.selected_chart = "Price"
         else:
             self.selected_chart = "Candlestick"
-        yield rx.call_script(
-            f"""render_price_chart({self.chart_configs}, {self.chart_options})"""
-        )
+        yield from self.render_price_chart()
 
     @rx.event
     def add_ma_period(self, value: bool, period: str):
         self.selected_ma_period[period] = value
-        yield rx.call_script(
-            f"""render_price_chart({self.chart_configs}, {self.chart_options})"""
-        )
+        yield from self.render_price_chart()
 
     @rx.event
     def add_rsi_line(self):
@@ -88,9 +85,7 @@ class PriceChartState(rx.State):
             self.rsi_line = True
         else:
             self.rsi_line = False
-        yield rx.call_script(
-            f"""render_price_chart({self.chart_configs}, {self.chart_options})"""
-        )
+        yield from self.render_price_chart()
 
     @rx.var
     def ohlc_data(self) -> List[Dict[str, Any]]:
@@ -144,7 +139,7 @@ class PriceChartState(rx.State):
         return compute_rsi(df2, self.rsi_period)
 
     @rx.var
-    def chart_options(self) -> str:
+    def chart_data(self) -> str:
         """Summarize chart data"""
         # Price
         price_data = (
@@ -155,20 +150,20 @@ class PriceChartState(rx.State):
         # RSI line
         rsi_line_data = self.rsi_data
 
-        options: Dict[str, Any] = {
+        data: Dict[str, Any] = {
             "type": self.selected_chart,
+            "start_date": self.start_date.strftime("%Y-%m-%d"),
+            "end_date": self.end_date.strftime("%Y-%m-%d"),
             "price_data": price_data,
             "ma_line_data": ma_line_data,
             "rsi_line_data": rsi_line_data,
-            "start_date": self.start_date.strftime("%Y-%m-%d"),
-            "end_date": self.end_date.strftime("%Y-%m-%d"),
         }
 
-        return json.dumps(options)
+        return json.dumps(data)
 
     # Chart layout
     @rx.var
-    def chart_configs(self) -> str:
+    def chart_options(self) -> str:
         """Return chart configurations"""
         options: Dict[str, Any] = {}
         # Chart layout

@@ -1,21 +1,21 @@
-function render_price_chart(chart_configs, chart_options) {
+function render_price_chart(chart_options, chart_data) {
   container = document.getElementById("price_chart");
   container.innerHTML = "";
   const info = document.getElementById("chart_info");
 
   // Chart layout settings
-  chart_layout = chart_configs.chart_layout; // Dict[str, Any]
-  series_configs = chart_configs.series_configs; // Dict[str, Any]
-  rsi_configs = chart_configs.rsi_configs ?? null; // Dict[str, Any]
-  ma_line_configs = chart_configs.ma_line_configs ?? null; // Dict[Dict[str, Any]]
+  chart_layout = chart_options.chart_layout; // Dict[str, Any]
+  series_configs = chart_options.series_configs; // Dict[str, Any]
+  rsi_configs = chart_options.rsi_configs ?? null; // Dict[str, Any]
+  ma_line_configs = chart_options.ma_line_configs ?? null; // Dict[Dict[str, Any]]
 
   // Chart data
-  chart_type = chart_options.type;
-  chart_data = chart_options.price_data;
-  ma_line_data = chart_options.ma_line_data;
-  rsi_line_data = chart_options.rsi_line_data;
-  start_date = chart_options.start_date;
-  end_date = chart_options.end_date;
+  chart_type = chart_data.type;
+  price_data = chart_data.price_data;
+  ma_line_data = chart_data.ma_line_data;
+  rsi_line_data = chart_data.rsi_line_data;
+  start_date = chart_data.start_date;
+  end_date = chart_data.end_date;
 
   let chart = LightweightCharts.createChart(container, chart_layout);
   let series;
@@ -31,7 +31,7 @@ function render_price_chart(chart_configs, chart_options) {
     series = chart.addSeries(LightweightCharts.LineSeries, series_configs, 0);
   }
 
-  series.setData(chart_data);
+  series.setData(price_data);
 
   // MA lines
   let selected_ma_series = {}; // Assign each MA period with its specific data
