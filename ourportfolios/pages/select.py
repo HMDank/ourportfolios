@@ -2,7 +2,7 @@ import reflex as rx
 import sqlite3
 import pandas as pd
 import itertools
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
@@ -222,14 +222,14 @@ class State(rx.State):
         self.selected_sort_order = order
 
     @rx.event
-    def set_exchange(self, value: bool, exchange: str):
+    def set_exchange(self, exchange: str, value: bool):
         self.exchange_filter[exchange] = value
         self.selected_exchange = [
             item[0] for item in self.exchange_filter.items() if item[1]
         ]
 
     @rx.event
-    def set_industry(self, value: bool, industry: str):
+    def set_industry(self, industry: str, value: bool):
         self.industry_filter[industry] = value
         self.selected_industry = [
             item[0] for item in self.industry_filter.items() if item[1]
@@ -480,7 +480,6 @@ def card_with_scrollable_area():
 
 
 def industry_roller():
-    State.get_all_industries()
     return rx.box(
         rx.box(
             rx.scroll_area(
@@ -787,7 +786,7 @@ def category_filter():
                         rx.badge(item[0]),
                         checked=item[1],
                         on_change=lambda value: State.set_exchange(
-                            value=value, exchange=item[0]
+                            exchange=item[0], value=value
                         ),
                     ),
                 ),
@@ -810,7 +809,7 @@ def category_filter():
                         rx.badge(item[0]),
                         checked=item[1],
                         on_change=lambda value: State.set_industry(
-                            value=value, industry=item[0]
+                            industry=item[0], value=value
                         ),
                     ),
                 ),
@@ -985,13 +984,37 @@ def display_sort_options():
     )
 
 
-def selected_filter_chip(item: str) -> rx.Component:
+def selected_filter_chip(item: str, filter: str) -> rx.Component:
     return rx.badge(
-        rx.text(item, size="2", weight="medium"),
+        rx.text(
+            rx.cond(
+                filter == 'fundamental',
+                f"{item}: {State.fundamental_metric_filter.get(item, [0.00, 0.00])[0]}-{State.fundamental_metric_filter.get(item, [0.00, 0.00])[1]}",
+                rx.cond(
+                    filter == 'technical',
+                    f"{item}: {State.technical_metric_filter.get(item, [0.00, 0.00])[0]}-{State.technical_metric_filter.get(item, [0.00, 0.00])[1]}",
+                    item
+                )
+            ),
+            size="2", 
+            weight="medium"
+        ),
         rx.button(
             rx.icon("circle-x", size=11),
             variant="ghost",
-            on_click=State.set_industry(False, item),
+            on_click=rx.cond(
+                filter == 'industry',
+                State.set_industry(item, False),
+                rx.cond(
+                    filter == 'exchange',
+                    State.set_exchange(item, False),
+                    rx.cond(
+                        filter == 'fundamental',
+                        State.set_fundamental_metric(item, [0.00, 0.00]),
+                        State.set_technical_metric(item, [0.00, 0.00])
+                    ),
+                ),
+            )
         ),
         color_scheme="violet",
         radius="large",
@@ -1003,7 +1026,10 @@ def selected_filter_chip(item: str) -> rx.Component:
 
 def display_selected_filter() -> rx.Component:
     return rx.flex(
-        rx.foreach(State.selected_industry, lambda item: selected_filter_chip(item)),
+        rx.foreach(State.selected_industry, lambda item: selected_filter_chip(item, 'industry')),
+        rx.foreach(State.selected_exchange, lambda item: selected_filter_chip(item, 'exchange')),
+        rx.foreach(State.selected_fundamental_metric, lambda item: selected_filter_chip(item, 'fundamental')),
+        rx.foreach(State.selected_technical_metric, lambda item: selected_filter_chip(item, 'technical')),
         direction="row",
         spacing="2",
         align="center",
