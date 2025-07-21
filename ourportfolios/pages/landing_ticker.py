@@ -109,9 +109,9 @@ class State(rx.State):
         result = await get_transformed_dataframes(ticker, period=self.switch_value)
 
         self.transformed_dataframes = result
-        self.income_statement = result['transformed_income_statement']
-        self.balance_sheet = result['transformed_balance_sheet']
-        self.cash_flow = result['transformed_cash_flow']
+        self.income_statement = result["transformed_income_statement"]
+        self.balance_sheet = result["transformed_balance_sheet"]
+        self.cash_flow = result["transformed_cash_flow"]
 
         categorized_ratios = result.get("categorized_ratios", {})
         self.available_metrics_by_category = {}
@@ -170,7 +170,7 @@ class State(rx.State):
         return data
 
 
-def create_dynamic_chart(category: str, position: int):
+def create_dynamic_chart(category: str):
     """Create a dynamic chart for a specific category"""
     return rx.card(
         rx.vstack(
@@ -271,7 +271,7 @@ def performance_cards():
         rx.hstack(
             rx.foreach(
                 categories[:3],
-                lambda category, index: create_dynamic_chart(category, index),
+                lambda category: create_dynamic_chart(category),
             ),
             rx.cond(
                 categories.length() < 3,
@@ -313,7 +313,7 @@ def performance_cards():
         rx.hstack(
             rx.foreach(
                 categories[3:6],
-                lambda category, index: create_dynamic_chart(category, index + 3),
+                lambda category: create_dynamic_chart(category),
             ),
             rx.cond(
                 categories.length() < 6,
@@ -478,7 +478,12 @@ def price_chart_card():
             ),
             rx.script(src="/chart.js"),
             rx.vstack(
-                rx.box(id="price_chart", width="65vw", height="30vw"),
+                rx.box(
+                    id="price_chart",
+                    width="100%",  # Changed from 70vw to 100%
+                    height="100%",
+                    min_width="0",  # Allow shrinking
+                ),
                 rx.hstack(
                     rx.spacer(),
                     rx.foreach(
@@ -497,6 +502,8 @@ def price_chart_card():
                     paddingLeft="2em",
                     width="100%",
                 ),
+                flex="1",  # Take up available space
+                min_width="0",  # Allow shrinking
             ),
             rx.flex(
                 rx.menu.root(
@@ -505,9 +512,7 @@ def price_chart_card():
                     ),
                     rx.menu.content(
                         rx.menu.sub(
-                            rx.menu.sub_trigger(
-                                "MA",
-                            ),
+                            rx.menu.sub_trigger("MA"),
                             rx.menu.sub_content(
                                 rx.vstack(
                                     rx.foreach(
@@ -558,12 +563,18 @@ def price_chart_card():
                 ),
                 direction="column",
                 spacing="3",
+                flex="0 0 auto",  # Don't shrink, fixed size
+                align="center",
             ),
             width="100%",
             height="100%",
             direction="row",
             spacing="3",
+            align="stretch",  # Stretch items to full height
         ),
+        flex="1",
+        min_width="0",
+        width="100%",  # Ensure card takes full width
     )
 
 
@@ -753,40 +764,40 @@ def index():
             z_index="1",
         ),
         rx.center(
-            rx.vstack(
-                rx.box(
+            rx.box(
+                rx.vstack(
                     rx.hstack(
                         rx.vstack(
                             name_card(),
                             general_info_card(),
                             spacing="4",
                             align="center",
+                            flex="0 0 auto",  # Don't grow
                         ),
                         price_chart_card(),
-                        paddingBottom="1em",
+                        spacing="4",
                         width="100%",
+                        align="stretch",
+                        height="450px",  # Give explicit height to this row
                     ),
-                    width="100%",
-                ),
-                rx.box(
                     rx.hstack(
                         key_metrics_card(),
                         company_card(),
+                        spacing="4",
                         width="100%",
-                        wrap="wrap",
+                        align="stretch",
                     ),
+                    spacing="4",
                     width="100%",
+                    justify="between",
+                    align="start",
                 ),
-                spacing="0",
-                width="100%",
-                justify="between",
-                align="start",
-                style={"maxWidth": "90vw", "margin": "0 auto"},
+                width="86vw",
+                style={"minHeight": "80vh"},  # Minimum height instead
             ),
             width="100%",
             padding="2em",
             padding_top="5em",
-            style={"maxWidth": "90vw", "margin": "0 auto"},
             position="relative",
         ),
         drawer_button(),
