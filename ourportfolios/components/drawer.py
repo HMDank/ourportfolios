@@ -1,13 +1,10 @@
-from turtle import width
 import reflex as rx
 import pandas as pd
 import sqlite3
 
 
 def get_industry(ticker: str) -> str:
-    conn = sqlite3.connect(
-        "/home/dank/Documents/Codebases/ourportfolios/ourportfolios/data/data_vni.db"
-    )
+    conn = sqlite3.connect("ourportfolios/data/data_vni.db")
     query = "SELECT industry FROM data_vni WHERE ticker = ?"
     df = pd.read_sql(query, conn, params=(ticker,))
     conn.close()
