@@ -12,9 +12,7 @@ from ..utils.load_data import load_historical_data
 # Price chart State
 class PriceChartState(rx.State):
     df: pd.DataFrame = pd.DataFrame()
-    start_date: date = date.today() - relativedelta(months=12)
-    end_date: date = date.today()
-    selected_date_range: str = "1Y"
+    selected_interval: str = "1D"
     selected_chart: str = "Candlestick"
     selected_ma_period: Dict[str, bool] = {}
     rsi_line: bool = False
@@ -27,24 +25,43 @@ class PriceChartState(rx.State):
         "100": "#70B8FF",  # blue 11
         "200": "#3094FEB9",  # blue 8
     }
-    date_range: Dict[str, Any] = {
-        "1M": relativedelta(months=1),
-        "3M": relativedelta(months=3),
-        "6M": relativedelta(months=6),
-        "1Y": relativedelta(months=12),
+    
+    df_by_interval: Dict[str, Any] = {
+        "1D": pd.DataFrame(),
+        "1W": pd.DataFrame(),
+        "1M": pd.DataFrame(),
     }
+    # Date range for each interval
+    interval_range: Dict[str, Any] = {
+        "1D": date.today() - relativedelta(years=3),
+        "1W": date.today(),
+        "1M": date.today(),
+    }
+
     rsi_period: int = 14
 
     @rx.event
     def load_state(self):
         """Initialize chart with default settings"""
         ticker: str = self.router.page.params.get("ticker", "")
-        self.df: pd.DataFrame = load_historical_data(
-            symbol=ticker,
-            start=(date.today() - relativedelta(months=11)).strftime("%Y-%m-%d"),
-            end=(date.today() + relativedelta(days=1)).strftime("%Y-%m-%d"),
-            interval="1D",
-        )
+
+        # Fetch data for each interval. Time ranges are {
+        #     1D: 3 years
+        #     1W: 5 years (default)
+        #     1M: all (default)
+        # }
+        self.df_by_interval = {
+            i_range: load_historical_data(
+                symbol=ticker,
+                start=(self.interval_range[i_range]).strftime("%Y-%m-%d"),
+                end=(date.today() + relativedelta(days=1)).strftime("%Y-%m-%d"),
+                interval=i_range,
+            )
+            for i_range in self.df_by_interval.keys()
+        }
+
+        # Default range
+        self.df: pd.DataFrame = self.df_by_interval[self.selected_interval]
 
         # Loads MA options
         self.selected_ma_period = {item: False for item in self.ma_period.keys()}
@@ -59,11 +76,10 @@ class PriceChartState(rx.State):
         )
 
     @rx.event
-    def set_date_range(self, _range):
-        self.selected_date_range = _range
-        self.start_date = self.end_date - self.date_range.get(
-            _range, relativedelta(days=1)
-        )
+    def set_interval(self, _range):
+        self.selected_interval = _range
+        self.df = self.df_by_interval[self.selected_interval]
+
         yield from self.render_price_chart()
 
     @rx.event
@@ -152,8 +168,6 @@ class PriceChartState(rx.State):
 
         data: Dict[str, Any] = {
             "type": self.selected_chart,
-            "start_date": self.start_date.strftime("%Y-%m-%d"),
-            "end_date": self.end_date.strftime("%Y-%m-%d"),
             "price_data": price_data,
             "ma_line_data": ma_line_data,
             "rsi_line_data": rsi_line_data,

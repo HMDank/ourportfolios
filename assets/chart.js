@@ -1,7 +1,6 @@
 function render_price_chart(chart_options, chart_data) {
   container = document.getElementById("price_chart");
   container.innerHTML = "";
-  const info = document.getElementById("chart_info");
 
   // Chart layout settings
   chart_layout = chart_options.chart_layout; // Dict[str, Any]
@@ -14,8 +13,6 @@ function render_price_chart(chart_options, chart_data) {
   price_data = chart_data.price_data;
   ma_line_data = chart_data.ma_line_data;
   rsi_line_data = chart_data.rsi_line_data;
-  start_date = chart_data.start_date;
-  end_date = chart_data.end_date;
 
   let chart = LightweightCharts.createChart(container, chart_layout);
   let series;
@@ -85,8 +82,4 @@ function render_price_chart(chart_options, chart_data) {
     rsiSeries.setData(rsi_line_data);
   }
 
-  chart.timeScale().setVisibleRange({
-    from: start_date,
-    to: end_date,
-  });
 }
