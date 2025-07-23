@@ -11,13 +11,12 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-
-data_vni_loaded = False
 executors = {"default": ThreadPoolExecutor(2), "processpool": ProcessPoolExecutor(2)}
 background_scheduler = BackgroundScheduler(executors=executors)
+data_vni_loaded = False
 
 
-def run_scheduler() -> None:
+def initialize_database() -> None:
     global data_vni_loaded
     if data_vni_loaded:
         print("Data loaded. Skipping")
@@ -31,9 +30,7 @@ def run_scheduler() -> None:
     )
     if not cursor.fetchone():
         populate_db()
-        print("Data loaded successfully.")
 
-    background_scheduler.start()
     data_vni_loaded = True
     return
 
@@ -66,6 +63,7 @@ def populate_db():
     result = compute_instrument(df=combined_df)
     result.to_sql("data_vni", conn, if_exists="replace", index=False)
     conn.close()
+    print("Data loaded successfully.")
 
 
 def load_price_board(tickers: list[str]) -> pd.DataFrame:
