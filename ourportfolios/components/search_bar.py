@@ -18,9 +18,9 @@ class SearchBarState(rx.State):
         self.search_query = text
 
     @rx.event
-    def set_display_suggestions(self, mode: bool):
+    def set_display_suggestions(self, state: bool):
         yield time.sleep(0.2)  # Delay the set action
-        self.display_suggestion = mode
+        self.display_suggestion = state
 
     @rx.var
     def get_suggest_ticker(self) -> List[Dict[str, Any]]:
@@ -52,12 +52,6 @@ class SearchBarState(rx.State):
                 match_conditions="ticker LIKE ?", params=(f"{self.search_query[0]}%",)
             )
 
-        # Fetch and store the top 3 trending tickers in memory, get calls only once on initial load
-        if not self.outstanding_tickers:
-            self.outstanding_tickers: Dict[str, Any] = {
-                item: 1 for item in result["ticker"].to_list()[:3]
-            }
-
         return result.to_dict("records")[:50]
 
     def fetch_ticker(self, match_conditions: str, params: Any) -> pd.DataFrame:
@@ -71,6 +65,17 @@ class SearchBarState(rx.State):
         result: pd.DataFrame = pd.read_sql(query, conn, params=params)
         conn.close()
         return result
+
+    @rx.event
+    def get_top_tickers(self):
+        # Fetch and store the top 3 trending tickers in memory, get calls only once on initial load
+        if not self.outstanding_tickers:
+            self.outstanding_tickers: Dict[str, Any] = {
+                item: 1
+                for item in self.fetch_ticker(
+                    match_conditions="ticker LIKE ?", params=("%")
+                )["ticker"].to_list()[:3]
+            }
 
 
 def search_bar():
@@ -92,7 +97,7 @@ def search_bar():
                 SearchBarState.display_suggestion,
                 # Scrollable suggestion dropdown
                 rx.fragment(
-                    rx.vstack(
+                    rx.flex(
                         rx.scroll_area(
                             rx.foreach(
                                 SearchBarState.get_suggest_ticker,
@@ -111,12 +116,15 @@ def search_bar():
                         position="absolute",
                         top="calc(100% + 5px)",
                         border_radius=4,
+                        direction="column",
                     ),
+                    as_child=True,
                 ),
                 rx.fragment(),
             ),
             position="relative",
             width="20vw",
+            on_mount=SearchBarState.get_top_tickers,
         ),
     )
 
