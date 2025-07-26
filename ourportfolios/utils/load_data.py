@@ -86,7 +86,6 @@ def compute_instrument(df: pd.DataFrame) -> pd.DataFrame:
         df["price_change"] = 0
         df["pct_price_change"] = 0
 
-    # Normalize
     df["current_price"] = round(df["current_price"] * 1e-3, 2)
     df["price_change"] = round(df["price_change"] * 1e-3, 2)
     df["pct_price_change"] = round(df["pct_price_change"], 2)
@@ -157,6 +156,7 @@ def load_company_overview(ticker: str):
     overview["website"] = (
         overview["website"].removeprefix("https://").removeprefix("http://")
     )
+    overview['foreign_percent'] = round(overview['foreign_percent']*100, 2)
     return overview
 
 
@@ -169,6 +169,13 @@ def load_company_shareholders(ticker: str):
     ).round(2)
     shareholders = shareholders_df.to_dict("records")
     return shareholders
+
+def load_company_profile(ticker: str):
+    stock = Vnstock().stock(symbol=ticker, source="TCBS")
+    company = stock.company
+    profile = company.profile()
+    profile = profile.to_dict("records")[0]
+    return profile
 
 
 def load_company_events(ticker: str):
@@ -252,6 +259,7 @@ async def load_company_data_async(ticker: str):
         asyncio.to_thread(load_company_shareholders, ticker),
         asyncio.to_thread(load_company_events, ticker),
         asyncio.to_thread(load_company_news, ticker),
+        asyncio.to_thread(load_company_profile, ticker),
         asyncio.to_thread(load_officers_info, ticker),
         asyncio.to_thread(load_historical_data, ticker),
     ]
@@ -260,6 +268,7 @@ async def load_company_data_async(ticker: str):
         shareholders,
         events,
         news,
+        profile,
         officers,
         price_data,
     ) = await asyncio.gather(*tasks)
@@ -267,6 +276,7 @@ async def load_company_data_async(ticker: str):
         "overview": overview,
         "shareholders": shareholders,
         "events": events,
+        "profile": profile,
         "news": news,
         "officers": officers,
         "price_data": price_data,

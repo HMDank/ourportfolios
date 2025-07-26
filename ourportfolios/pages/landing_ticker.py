@@ -31,6 +31,7 @@ class State(rx.State):
     technical_metrics: dict = {}
     company_info: dict = {}
     overview: dict = {}
+    profile: dict = {}
     officers: list[dict[str, Any]] = []
     shareholders: list[dict] = []
     events: list[dict] = []
@@ -43,14 +44,9 @@ class State(rx.State):
     financial_df: pd.DataFrame = pd.DataFrame()
 
     transformed_dataframes: dict = {}
-
-    # Store available metrics for each category
     available_metrics_by_category: Dict[str, List[str]] = {}
-
-    # Store selected metrics for each category
     selected_metrics: Dict[str, str] = {}
 
-    # Legacy fields (keeping for backward compatibility)
     selected_metric: str = "P/E"
     available_metrics: List[str] = [
         "P/E",
@@ -84,6 +80,7 @@ class State(rx.State):
         self.shareholders = data["shareholders"]
         self.events = data["events"]
         self.news = data["news"]
+        self.profile = data["profile"]
         self.officers = data["officers"]
         self.price_data = data["price_data"]
 
@@ -392,9 +389,14 @@ def general_info_card():
     website = info.get("website", "")
     return rx.vstack(
         card_wrapper(
-            rx.text(f"Market cap: {technical_metrics['market_cap']}"),
             rx.text(f"{info['short_name']} (Est. {info['established_year']})"),
             rx.link(website, href=f"https://{website}", is_external=True),
+            rx.text(f"Market cap: {technical_metrics['market_cap']}"),
+            rx.text(f"Issue Shares: {info['issue_share']}"),
+            rx.text(f"Outstanding Shares: {info['outstanding_share']}"),
+            rx.text(
+                f"{info['no_shareholders']} shareholders ({info['foreign_percent']}% foreign)"
+            ),
             style={"width": "100%", "padding": "1em"},
         ),
     )
@@ -404,7 +406,6 @@ def key_metrics_card():
     return rx.card(
         rx.vstack(
             rx.tabs.root(
-                # Header with tabs and toggle button
                 rx.hstack(
                     rx.tabs.list(
                         rx.tabs.trigger("Performance", value="performance"),
@@ -578,7 +579,7 @@ def price_chart_card():
     )
 
 
-def company_card():
+def company_generic_info_card():
     return rx.card(
         rx.vstack(
             rx.box(
@@ -733,6 +734,55 @@ def shareholders_pie_chart():
     )
 
 
+def company_profile_card():
+    profile_data = State.profile
+    PROFILE_CONTENT_HEIGHT = "12em"
+
+    def create_profile_tab_content(content_key: str, tab_value: str):
+        return rx.tabs.content(
+            rx.scroll_area(
+                rx.text(
+                    profile_data[content_key],
+                    size="3",
+                    weight="regular",
+                    style={
+                        "whiteSpace": "pre-wrap",
+                        "wordWrap": "break-word",
+                        "textAlign": "justify",
+                        "lineHeight": "1.6",
+                    },
+                ),
+                height=PROFILE_CONTENT_HEIGHT,
+                padding="0.5em",
+            ),
+            value=tab_value,
+            padding_top="0.8em",
+        )
+
+    return rx.card(
+        rx.tabs.root(
+            rx.tabs.list(
+                rx.tabs.trigger("Company Profile", value="profile"),
+                rx.tabs.trigger("History", value="history"),
+                rx.tabs.trigger("Promises", value="promises"),
+                rx.tabs.trigger("Risks", value="risks"),
+                rx.tabs.trigger("Developments", value="developments"),
+                rx.tabs.trigger("Strategies", value="strategies"),
+                variant="surface",
+            ),
+            create_profile_tab_content("company_profile", "profile"),
+            create_profile_tab_content("history_dev", "history"),
+            create_profile_tab_content("company_promise", "promises"),
+            create_profile_tab_content("business_risk", "risks"),
+            create_profile_tab_content("key_developments", "developments"),
+            create_profile_tab_content("business_strategies", "strategies"),
+            default_value="profile",
+        ),
+        width="100%",
+        padding="1em",
+    )
+
+
 @rx.page(
     route="/analyze/[ticker]",
     on_load=[
@@ -780,9 +830,10 @@ def index():
                         align="stretch",
                         height="450px",  # Give explicit height to this row
                     ),
+                    company_profile_card(),
                     rx.hstack(
                         key_metrics_card(),
-                        company_card(),
+                        company_generic_info_card(),
                         spacing="4",
                         width="100%",
                         align="stretch",
@@ -793,7 +844,7 @@ def index():
                     align="start",
                 ),
                 width="86vw",
-                style={"minHeight": "80vh"},  # Minimum height instead
+                style={"minHeight": "80vh"},
             ),
             width="100%",
             padding="2em",
