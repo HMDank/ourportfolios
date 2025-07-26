@@ -449,9 +449,13 @@ def key_metrics_card():
                                 State.cash_flow,
                             ]
                         ),
-                        display="flex",
-                        justify_content="center",
                         width="100%",
+                        padding_top="2em",  # Move content down from top
+                        padding_left="0.5em",
+                        style={
+                            "display": "block",  # Use block instead of flex for better left alignment
+                            "textAlign": "left",  # Ensure text aligns left
+                        },
                     ),
                     value="statement",
                     padding_top="1em",
