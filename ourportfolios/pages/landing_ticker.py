@@ -1,3 +1,4 @@
+from functools import cache
 import pandas as pd
 import reflex as rx
 import sqlite3
@@ -30,6 +31,7 @@ class State(rx.State):
     technical_metrics: dict = {}
     company_info: dict = {}
     overview: dict = {}
+    profile: dict = {}
     officers: list[dict[str, Any]] = []
     shareholders: list[dict] = []
     events: list[dict] = []
@@ -42,14 +44,9 @@ class State(rx.State):
     financial_df: pd.DataFrame = pd.DataFrame()
 
     transformed_dataframes: dict = {}
-
-    # Store available metrics for each category
     available_metrics_by_category: Dict[str, List[str]] = {}
-
-    # Store selected metrics for each category
     selected_metrics: Dict[str, str] = {}
 
-    # Legacy fields (keeping for backward compatibility)
     selected_metric: str = "P/E"
     available_metrics: List[str] = [
         "P/E",
@@ -83,6 +80,7 @@ class State(rx.State):
         self.shareholders = data["shareholders"]
         self.events = data["events"]
         self.news = data["news"]
+        self.profile = data["profile"]
         self.officers = data["officers"]
         self.price_data = data["price_data"]
 
@@ -105,12 +103,12 @@ class State(rx.State):
         params = self.router.page.params
         ticker = params.get("ticker", "")
 
-        result = get_transformed_dataframes(ticker, period=self.switch_value)
+        result = await get_transformed_dataframes(ticker, period=self.switch_value)
 
         self.transformed_dataframes = result
-        self.income_statement = result['transformed_income_statement']
-        self.balance_sheet = result['transformed_balance_sheet']
-        self.cash_flow = result['transformed_cash_flow']
+        self.income_statement = result["transformed_income_statement"]
+        self.balance_sheet = result["transformed_balance_sheet"]
+        self.cash_flow = result["transformed_cash_flow"]
 
         categorized_ratios = result.get("categorized_ratios", {})
         self.available_metrics_by_category = {}
@@ -128,7 +126,7 @@ class State(rx.State):
         """Set selected metric for a specific category"""
         self.selected_metrics[category] = metric
 
-    @rx.var
+    @rx.var(cache=True)
     def get_chart_data_for_category(self) -> Dict[str, List[Dict[str, Any]]]:
         """Get chart data for all categories"""
         chart_data = {}
@@ -150,7 +148,7 @@ class State(rx.State):
         """Get list of available categories"""
         return list(self.transformed_dataframes.get("categorized_ratios", {}).keys())
 
-    @rx.var
+    @rx.var(cache=True)
     def pie_data(self) -> list[dict[str, object]]:
         palettes = ["accent", "plum", "iris"]
         indices = [6, 7, 8]
@@ -169,7 +167,7 @@ class State(rx.State):
         return data
 
 
-def create_dynamic_chart(category: str, position: int):
+def create_dynamic_chart(category: str):
     """Create a dynamic chart for a specific category"""
     return rx.card(
         rx.vstack(
@@ -270,7 +268,7 @@ def performance_cards():
         rx.hstack(
             rx.foreach(
                 categories[:3],
-                lambda category, index: create_dynamic_chart(category, index),
+                lambda category: create_dynamic_chart(category),
             ),
             rx.cond(
                 categories.length() < 3,
@@ -312,7 +310,7 @@ def performance_cards():
         rx.hstack(
             rx.foreach(
                 categories[3:6],
-                lambda category, index: create_dynamic_chart(category, index + 3),
+                lambda category: create_dynamic_chart(category),
             ),
             rx.cond(
                 categories.length() < 6,
@@ -391,9 +389,14 @@ def general_info_card():
     website = info.get("website", "")
     return rx.vstack(
         card_wrapper(
-            rx.text(f"Market cap: {technical_metrics['market_cap']}"),
             rx.text(f"{info['short_name']} (Est. {info['established_year']})"),
             rx.link(website, href=f"https://{website}", is_external=True),
+            rx.text(f"Market cap: {technical_metrics['market_cap']}"),
+            rx.text(f"Issue Shares: {info['issue_share']}"),
+            rx.text(f"Outstanding Shares: {info['outstanding_share']}"),
+            rx.text(
+                f"{info['no_shareholders']} shareholders ({info['foreign_percent']}% foreign)"
+            ),
             style={"width": "100%", "padding": "1em"},
         ),
     )
@@ -403,7 +406,6 @@ def key_metrics_card():
     return rx.card(
         rx.vstack(
             rx.tabs.root(
-                # Header with tabs and toggle button
                 rx.hstack(
                     rx.tabs.list(
                         rx.tabs.trigger("Performance", value="performance"),
@@ -447,9 +449,13 @@ def key_metrics_card():
                                 State.cash_flow,
                             ]
                         ),
-                        display="flex",
-                        justify_content="center",
                         width="100%",
+                        padding_top="2em",  # Move content down from top
+                        padding_left="0.5em",
+                        style={
+                            "display": "block",  # Use block instead of flex for better left alignment
+                            "textAlign": "left",  # Ensure text aligns left
+                        },
                     ),
                     value="statement",
                     padding_top="1em",
@@ -476,8 +482,13 @@ def price_chart_card():
                 src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js",
             ),
             rx.script(src="/chart.js"),
-            rx.flex(
-                rx.box(id="price_chart", width="100%", height="100%"),
+            rx.vstack(
+                rx.box(
+                    id="price_chart",
+                    width="100%",  # Changed from 70vw to 100%
+                    height="100%",
+                    min_width="0",  # Allow shrinking
+                ),
                 rx.hstack(
                     rx.spacer(),
                     rx.foreach(
@@ -494,9 +505,8 @@ def price_chart_card():
                     ),
                     spacing="2",
                 ),
-                spacing="2",
-                direction="column",
-                width="100%",
+                flex="1",  # Take up available space
+                min_width="0",  # Allow shrinking
             ),
             rx.flex(
                 rx.menu.root(
@@ -505,9 +515,7 @@ def price_chart_card():
                     ),
                     rx.menu.content(
                         rx.menu.sub(
-                            rx.menu.sub_trigger(
-                                "MA",
-                            ),
+                            rx.menu.sub_trigger("MA"),
                             rx.menu.sub_content(
                                 rx.vstack(
                                     rx.foreach(
@@ -558,18 +566,22 @@ def price_chart_card():
                 ),
                 direction="column",
                 spacing="3",
+                flex="0 0 auto",  # Don't shrink, fixed size
+                align="center",
             ),
             width="100%",
             height="100%",
             direction="row",
             spacing="3",
+            align="stretch",  # Stretch items to full height
         ),
-        width="66vw",
-        height="31vw",
+        flex="1",
+        min_width="0",
+        width="100%",  # Ensure card takes full width
     )
 
 
-def company_card():
+def company_generic_info_card():
     return rx.card(
         rx.vstack(
             rx.box(
@@ -724,6 +736,55 @@ def shareholders_pie_chart():
     )
 
 
+def company_profile_card():
+    profile_data = State.profile
+    PROFILE_CONTENT_HEIGHT = "12em"
+
+    def create_profile_tab_content(content_key: str, tab_value: str):
+        return rx.tabs.content(
+            rx.scroll_area(
+                rx.text(
+                    profile_data[content_key],
+                    size="3",
+                    weight="regular",
+                    style={
+                        "whiteSpace": "pre-wrap",
+                        "wordWrap": "break-word",
+                        "textAlign": "justify",
+                        "lineHeight": "1.6",
+                    },
+                ),
+                height=PROFILE_CONTENT_HEIGHT,
+                padding="0.5em",
+            ),
+            value=tab_value,
+            padding_top="0.8em",
+        )
+
+    return rx.card(
+        rx.tabs.root(
+            rx.tabs.list(
+                rx.tabs.trigger("Company Profile", value="profile"),
+                rx.tabs.trigger("History", value="history"),
+                rx.tabs.trigger("Promises", value="promises"),
+                rx.tabs.trigger("Risks", value="risks"),
+                rx.tabs.trigger("Developments", value="developments"),
+                rx.tabs.trigger("Strategies", value="strategies"),
+                variant="surface",
+            ),
+            create_profile_tab_content("company_profile", "profile"),
+            create_profile_tab_content("history_dev", "history"),
+            create_profile_tab_content("company_promise", "promises"),
+            create_profile_tab_content("business_risk", "risks"),
+            create_profile_tab_content("key_developments", "developments"),
+            create_profile_tab_content("business_strategies", "strategies"),
+            default_value="profile",
+        ),
+        width="100%",
+        padding="1em",
+    )
+
+
 @rx.page(
     route="/analyze/[ticker]",
     on_load=[
@@ -754,40 +815,41 @@ def index():
             z_index="1",
         ),
         rx.center(
-            rx.vstack(
-                rx.box(
+            rx.box(
+                rx.vstack(
                     rx.hstack(
                         rx.vstack(
                             name_card(),
                             general_info_card(),
                             spacing="4",
                             align="center",
+                            flex="0 0 auto",  # Don't grow
                         ),
                         price_chart_card(),
-                        paddingBottom="1em",
+                        spacing="4",
                         width="100%",
+                        align="stretch",
+                        height="450px",  # Give explicit height to this row
                     ),
-                    width="100%",
-                ),
-                rx.box(
+                    company_profile_card(),
                     rx.hstack(
                         key_metrics_card(),
-                        company_card(),
+                        company_generic_info_card(),
+                        spacing="4",
                         width="100%",
-                        wrap="wrap",
+                        align="stretch",
                     ),
+                    spacing="4",
                     width="100%",
+                    justify="between",
+                    align="start",
                 ),
-                spacing="0",
-                width="100%",
-                justify="between",
-                align="start",
-                style={"maxWidth": "90vw", "margin": "0 auto"},
+                width="86vw",
+                style={"minHeight": "80vh"},
             ),
             width="100%",
             padding="2em",
             padding_top="5em",
-            style={"maxWidth": "90vw", "margin": "0 auto"},
             position="relative",
         ),
         drawer_button(),
