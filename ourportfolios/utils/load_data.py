@@ -1,43 +1,38 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from .preprocess_texts import process_events_for_display
 import pandas as pd
 import numpy as np
-import sqlite3
+import os
+from dotenv import load_dotenv
 from datetime import date, timedelta
 from vnstock import Vnstock, Screener, Trading
+from sqlalchemy import create_engine
 import asyncio
 import warnings
 
 warnings.filterwarnings("ignore")
 
+# Load environment variables
+load_dotenv()
+
+
+class Settings:
+    # Establish connection to NeonDB with SQLAlchemy
+    connection_string = os.getenv("DATABASE_URL")
+    conn = create_engine(url=connection_string)
+
+
+db_settings = Settings()
+
 executors = {"default": ThreadPoolExecutor(2), "processpool": ProcessPoolExecutor(2)}
-background_scheduler = BackgroundScheduler(executors=executors)
-data_vni_loaded = False
+jobstores = {"default": SQLAlchemyJobStore(url=db_settings.connection_string)}
+background_scheduler = BackgroundScheduler(executors=executors, jobstores=jobstores)
 
 
-def initialize_database() -> None:
-    global data_vni_loaded
-    if data_vni_loaded:
-        print("Data loaded. Skipping")
-        return
-
-    conn = sqlite3.connect("ourportfolios/data/data_vni.db")
-    cursor = conn.cursor()
-
-    cursor.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='data_vni'"
-    )
-    if not cursor.fetchone():
-        populate_db()
-
-    data_vni_loaded = True
-    return
-
-
-@background_scheduler.scheduled_job(trigger="interval", minutes=5, id="populate_db")
+@background_scheduler.scheduled_job(trigger="interval", minutes=1, id="populate_db")
 def populate_db():
-    conn = sqlite3.connect("ourportfolios/data/data_vni.db")
     # Stocks
     screener = Screener(source="TCBS")
     default_params = {
@@ -61,8 +56,8 @@ def populate_db():
 
     # Add additional instrument
     result = compute_instrument(df=combined_df)
-    result.to_sql("data_vni", conn, if_exists="replace", index=False)
-    conn.close()
+    result.to_sql("data_vni", db_settings.conn, if_exists="replace", index=False)
+
     print("Data loaded successfully.")
 
 
