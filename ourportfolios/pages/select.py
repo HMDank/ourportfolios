@@ -8,7 +8,7 @@ from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
 from ..components.graph import mini_price_graph
-from ..utils.load_data import fetch_data_for_symbols
+from ..utils.load_data import fetch_data_for_symbols, db_settings
 
 
 class State(rx.State):
@@ -24,9 +24,8 @@ class State(rx.State):
 
     @rx.var(cache=True)
     def get_all_tickers(self) -> list[dict]:
-        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
-        df = pd.read_sql("SELECT * FROM data_vni", conn)
-        conn.close()
+        df = pd.read_sql("SELECT * FROM data_vni", db_settings.conn)
+
         return df[["ticker", "industry"]].to_dict("records")
 
     @rx.var(cache=True)
@@ -54,9 +53,8 @@ class State(rx.State):
 
     @rx.event
     def get_all_industries(self):
-        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
-        industries = pd.read_sql("SELECT DISTINCT industry FROM data_vni;", conn)
-        conn.close()
+        industries = pd.read_sql("SELECT DISTINCT industry FROM data_vni;", db_settings.conn)
+
         self.industries = industries["industry"].tolist()
 
 

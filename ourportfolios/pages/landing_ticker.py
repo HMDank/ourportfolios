@@ -1,7 +1,8 @@
 import pandas as pd
 import reflex as rx
-import sqlite3
+
 from typing import Any, List, Dict
+from sqlalchemy import text
 
 from ..components.price_chart import PriceChartState
 from ..components.navbar import navbar
@@ -10,7 +11,7 @@ from ..components.drawer import drawer_button, CartState
 from ..components.financial_statement import financial_statements
 from ..components.loading import loading_screen
 
-from ..utils.load_data import load_company_data_async
+from ..utils.load_data import load_company_data_async, db_settings
 from ..utils.preprocessing.financial_statements import (
     get_transformed_dataframes,
     format_quarter_data,
@@ -18,9 +19,8 @@ from ..utils.preprocessing.financial_statements import (
 
 
 def fetch_technical_metrics(ticker: str) -> dict:
-    conn = sqlite3.connect("ourportfolios/data/data_vni.db")
-    df = pd.read_sql("SELECT * FROM data_vni WHERE ticker = ?", conn, params=(ticker,))
-    conn.close()
+    df = pd.read_sql(text("SELECT * FROM data_vni WHERE ticker = :pattern"), db_settings.conn, params={'pattern': ticker})
+
     return df.iloc[0].to_dict() if not df.empty else {}
 
 

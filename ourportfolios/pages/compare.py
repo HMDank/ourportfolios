@@ -1,11 +1,13 @@
 import reflex as rx
 import pandas as pd
-import sqlite3
+
+from sqlalchemy import create_engine
 from typing import List, Dict, Any
 
 from ..components.navbar import navbar
 from ..components.drawer import CartState, drawer_button
 from ..components.loading import loading_screen
+from ..utils.load_data import db_settings
 
 
 class StockComparisonState(rx.State):
@@ -170,10 +172,6 @@ class StockComparisonState(rx.State):
         if not tickers:
             self.stocks = []
             return
-        conn = sqlite3.connect(
-            "/home/dank/Documents/Codebases/ourportfolios/"
-            "ourportfolios/data/data_vni.db"
-        )
         for ticker in tickers:
             query = (
                 "SELECT ticker, market_cap, roe, pe, pb, dividend_yield, "
@@ -181,10 +179,10 @@ class StockComparisonState(rx.State):
                 "beta, rsi14, industry, tcbs_recommend "
                 "FROM data_vni WHERE ticker = ?"
             )
-            df = pd.read_sql(query, conn, params=(ticker,))
+            df = pd.read_sql(query, db_settings.conn, params=(ticker,))
             if not df.empty:
                 stocks.append(df.iloc[0].to_dict())
-        conn.close()
+
         self.stocks = stocks
 
     @rx.event
