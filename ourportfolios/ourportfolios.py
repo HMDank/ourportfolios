@@ -1,12 +1,9 @@
 import reflex as rx
 from contextlib import asynccontextmanager
-from .utils.load_data import background_scheduler, initialize_database
+from .utils.load_data import background_scheduler
 
 # MUST BE IMPORTED!!!
 from .pages import landing, select, landing_ticker, landing_industry, analyze, compare
-
-initialize_database()
-
 
 @asynccontextmanager
 async def periodically_fetch_data(app):
