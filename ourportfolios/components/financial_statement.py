@@ -130,7 +130,7 @@ def preview_table(data, idx):
                     type="hover",
                     style={
                         "height": "auto",
-                        "maxWidth": "43em",
+                        "maxWidth": "650px",
                         "position": "relative",
                         "display": "block",
                     },
