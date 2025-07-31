@@ -14,7 +14,7 @@ class SearchBarState(rx.State):
     search_query: str = ""
     display_suggestion: bool = False
     outstanding_tickers: Dict[str, Any] = {}
-    ticker_list: List[Dict[str, Any]] = {}
+    ticker_list: List[Dict[str, Any]] = []
 
     @rx.event
     def set_query(self, text: str = ""):
