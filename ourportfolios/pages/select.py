@@ -1,5 +1,4 @@
 import reflex as rx
-import sqlite3
 import pandas as pd
 
 # from ourportfolios.components.loading import loading_wrapper
@@ -8,7 +7,8 @@ from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
 from ..components.graph import mini_price_graph
-from ..utils.load_data import fetch_data_for_symbols, db_settings
+from ..utils.load_data import fetch_data_for_symbols
+from ..utils.scheduler import db_settings
 
 
 class State(rx.State):
@@ -53,7 +53,9 @@ class State(rx.State):
 
     @rx.event
     def get_all_industries(self):
-        industries = pd.read_sql("SELECT DISTINCT industry FROM data_vni;", db_settings.conn)
+        industries = pd.read_sql(
+            "SELECT DISTINCT industry FROM data_vni;", db_settings.conn
+        )
 
         self.industries = industries["industry"].tolist()
 

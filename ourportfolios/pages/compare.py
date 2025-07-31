@@ -1,13 +1,12 @@
 import reflex as rx
 import pandas as pd
 
-from sqlalchemy import create_engine
 from typing import List, Dict, Any
 
 from ..components.navbar import navbar
 from ..components.drawer import CartState, drawer_button
 from ..components.loading import loading_screen
-from ..utils.load_data import db_settings
+from ..utils.scheduler import db_settings
 
 
 class StockComparisonState(rx.State):

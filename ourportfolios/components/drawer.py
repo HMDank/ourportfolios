@@ -1,7 +1,7 @@
 import reflex as rx
 import pandas as pd
 
-from ..utils.load_data import db_settings
+from ..utils.scheduler import db_settings
 
 
 def get_industry(ticker: str) -> str:

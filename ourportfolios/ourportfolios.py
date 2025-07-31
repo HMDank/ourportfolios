@@ -1,6 +1,6 @@
 import reflex as rx
 from contextlib import asynccontextmanager
-from .utils.load_data import background_scheduler
+from .utils.scheduler import db_scheduler, local_scheduler
 
 # MUST BE IMPORTED!!!
 from .pages import landing, select, landing_ticker, landing_industry, analyze, compare
@@ -8,11 +8,13 @@ from .pages import landing, select, landing_ticker, landing_industry, analyze, c
 @asynccontextmanager
 async def periodically_fetch_data(app):
     # Load data on initialize & keep fetching each 5 minutes
-    background_scheduler.start()
+    db_scheduler.start()
+    local_scheduler.start()
 
     # Shut down the fetch on page shut down
     yield
-    background_scheduler.shutdown()
+    db_scheduler.shutdown(wait=True)
+    local_scheduler.shutdown(wait=True)
 
 
 app = rx.App(
