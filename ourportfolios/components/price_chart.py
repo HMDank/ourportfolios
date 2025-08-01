@@ -33,7 +33,7 @@ class PriceChartState(rx.State):
     }
     # Date range for each interval
     interval_range: Dict[str, Any] = {
-        "1D": date.today() - relativedelta(years=3),
+        "1D": date.today() - relativedelta(years=5),
         "1W": date.today(),
         "1M": date.today(),
     }
