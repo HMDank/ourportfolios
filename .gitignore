@@ -2,6 +2,7 @@
 .states
 *.db
 .web
+*.ipynb
 assets/external/
 # Python-generated files
 __pycache__/
