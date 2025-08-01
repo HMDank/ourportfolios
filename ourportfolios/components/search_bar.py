@@ -1,14 +1,13 @@
 import reflex as rx
 import pandas as pd
 import time
-import asyncio
 from sqlalchemy import text
 import itertools
 
 from typing import List, Dict, Any
 
 from .graph import pct_change_badge
-from ..utils.scheduler import db_settings
+from ..utils.scheduler import db_settings, local_scheduler
 
 
 class SearchBarState(rx.State):
@@ -84,24 +83,22 @@ class SearchBarState(rx.State):
 
         return result
 
-    @rx.event(background=True)
-    async def load_state(self):
+    @rx.event
+    def load_state(self):
         """Preload tickers & assign top 3 tickers, called periodically with local_scheduler"""
-        while True:
-            async with self:
-                # Preload all tickers
-                self.ticker_list = self.fetch_ticker(match_conditions="all").to_dict(
-                    "records"
-                )
+        # Preload all tickers
+        self.ticker_list = self.fetch_ticker(match_conditions="all").to_dict("records")
 
-                # Fetch and store the top 3 trending tickers in memory
-                self.outstanding_tickers: Dict[str, Any] = {
-                    item["ticker"]: 1 for item in self.ticker_list[:3]
-                }
+        # Fetch and store the top 3 trending tickers in memory
+        self.outstanding_tickers: Dict[str, Any] = {
+                item["ticker"]: 1 for item in self.ticker_list[:3]
+            }
 
-                # print("Running background task...")
 
-            await asyncio.sleep(db_settings.interval)
+@local_scheduler.scheduled_job(trigger="interval", minutes=1, id="update_search_bar")
+def load_ticker_list():
+    print("ticker list updated.")
+    yield SearchBarState.load_state
 
 
 def search_bar():
