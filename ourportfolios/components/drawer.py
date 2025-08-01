@@ -4,8 +4,8 @@ from ..utils.scheduler import db_settings
 
 
 def get_industry(ticker: str) -> str:
-    query = "SELECT industry FROM data_vni WHERE ticker = ?"
-    df = pd.read_sql(query, db_settings.conn, params=(ticker,))
+    query = "SELECT industry FROM data_vni WHERE ticker = :pattern"
+    df = pd.read_sql(query, db_settings.conn, params={'pattern': ticker})
 
     return df["industry"].iloc[0]
 
