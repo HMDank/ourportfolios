@@ -19,7 +19,7 @@ class SearchBarState(rx.State):
 
     @rx.event
     def set_query(self, text: str = ""):
-        self.search_query = text.upper()
+        self.search_query = text.upper() if text != "" else text
 
     @rx.event
     def set_display_suggestions(self, state: bool):
@@ -99,7 +99,7 @@ class SearchBarState(rx.State):
                     item["ticker"]: 1 for item in self.ticker_list[:3]
                 }
 
-                # print("Running background task...")
+                print("Running background task...")
 
             await asyncio.sleep(db_settings.interval)
 
