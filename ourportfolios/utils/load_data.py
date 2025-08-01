@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore")
 )
 def populate_db():
     # Stocks
-    stock_df = load_stock_info()
+    stock_df = load_comparison_table()
     # Price board data
     price_board_df = load_price_board(tickers=stock_df["ticker"].tolist())
     # Result
@@ -24,8 +24,6 @@ def populate_db():
     )
 
     result.to_sql("data_vni", db_settings.conn, if_exists="replace", index=False)
-
-    print("Data loaded successfully.")
 
 
 def load_price_board(tickers: list[str]) -> pd.DataFrame:
@@ -53,7 +51,7 @@ def load_price_board(tickers: list[str]) -> pd.DataFrame:
     return df
 
 
-def load_stock_info():
+def load_comparison_table():
     screener = Screener(source="TCBS")
     default_params = {
         "exchangeName": "HOSE,HNX",

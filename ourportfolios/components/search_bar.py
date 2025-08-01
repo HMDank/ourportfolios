@@ -99,8 +99,6 @@ class SearchBarState(rx.State):
                     item["ticker"]: 1 for item in self.ticker_list[:3]
                 }
 
-                print("Running background task...")
-
             await asyncio.sleep(db_settings.interval)
 
 
