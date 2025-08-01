@@ -411,20 +411,18 @@ def price_chart_card():
                 rx.hstack(
                     rx.spacer(),
                     rx.foreach(
-                        PriceChartState.date_range.keys(),
+                        PriceChartState.df_by_interval.keys(),
                         lambda item: rx.button(
                             item,
                             variant=rx.cond(
-                                PriceChartState.selected_date_range == item,
+                                PriceChartState.selected_interval == item,
                                 "surface",
                                 "soft",
                             ),
-                            on_click=PriceChartState.set_date_range(item),
+                            on_click=PriceChartState.set_interval(item),
                         ),
                     ),
                     spacing="2",
-                    paddingLeft="2em",
-                    width="100%",
                 ),
             ),
             rx.flex(
@@ -666,8 +664,7 @@ def shareholders_pie_chart():
         State.load_technical_metrics,
         State.load_company_data,
         State.load_transformed_dataframes,
-        PriceChartState.load_chart_data,
-        PriceChartState.load_chart_options,
+        PriceChartState.load_state
     ],
 )
 def index():

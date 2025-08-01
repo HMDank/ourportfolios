@@ -5,6 +5,10 @@ from ..utils.scheduler import db_settings
 
 
 def get_industry(ticker: str) -> str:
+<<<<<<< HEAD
+=======
+    conn = sqlite3.connect("ourportfolios/data/data_vni.db")
+>>>>>>> ac9c37105dd1ed72920658b8bc787aec25a312c7
     query = "SELECT industry FROM data_vni WHERE ticker = ?"
     df = pd.read_sql(query, db_settings.conn, params=(ticker,))
 
