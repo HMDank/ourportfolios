@@ -2,6 +2,7 @@ import reflex as rx
 import pandas as pd
 import sqlite3
 from typing import List, Dict, Any
+from collections import defaultdict
 
 from ..components.navbar import navbar
 from ..components.drawer import CartState, drawer_button
@@ -10,7 +11,7 @@ from ..components.loading import loading_screen
 
 class StockComparisonState(rx.State):
     stocks: List[Dict[str, Any]] = []
-    compare_list: List[str] = []  # New: list of tickers for comparison
+    compare_list: List[str] = []
     selected_metrics: List[str] = [
         "roe",
         "pe",
@@ -22,7 +23,7 @@ class StockComparisonState(rx.State):
         "net_margin",
         "beta",
         "rsi14",
-    ]  # Changed from @rx.var to state variable
+    ]
 
     @rx.var
     def available_metrics(self) -> List[str]:
@@ -59,6 +60,15 @@ class StockComparisonState(rx.State):
         }
 
     @rx.var
+    def grouped_stocks(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Group formatted stocks by industry"""
+        groups = defaultdict(list)
+        for stock in self.formatted_stocks:
+            industry = stock.get("industry", "Unknown")
+            groups[industry].append(stock)
+        return dict(groups)
+
+    @rx.var
     def formatted_stocks(self) -> List[Dict[str, Any]]:
         """Pre-format all stock values for display"""
         formatted = []
@@ -73,9 +83,8 @@ class StockComparisonState(rx.State):
         return formatted
 
     @rx.var
-    def best_performers(self) -> Dict[str, int]:
-        """Get the index of best performing stock for each metric"""
-        best = {}
+    def industry_best_performers(self) -> Dict[str, Dict[str, str]]:
+        industry_best = {}
         higher_better = [
             "roe",
             "dividend_yield",
@@ -84,25 +93,40 @@ class StockComparisonState(rx.State):
             "gross_margin",
             "net_margin",
         ]
+        lower_better = ["pe", "pb"]
 
-        for metric in self.selected_metrics:
-            values = []
-            for i, stock in enumerate(self.stocks):
-                val = stock.get(metric)
-                if val is not None and isinstance(val, (int, float)):
-                    values.append((val, i))
+        for industry, stocks in self.grouped_stocks.items():
+            industry_best[industry] = {}
 
-            if values:
-                if metric in higher_better:
-                    best[metric] = max(values, key=lambda x: x[0])[1]
-                elif metric in ["pe", "pb"]:  # Lower is better
-                    best[metric] = min(values, key=lambda x: x[0])[1]
+            for metric in self.selected_metrics:
+                values = []
+                for stock in stocks:
+                    original_stock = next(
+                        (
+                            s
+                            for s in self.stocks
+                            if s.get("ticker") == stock.get("ticker")
+                        ),
+                        None,
+                    )
+                    if original_stock:
+                        val = original_stock.get(metric)
+                        if val is not None and isinstance(val, (int, float)):
+                            values.append((val, stock.get("ticker")))
+
+                if values:
+                    if metric in higher_better:
+                        best_ticker = max(values, key=lambda x: x[0])[1]
+                    elif metric in lower_better:
+                        best_ticker = min(values, key=lambda x: x[0])[1]
+                    else:
+                        best_ticker = None
+
+                    industry_best[industry][metric] = best_ticker
                 else:
-                    best[metric] = -1
-            else:
-                best[metric] = -1
+                    industry_best[industry][metric] = None
 
-        return best
+        return industry_best
 
     def _format_value(self, key: str, value: Any) -> str:
         """Format values for display - private method"""
@@ -147,24 +171,17 @@ class StockComparisonState(rx.State):
 
     @rx.event
     def remove_stock_from_compare(self, ticker: str):
-        """Remove a specific stock from the compare list and update stocks data"""
-        # Remove from compare_list
         self.compare_list = [t for t in self.compare_list if t != ticker]
-        # Remove from stocks data
         self.stocks = [s for s in self.stocks if s.get("ticker") != ticker]
 
     @rx.event
     async def import_cart_to_compare(self):
-        """Import tickers from cart into compare_list."""
         cart_state = await self.get_state(CartState)
         tickers = [item["name"] for item in cart_state.cart_items]
         self.compare_list = tickers
 
     @rx.event
     async def fetch_stocks_from_compare(self):
-        """
-        Fetch stock data for tickers in compare_list and store in self.stocks.
-        """
         tickers = self.compare_list
         stocks = []
         if not tickers:
@@ -189,9 +206,7 @@ class StockComparisonState(rx.State):
 
     @rx.event
     async def import_and_fetch_compare(self):
-        """
-        Import tickers from cart into compare_list and fetch their stock data.
-        """
+        """Import tickers from cart into compare_list and fetch their stock data."""
         cart_state = await self.get_state(CartState)
         tickers = [item["name"] for item in cart_state.cart_items]
         self.compare_list = tickers
@@ -276,7 +291,7 @@ def metric_selector_popover() -> rx.Component:
     )
 
 
-def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
+def stock_column_card(stock: Dict[str, Any], industry: str) -> rx.Component:
     """Create a column with separate header card and metrics card for each stock"""
     market_cap = stock.get("market_cap", "")
     ticker = stock.get("ticker", "")
@@ -296,7 +311,6 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                         "position": "absolute",
                         "top": "0.5em",
                         "right": "0.5em",
-                        # "padding": "0.25em",
                         "min_width": "auto",
                         "height": "auto",
                         "opacity": "0.7",
@@ -307,7 +321,7 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                         rx.text(
                             ticker,
                             weight="medium",
-                            size="6",
+                            size="8",
                             color=rx.color("gray", 12),
                             letter_spacing="0.05em",
                         ),
@@ -326,7 +340,7 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                         spacing="2",
                         justify="center",
                         width="100%",
-                        padding_bottom="0.8em",
+                        padding_bottom="0.2em",
                     ),
                     href=f"/analyze/{ticker}",
                     text_decoration="none",
@@ -338,8 +352,7 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                 position="relative",
                 width="100%",
             ),
-            width="12em",  # Header card stays the same width
-            min_width="12em",
+            width="12em",
             style={
                 "flex_shrink": "0",
                 "transition": "transform 0.2s ease",
@@ -348,7 +361,7 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                 "transform": "translateY(-0.4em)",
             },
         ),
-        # Metrics card - NARROWER WIDTH
+        # Metrics card
         rx.card(
             rx.vstack(
                 rx.foreach(
@@ -358,14 +371,18 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                             stock[metric_key],
                             size="2",
                             weight=rx.cond(
-                                StockComparisonState.best_performers[metric_key]
-                                == index,
+                                StockComparisonState.industry_best_performers[industry][
+                                    metric_key
+                                ]
+                                == ticker,
                                 "medium",
                                 "regular",
                             ),
                             color=rx.cond(
-                                StockComparisonState.best_performers[metric_key]
-                                == index,
+                                StockComparisonState.industry_best_performers[industry][
+                                    metric_key
+                                ]
+                                == ticker,
                                 rx.color("green", 11),
                                 rx.color("gray", 11),
                             ),
@@ -382,12 +399,11 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
                 spacing="0",
                 width="100%",
             ),
-            width="11em",  # Reduced from 12em to 8em
+            width="11.5em",
             style={"flex_shrink": "0"},
         ),
-        spacing="5",  # Space between header and metrics cards
+        spacing="5",
         align="center",
-        # Overall column width stays the same (determined by header)
         width="12em",
         min_width="12em",
         style={"flex_shrink": "0"},
@@ -395,21 +411,19 @@ def stock_column_card(stock: Dict[str, Any], index: int) -> rx.Component:
 
 
 def metric_labels_column() -> rx.Component:
-    """Fixed column showing metric labels - matches the two-card structure"""
+    """Fixed column showing metric labels"""
     return rx.vstack(
-        # Empty header spacer to align with stock headers
         rx.card(
             rx.box(
-                # Empty header space
                 width="12em",
                 min_width="12em",
-                min_height="7.5em",  # Match stock header height
+                min_height="7.5em",
             ),
             width="12em",
             min_width="12em",
             style={
                 "flex_shrink": "0",
-                "visibility": "hidden",  # Hide but maintain space
+                "visibility": "hidden",
             },
         ),
         # Metrics labels card
@@ -439,7 +453,7 @@ def metric_labels_column() -> rx.Component:
             min_width="12em",
             style={"flex_shrink": "0"},
         ),
-        spacing="2",  # Match spacing of stock columns
+        spacing="2",
         align="start",
         style={"flex_shrink": "0"},
     )
@@ -448,15 +462,15 @@ def metric_labels_column() -> rx.Component:
 def comparison_controls() -> rx.Component:
     """Controls section with metric selector and load button"""
     return rx.hstack(
-        rx.spacer(),  # Push everything to the right
+        rx.spacer(),
         rx.hstack(
             rx.button(
                 rx.hstack(rx.icon("import", size=16), spacing="2"),
                 on_click=StockComparisonState.import_and_fetch_compare,
                 size="2",
             ),
-            metric_selector_popover(),  # Settings button
-            spacing="3",  # Space between the two buttons
+            metric_selector_popover(),
+            spacing="3",
             align="center",
         ),
         spacing="0",
@@ -466,33 +480,43 @@ def comparison_controls() -> rx.Component:
     )
 
 
+def industry_group_section(industry: str, stocks: List[Dict[str, Any]]) -> rx.Component:
+    """Create a section for each industry group"""
+    return rx.hstack(
+        rx.foreach(
+            stocks,
+            lambda stock: stock_column_card(stock, industry),
+        ),
+        spacing="3",
+        align="start",
+        style={"flex_wrap": "nowrap"},
+    )
+
+
 def comparison_section() -> rx.Component:
-    """
-    Main comparison section with column-based layout.
-    Metric labels are separate from the scrollable stock columns.
-    """
+    """Main comparison section with industry-grouped layout"""
     return rx.cond(
         StockComparisonState.compare_list,
         rx.box(
             rx.vstack(
                 comparison_controls(),
-                # Main comparison table - separate fixed column and scrollable area
+                # Main comparison table
                 rx.hstack(
-                    # Fixed metric labels column (separate from scroll area)
+                    # Fixed metric labels column
                     metric_labels_column(),
-                    # Scrollable stock columns area
+                    # Scrollable grouped stock columns area
                     rx.box(
                         rx.scroll_area(
                             rx.box(
                                 rx.hstack(
-                                    # Stock columns
+                                    # Industry groups
                                     rx.foreach(
-                                        StockComparisonState.formatted_stocks,
-                                        lambda stock, index: stock_column_card(
-                                            stock, index
+                                        StockComparisonState.grouped_stocks.items(),
+                                        lambda item: industry_group_section(
+                                            item[0], item[1]
                                         ),
                                     ),
-                                    spacing="3",
+                                    spacing="7",  # Space between industry groups
                                     align="start",
                                     style={"flex_wrap": "nowrap"},
                                 ),
