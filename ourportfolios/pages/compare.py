@@ -7,7 +7,7 @@ from collections import defaultdict
 from ..components.navbar import navbar
 from ..components.drawer import CartState, drawer_button
 from ..components.loading import loading_screen
-
+from ..utils.scheduler import db_settings
 
 class StockComparisonState(rx.State):
     stocks: List[Dict[str, Any]] = []
@@ -182,15 +182,14 @@ class StockComparisonState(rx.State):
 
     @rx.event
     async def fetch_stocks_from_compare(self):
+        """
+        Fetch stock data for tickers in compare_list and store in self.stocks.
+        """
         tickers = self.compare_list
         stocks = []
         if not tickers:
             self.stocks = []
             return
-        conn = sqlite3.connect(
-            "/home/dank/Documents/Codebases/ourportfolios/"
-            "ourportfolios/data/data_vni.db"
-        )
         for ticker in tickers:
             query = (
                 "SELECT ticker, market_cap, roe, pe, pb, dividend_yield, "
@@ -198,10 +197,10 @@ class StockComparisonState(rx.State):
                 "beta, rsi14, industry, tcbs_recommend "
                 "FROM data_vni WHERE ticker = ?"
             )
-            df = pd.read_sql(query, conn, params=(ticker,))
+            df = pd.read_sql(query, db_settings.conn, params=(ticker,))
             if not df.empty:
                 stocks.append(df.iloc[0].to_dict())
-        conn.close()
+
         self.stocks = stocks
 
     @rx.event
