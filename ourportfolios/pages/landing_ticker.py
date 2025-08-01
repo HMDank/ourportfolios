@@ -492,20 +492,18 @@ def price_chart_card():
                 rx.hstack(
                     rx.spacer(),
                     rx.foreach(
-                        PriceChartState.date_range.keys(),
+                        PriceChartState.df_by_interval.keys(),
                         lambda item: rx.button(
                             item,
                             variant=rx.cond(
-                                PriceChartState.selected_date_range == item,
+                                PriceChartState.selected_interval == item,
                                 "surface",
                                 "soft",
                             ),
-                            on_click=PriceChartState.set_date_range(item),
+                            on_click=PriceChartState.set_interval(item),
                         ),
                     ),
                     spacing="2",
-                    paddingLeft="2em",
-                    width="100%",
                 ),
                 flex="1",  # Take up available space
                 min_width="0",  # Allow shrinking
@@ -794,8 +792,7 @@ def company_profile_card():
         State.load_company_data,
         State.load_financial_ratios,
         State.load_transformed_dataframes,
-        PriceChartState.load_chart_data,
-        PriceChartState.load_chart_options,
+        PriceChartState.load_state
     ],
 )
 def index():

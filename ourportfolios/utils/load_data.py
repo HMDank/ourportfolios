@@ -101,7 +101,7 @@ def load_historical_data(
 ) -> pd.DataFrame:
     stock = Vnstock().stock(symbol=symbol, source="TCBS")
     df = stock.quote.history(start=start, end=end, interval=interval)
-    return df
+    return df.drop_duplicates(keep="last")
 
 
 def get_mini_graph_data(df):
