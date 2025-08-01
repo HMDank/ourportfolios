@@ -10,54 +10,36 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-@db_scheduler.scheduled_job(trigger="interval", minutes=1, id="populate_db")
+@db_scheduler.scheduled_job(
+    trigger="interval", seconds=db_settings.interval, id="populate_db"
+)
 def populate_db():
     # Stocks
-    screener = Screener(source="TCBS")
-    default_params = {
-        "exchangeName": "HOSE,HNX",
-        "marketCap": (2000, 99999999999),
-    }
-    stock_df = screener.stock(default_params, limit=1700, lang="en")
-
-    # Remove unstable columns
-    stock_df = stock_df.drop(
-        [x for x in stock_df.columns if x.startswith("price_vs")], axis=1
-    )
-
+    stock_df = load_stock_info()
     # Price board data
     price_board_df = load_price_board(tickers=stock_df["ticker"].tolist())
-
     # Result
-    combined_df = pd.merge(
+    result = pd.merge(
         left=stock_df, right=price_board_df, left_on="ticker", right_on="symbol"
     )
 
-    # Add additional instrument
-    result = compute_instrument(df=combined_df)
     result.to_sql("data_vni", db_settings.conn, if_exists="replace", index=False)
 
     print("Data loaded successfully.")
 
 
 def load_price_board(tickers: list[str]) -> pd.DataFrame:
-    price_board_df = Trading(source="vci", symbol="ACB").price_board(
-        symbols_list=tickers
-    )
-    price_board_df.columns = price_board_df.columns.droplevel(0)  # Flatten columns
-    price_board_df = price_board_df.drop("exchange", axis=1)
-    price_board_df = price_board_df.loc[:, ~price_board_df.columns.duplicated()]
+    df = Trading(source="vci", symbol="ACB").price_board(symbols_list=tickers)
+    df.columns = df.columns.droplevel(0)  # Flatten columns
+    df = df.drop("exchange", axis=1)
+    df = df.loc[:, ~df.columns.duplicated()]
 
-    return price_board_df
-
-
-def compute_instrument(df: pd.DataFrame) -> pd.DataFrame:
+    # Compute instrument
     if "match_price" in df.columns:
         df = df.rename(columns={"match_price": "current_price"})
         df["price_change"] = df["current_price"] - df["ref_price"]
         df["pct_price_change"] = (df["price_change"] / df["ref_price"]) * 100
 
-    # On the day when the market is closed
     else:
         df = df.rename(columns={"ref_price": "current_price"})
         df["price_change"] = 0
@@ -67,6 +49,20 @@ def compute_instrument(df: pd.DataFrame) -> pd.DataFrame:
     df["current_price"] = round(df["current_price"] * 1e-3, 2)
     df["price_change"] = round(df["price_change"] * 1e-3, 2)
     df["pct_price_change"] = round(df["pct_price_change"], 2)
+
+    return df
+
+
+def load_stock_info():
+    screener = Screener(source="TCBS")
+    default_params = {
+        "exchangeName": "HOSE,HNX",
+        "marketCap": (2000, 99999999999),
+    }
+    df = screener.stock(default_params, limit=1700, lang="en")
+
+    # Remove unstable columns
+    df = df.drop([x for x in df.columns if x.startswith("price_vs")], axis=1)
 
     return df
 

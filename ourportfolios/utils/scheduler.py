@@ -15,6 +15,9 @@ class Settings:
     connection_string = os.getenv("DATABASE_URL")
     conn = create_engine(url=connection_string)
 
+    # Reload period in seconds
+    interval: int = 60 * 60 * 5
+
 
 db_settings = Settings()
 
