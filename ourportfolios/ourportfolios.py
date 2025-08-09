@@ -3,7 +3,7 @@ import reflex as rx
 from .utils.load_data import populate_db
 
 # MUST BE IMPORTED!!!
-from .pages import landing, select, landing_ticker, landing_industry, analyze, compare
+from .pages import landing, select, landing_ticker, landing_industry, analyze, compare  # noqa: F401
 
 populate_db()
 
