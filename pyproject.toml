@@ -10,6 +10,7 @@ dependencies = [
     "psycopg2>=2.9.10",
     "reflex>=0.7.13",
     "sqlalchemy>=2.0.41",
+    "ruff>=0.12.8",
     "vnstock>=3.2.6",
 ]
 
@@ -48,8 +49,8 @@ mask_initial_release = true
 
 [tool.semantic_release.commit_parser_options]
 minor_tags = ["feat"]
-patch_tags = ["fix"]
-other_allowed_tags = ["build", "chore", "ci", "docs", "style", "refactor", "test"]
+patch_tags = ["fix",  "ci"]
+other_allowed_tags = ["build", "chore", "docs", "style", "refactor", "test"]
 allowed_tags = ["feat", "fix", "perf", "build", "chore", "ci", "docs", "style", "refactor", "test"]
 default_bump_level = 0
 parse_squash_commits = true
@@ -61,3 +62,5 @@ type = "github"
 ignore_token_for_push = false
 insecure = false
 
+[tool.ruff]
+exclude = ["**/*.ipynb"]
