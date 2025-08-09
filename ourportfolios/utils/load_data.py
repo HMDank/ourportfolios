@@ -1,7 +1,8 @@
 from .preprocess_texts import process_events_for_display
+from .scheduler import db_scheduler, db_settings
+from sqlalchemy import text
 import pandas as pd
 import numpy as np
-import sqlite3
 from datetime import date, timedelta
 from vnstock import Vnstock, Screener, Trading
 import asyncio
@@ -10,85 +11,59 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-data_vni_loaded = False
+@db_scheduler.scheduled_job(
+    trigger="interval", seconds=db_settings.interval, id="populate_db"
+)
+def populate_db():
+    with db_settings.conn.connect() as connection:
+        connection.execute(text("CREATE SCHEMA IF NOT EXISTS comparison"))
+        connection.commit()
 
-
-def populate_db() -> None:
-    global data_vni_loaded
-    if data_vni_loaded:
-        print("Data already loaded. Skipping.")
-        return
-
-    conn = sqlite3.connect("ourportfolios/data/data_vni.db")
-    cursor = conn.cursor()
-
-    cursor.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='data_vni'"
-    )
-    if cursor.fetchone():
-        cursor.execute("SELECT COUNT(*) FROM data_vni")
-        if cursor.fetchone()[0] > 0:
-            print("Data already loaded. Skipping.")
-            conn.close()
-            data_vni_loaded = True
-            return
-
-    # Stocks
-    screener = Screener(source="TCBS")
-    default_params = {
-        "exchangeName": "HOSE,HNX",
-        "marketCap": (2000, 99999999999),
-    }
-    stock_df = screener.stock(default_params, limit=1700, lang="en")
-
-    # Remove unstable columns
-    stock_df = stock_df.drop(
-        [x for x in stock_df.columns if x.startswith("price_vs")], axis=1
-    )
-
-    # Price board data
+    stock_df = load_comparison_table()
     price_board_df = load_price_board(tickers=stock_df["ticker"].tolist())
 
-    # Result
-    df = pd.merge(
+    result = pd.merge(
         left=stock_df, right=price_board_df, left_on="ticker", right_on="symbol"
     )
 
-    # Add additional instrument
-    df = compute_instrument(df)
-
-    df.to_sql("data_vni", conn, if_exists="replace", index=False)
-    conn.close()
-    data_vni_loaded = True
-    print("Data loaded successfully.")
+    result.to_sql("comparison_df", db_settings.conn, schema="comparison", if_exists="replace", index=False)
 
 
 def load_price_board(tickers: list[str]) -> pd.DataFrame:
-    price_board_df = Trading(source="vci", symbol="ACB").price_board(
-        symbols_list=tickers
-    )
-    price_board_df.columns = price_board_df.columns.droplevel(0)  # Flatten columns
-    price_board_df = price_board_df.drop("exchange", axis=1)
-    price_board_df = price_board_df.loc[:, ~price_board_df.columns.duplicated()]
+    df = Trading(source="vci", symbol="ACB").price_board(symbols_list=tickers)
+    df.columns = df.columns.droplevel(0)  # Flatten columns
+    df = df.drop("exchange", axis=1)
+    df = df.loc[:, ~df.columns.duplicated()]
 
-    return price_board_df
-
-
-def compute_instrument(df: pd.DataFrame) -> pd.DataFrame:
+    # Compute instrument
     if "match_price" in df.columns:
         df = df.rename(columns={"match_price": "current_price"})
         df["price_change"] = df["current_price"] - df["ref_price"]
         df["pct_price_change"] = (df["price_change"] / df["ref_price"]) * 100
 
-    # On the day when the market is closed
     else:
         df = df.rename(columns={"ref_price": "current_price"})
         df["price_change"] = 0
         df["pct_price_change"] = 0
 
+    # Normalize
     df["current_price"] = round(df["current_price"] * 1e-3, 2)
     df["price_change"] = round(df["price_change"] * 1e-3, 2)
     df["pct_price_change"] = round(df["pct_price_change"], 2)
+
+    return df
+
+
+def load_comparison_table():
+    screener = Screener(source="TCBS")
+    default_params = {
+        "exchangeName": "HOSE,HNX",
+        "marketCap": (2000, 99999999999),
+    }
+    df = screener.stock(default_params, limit=1700, lang="en")
+
+    # Remove unstable columns
+    df = df.drop([x for x in df.columns if x.startswith("price_vs")], axis=1)
 
     return df
 
@@ -156,7 +131,7 @@ def load_company_overview(ticker: str):
     overview["website"] = (
         overview["website"].removeprefix("https://").removeprefix("http://")
     )
-    overview['foreign_percent'] = round(overview['foreign_percent']*100, 2)
+    overview["foreign_percent"] = round(overview["foreign_percent"] * 100, 2)
     return overview
 
 
@@ -169,6 +144,7 @@ def load_company_shareholders(ticker: str):
     ).round(2)
     shareholders = shareholders_df.to_dict("records")
     return shareholders
+
 
 def load_company_profile(ticker: str):
     stock = Vnstock().stock(symbol=ticker, source="TCBS")
