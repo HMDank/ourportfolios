@@ -22,7 +22,6 @@ class StockComparisonState(rx.State):
         "eps_growth_1y",
         "gross_margin",
         "net_margin",
-        "beta",
         "rsi14",
     ]
 
@@ -38,7 +37,6 @@ class StockComparisonState(rx.State):
             "eps_growth_1y",
             "gross_margin",
             "net_margin",
-            "beta",
             "rsi14",
             "tcbs_recommend",
         ]
@@ -55,7 +53,6 @@ class StockComparisonState(rx.State):
             "eps_growth_1y": "EPS Growth (1Y)",
             "gross_margin": "Gross Margin",
             "net_margin": "Net Margin",
-            "beta": "Beta",
             "rsi14": "RSI (14)",
             "tcbs_recommend": "Recommendation",
         }
@@ -145,7 +142,7 @@ class StockComparisonState(rx.State):
             "net_margin",
         ]:
             return f"{value * 100:.1f}%"
-        elif key in ["pe", "pb", "beta"]:
+        elif key in ["pe", "pb"]:
             return f"{value:.1f}"
         elif key == "rsi14":
             return f"{value:.0f}"
@@ -195,8 +192,8 @@ class StockComparisonState(rx.State):
             query = text(
                 "SELECT ticker, market_cap, roe, pe, pb, dividend_yield, "
                 "revenue_growth_1y, eps_growth_1y, gross_margin, net_margin, "
-                "beta, rsi14, industry, tcbs_recommend "
-                "FROM data_vni WHERE ticker = :pattern"
+                "rsi14, industry, tcbs_recommend "
+                "FROM comparison.comparison_df WHERE ticker = :pattern"
             )
             df = pd.read_sql(query, db_settings.conn, params={"pattern": ticker})
             if not df.empty:
