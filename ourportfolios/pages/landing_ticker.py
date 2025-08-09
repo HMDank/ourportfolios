@@ -50,16 +50,6 @@ class State(rx.State):
     selected_metrics: Dict[str, str] = {}
 
     selected_metric: str = "P/E"
-    available_metrics: List[str] = [
-        "P/E",
-        "P/B",
-        "P/S",
-        "P/Cash Flow",
-        "ROE (%)",
-        "ROA (%)",
-        "Debt/Equity",
-    ]
-    selected_margin_metric: str = "gross_margin"
 
     @rx.event
     async def toggle_switch(self, value: bool):
