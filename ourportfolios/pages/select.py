@@ -24,7 +24,7 @@ class State(rx.State):
 
     @rx.var(cache=True)
     def get_all_tickers(self) -> list[dict]:
-        df = pd.read_sql("SELECT * FROM data_vni", db_settings.conn)
+        df = pd.read_sql("SELECT * FROM comparison.comparison_df", db_settings.conn)
 
         return df[["ticker", "industry"]].to_dict("records")
 
@@ -54,7 +54,7 @@ class State(rx.State):
     @rx.event
     def get_all_industries(self):
         industries = pd.read_sql(
-            "SELECT DISTINCT industry FROM data_vni;", db_settings.conn
+            "SELECT DISTINCT industry FROM comparison.comparison_df;", db_settings.conn
         )
 
         self.industries = industries["industry"].tolist()

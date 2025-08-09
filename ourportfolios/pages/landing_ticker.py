@@ -18,7 +18,7 @@ from ..utils.preprocessing.financial_statements import get_transformed_dataframe
 
 def fetch_technical_metrics(ticker: str) -> dict:
     df = pd.read_sql(
-        text("SELECT * FROM data_vni WHERE ticker = :pattern"),
+        text("SELECT * FROM comparison.comparison_df WHERE ticker = :pattern"),
         db_settings.conn,
         params={"pattern": ticker},
     )

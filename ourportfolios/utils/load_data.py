@@ -1,5 +1,6 @@
 from .preprocess_texts import process_events_for_display
 from .scheduler import db_scheduler, db_settings
+from sqlalchemy import text
 import pandas as pd
 import numpy as np
 from datetime import date, timedelta
@@ -14,16 +15,18 @@ warnings.filterwarnings("ignore")
     trigger="interval", seconds=db_settings.interval, id="populate_db"
 )
 def populate_db():
-    # Stocks
+    with db_settings.conn.connect() as connection:
+        connection.execute(text("CREATE SCHEMA IF NOT EXISTS comparison"))
+        connection.commit()
+
     stock_df = load_comparison_table()
-    # Price board data
     price_board_df = load_price_board(tickers=stock_df["ticker"].tolist())
-    # Result
+
     result = pd.merge(
         left=stock_df, right=price_board_df, left_on="ticker", right_on="symbol"
     )
 
-    result.to_sql("data_vni", db_settings.conn, if_exists="replace", index=False)
+    result.to_sql("comparison_df", db_settings.conn, schema="comparison", if_exists="replace", index=False)
 
 
 def load_price_board(tickers: list[str]) -> pd.DataFrame:
