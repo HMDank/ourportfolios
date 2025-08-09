@@ -1,4 +1,3 @@
-from functools import cache
 import pandas as pd
 import reflex as rx
 import sqlite3
@@ -23,7 +22,6 @@ def fetch_technical_metrics(ticker: str) -> dict:
     return df.iloc[0].to_dict() if not df.empty else {}
 
 
-# Remove the separate SwitchState class - we'll integrate it into State
 class State(rx.State):
     switch_value: str = "yearly"
 
@@ -130,15 +128,13 @@ class State(rx.State):
     def get_chart_data_for_category(self) -> Dict[str, List[Dict[str, Any]]]:
         """Get chart data for all categories"""
         chart_data = {}
-
         categorized_ratios = self.transformed_dataframes.get("categorized_ratios", {})
 
         for category, data in categorized_ratios.items():
             selected_metric = self.selected_metrics[category]
-
             chart_data[category] = [
                 {"year": row["Year"], "value": row.get(selected_metric, 0) or 0}
-                for row in reversed(data)  # Reverse to show chronological order
+                for row in reversed(data)
             ][-8:]
 
         return chart_data
@@ -416,17 +412,17 @@ def key_metrics_card():
                         rx.badge(
                             "Quarterly",
                             color_scheme=rx.cond(
-                                State.switch_value == "quarterly", "accent", "gray"
+                                State.switch_value == "quarter", "accent", "gray"
                             ),
                         ),
                         rx.switch(
-                            checked=State.switch_value == "yearly",
+                            checked=State.switch_value == "year",
                             on_change=State.toggle_switch,
                         ),
                         rx.badge(
                             "Yearly",
                             color_scheme=rx.cond(
-                                State.switch_value == "yearly", "accent", "gray"
+                                State.switch_value == "year", "accent", "gray"
                             ),
                         ),
                         justify="center",
@@ -683,7 +679,7 @@ def company_generic_info_card():
                                             size="2",
                                         ),
                                         rx.cond(
-                                            (news["price_change_ratio"] != None)
+                                            (news["price_change_ratio"] is not None)
                                             & ~(
                                                 news["price_change_ratio"]
                                                 != news["price_change_ratio"]
@@ -792,7 +788,7 @@ def company_profile_card():
         State.load_company_data,
         State.load_financial_ratios,
         State.load_transformed_dataframes,
-        PriceChartState.load_state
+        PriceChartState.load_state,
     ],
 )
 def index():
