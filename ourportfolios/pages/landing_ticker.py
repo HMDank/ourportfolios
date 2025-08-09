@@ -686,7 +686,7 @@ def company_generic_info_card():
                                             size="2",
                                         ),
                                         rx.cond(
-                                            (news["price_change_ratio"] != None)
+                                            (news["price_change_ratio"] is not None)
                                             & ~(
                                                 news["price_change_ratio"]
                                                 != news["price_change_ratio"]
