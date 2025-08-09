@@ -1,4 +1,3 @@
-from functools import cache
 import pandas as pd
 import reflex as rx
 import sqlite3
@@ -23,9 +22,8 @@ def fetch_technical_metrics(ticker: str) -> dict:
     return df.iloc[0].to_dict() if not df.empty else {}
 
 
-# Remove the separate SwitchState class - we'll integrate it into State
 class State(rx.State):
-    switch_value: str = "yearly"
+    switch_value: str = "year"
 
     company_control: str = "shares"
     technical_metrics: dict = {}
@@ -61,7 +59,7 @@ class State(rx.State):
 
     @rx.event
     async def toggle_switch(self, value: bool):
-        self.switch_value = "yearly" if value else "quarterly"
+        self.switch_value = "year" if value else "quarter"
         await self.load_transformed_dataframes()
 
     @rx.event
@@ -116,7 +114,8 @@ class State(rx.State):
 
         for category, data in categorized_ratios.items():
             if data:
-                metrics = [col for col in data[0].keys() if col != "Year"]
+                excluded_columns = {"Year", "Quarter", "Date", "Period"}
+                metrics = [col for col in data[0].keys() if col not in excluded_columns]
                 self.available_metrics_by_category[category] = metrics
                 if metrics:
                     self.selected_metrics[category] = metrics[0]
@@ -126,19 +125,17 @@ class State(rx.State):
         """Set selected metric for a specific category"""
         self.selected_metrics[category] = metric
 
-    @rx.var(cache=True)
+    @rx.var()
     def get_chart_data_for_category(self) -> Dict[str, List[Dict[str, Any]]]:
         """Get chart data for all categories"""
         chart_data = {}
-
         categorized_ratios = self.transformed_dataframes.get("categorized_ratios", {})
 
         for category, data in categorized_ratios.items():
             selected_metric = self.selected_metrics[category]
-
             chart_data[category] = [
                 {"year": row["Year"], "value": row.get(selected_metric, 0) or 0}
-                for row in reversed(data)  # Reverse to show chronological order
+                for row in reversed(data)
             ][-8:]
 
         return chart_data
@@ -416,17 +413,17 @@ def key_metrics_card():
                         rx.badge(
                             "Quarterly",
                             color_scheme=rx.cond(
-                                State.switch_value == "quarterly", "accent", "gray"
+                                State.switch_value == "quarter", "accent", "gray"
                             ),
                         ),
                         rx.switch(
-                            checked=State.switch_value == "yearly",
+                            checked=State.switch_value == "year",
                             on_change=State.toggle_switch,
                         ),
                         rx.badge(
                             "Yearly",
                             color_scheme=rx.cond(
-                                State.switch_value == "yearly", "accent", "gray"
+                                State.switch_value == "year", "accent", "gray"
                             ),
                         ),
                         justify="center",
@@ -450,11 +447,11 @@ def key_metrics_card():
                             ]
                         ),
                         width="100%",
-                        padding_top="2em",  # Move content down from top
+                        padding_top="2em",
                         padding_left="0.5em",
                         style={
-                            "display": "block",  # Use block instead of flex for better left alignment
-                            "textAlign": "left",  # Ensure text aligns left
+                            "display": "block",
+                            "textAlign": "left",
                         },
                     ),
                     value="statement",
@@ -485,9 +482,9 @@ def price_chart_card():
             rx.vstack(
                 rx.box(
                     id="price_chart",
-                    width="100%",  # Changed from 70vw to 100%
+                    width="100%",
                     height="100%",
-                    min_width="0",  # Allow shrinking
+                    min_width="0",
                 ),
                 rx.hstack(
                     rx.spacer(),
@@ -505,8 +502,8 @@ def price_chart_card():
                     ),
                     spacing="2",
                 ),
-                flex="1",  # Take up available space
-                min_width="0",  # Allow shrinking
+                flex="1",
+                min_width="0",
             ),
             rx.flex(
                 rx.menu.root(
@@ -566,18 +563,18 @@ def price_chart_card():
                 ),
                 direction="column",
                 spacing="3",
-                flex="0 0 auto",  # Don't shrink, fixed size
+                flex="0 0 auto",
                 align="center",
             ),
             width="100%",
             height="100%",
             direction="row",
             spacing="3",
-            align="stretch",  # Stretch items to full height
+            align="stretch",
         ),
         flex="1",
         min_width="0",
-        width="100%",  # Ensure card takes full width
+        width="100%",
     )
 
 
@@ -683,7 +680,7 @@ def company_generic_info_card():
                                             size="2",
                                         ),
                                         rx.cond(
-                                            (news["price_change_ratio"] != None)
+                                            (news["price_change_ratio"] is not None)
                                             & ~(
                                                 news["price_change_ratio"]
                                                 != news["price_change_ratio"]
@@ -792,7 +789,7 @@ def company_profile_card():
         State.load_company_data,
         State.load_financial_ratios,
         State.load_transformed_dataframes,
-        PriceChartState.load_state
+        PriceChartState.load_state,
     ],
 )
 def index():
@@ -823,7 +820,7 @@ def index():
                             general_info_card(),
                             spacing="4",
                             align="center",
-                            flex="0 0 auto",  # Don't grow
+                            flex="0 0 auto",
                         ),
                         price_chart_card(),
                         spacing="4",
