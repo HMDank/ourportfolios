@@ -11,7 +11,7 @@ load_dotenv()
 
 
 class Settings:
-    connection_string = os.getenv("DATABASE_URL")
+    connection_string = os.getenv("DATABASE_URI")
     conn = create_engine(url=connection_string)
 
     interval: int = 60 * 60 * 5
