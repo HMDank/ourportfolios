@@ -1,4 +1,4 @@
-name: checks
+name: our_check
 
 on:
   push:
