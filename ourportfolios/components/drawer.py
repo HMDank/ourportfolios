@@ -5,11 +5,12 @@ from ..utils.scheduler import db_settings
 
 
 def get_industry(ticker: str) -> str:
-    if db_settings.conn.in_transaction():
-        try:
-            db_settings.conn.rollback()
-        except Exception:
-            pass
+    with db_settings.conn.connect() as connection:
+        if connection.in_transaction():
+            try:
+                db_settings.conn.rollback()
+            except Exception:
+                pass
 
     query = text("""
         SELECT industry

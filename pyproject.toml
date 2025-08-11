@@ -12,6 +12,7 @@ dependencies = [
     "sqlalchemy>=2.0.41",
     "ruff>=0.12.8",
     "vnstock>=3.2.6",
+    "psycopg2-binary>=2.9.10",
 ]
 
 [tool.semantic_release]
