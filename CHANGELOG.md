@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.2.2 (2025-08-11)
+
+### Bug Fixes
+
+- **db**: Add rollback ([#47](https://github.com/HMDank/ourportfolios/pull/47),
+  [`4d8f0cb`](https://github.com/HMDank/ourportfolios/commit/4d8f0cbe449c87da551a4810fe32b74cda83a510))
+
+
 ## v0.2.1 (2025-08-09)
 
 ### Bug Fixes
