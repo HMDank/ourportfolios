@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.2.3 (2025-08-11)
+
+### Bug Fixes
+
+- **db**: Add rollback ([#48](https://github.com/HMDank/ourportfolios/pull/48),
+  [`b14bb46`](https://github.com/HMDank/ourportfolios/commit/b14bb463a3d9c945c072c15cb6342df3b31acafe))
+
+### Chores
+
+- Add rollback ([#48](https://github.com/HMDank/ourportfolios/pull/48),
+  [`b14bb46`](https://github.com/HMDank/ourportfolios/commit/b14bb463a3d9c945c072c15cb6342df3b31acafe))
+
+- **db**: Rollback ([#48](https://github.com/HMDank/ourportfolios/pull/48),
+  [`b14bb46`](https://github.com/HMDank/ourportfolios/commit/b14bb463a3d9c945c072c15cb6342df3b31acafe))
+
+
 ## v0.2.2 (2025-08-11)
 
 ### Bug Fixes
