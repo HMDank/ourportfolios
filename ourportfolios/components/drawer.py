@@ -5,9 +5,18 @@ from ..utils.scheduler import db_settings
 
 
 def get_industry(ticker: str) -> str:
-    query = text("SELECT industry FROM comparison.comparison_df WHERE ticker = :pattern")
-    df = pd.read_sql(query, db_settings.conn, params={'pattern': ticker})
+    if db_settings.conn.in_transaction():
+        try:
+            db_settings.conn.rollback()
+        except Exception:
+            pass
 
+    query = text("""
+        SELECT industry
+        FROM comparison.comparison_df
+        WHERE ticker = :pattern
+    """)
+    df = pd.read_sql(query, db_settings.conn, params={"pattern": ticker})
     return df["industry"].iloc[0]
 
 
