@@ -7,7 +7,6 @@ from datetime import date, timedelta
 from vnstock import Vnstock, Screener, Trading
 import asyncio
 import warnings
-
 warnings.filterwarnings("ignore")
 
 

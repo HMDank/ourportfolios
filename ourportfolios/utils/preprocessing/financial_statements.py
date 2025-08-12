@@ -614,7 +614,7 @@ def format_quarter_data(data_list):
             quarter_str = f"{year}" if year else ""
 
         processed_item["formatted_quarter"] = quarter_str
-        processed_item.pop("Quarter", None)
+        processed_item.pop('Quarter', None)
         processed_data.append(processed_item)
 
     return processed_data

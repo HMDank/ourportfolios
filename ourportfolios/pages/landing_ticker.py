@@ -2,7 +2,6 @@ import pandas as pd
 import reflex as rx
 from sqlalchemy import text
 from typing import Any, List, Dict
-from vnstock import Finance
 
 from ..components.price_chart import PriceChartState
 from ..components.navbar import navbar
@@ -13,7 +12,10 @@ from ..components.loading import loading_screen
 
 from ..utils.scheduler import db_settings
 from ..utils.load_data import load_company_data_async
-from ..utils.preprocessing.financial_statements import get_transformed_dataframes
+from ..utils.preprocessing.financial_statements import (
+    get_transformed_dataframes,
+    format_quarter_data,
+)
 
 
 def fetch_technical_metrics(ticker: str) -> dict:
@@ -27,8 +29,7 @@ def fetch_technical_metrics(ticker: str) -> dict:
 
 
 class State(rx.State):
-    switch_value: str = "year"
-
+    switch_value: str = "yearly"
     company_control: str = "shares"
     technical_metrics: dict = {}
     company_info: dict = {}
@@ -42,13 +43,9 @@ class State(rx.State):
     income_statement: list[dict] = []
     balance_sheet: list[dict] = []
     cash_flow: list[dict] = []
-
-    financial_df: pd.DataFrame = pd.DataFrame()
-
     transformed_dataframes: dict = {}
     available_metrics_by_category: Dict[str, List[str]] = {}
     selected_metrics: Dict[str, str] = {}
-
     selected_metric: str = "P/E"
     available_metrics: List[str] = [
         "P/E",
@@ -63,20 +60,18 @@ class State(rx.State):
 
     @rx.event
     async def toggle_switch(self, value: bool):
-        self.switch_value = "year" if value else "quarter"
+        self.switch_value = "yearly" if value else "quarterly"
+        yield
         await self.load_transformed_dataframes()
 
     @rx.event
     def load_technical_metrics(self):
-        params = self.router.page.params
-        ticker = params.get("ticker", "")
+        ticker = self.router.page.params.get("ticker", "")
         self.technical_metrics = fetch_technical_metrics(ticker)
 
     @rx.event
     async def load_company_data(self):
-        params = self.router.page.params
-        ticker = params.get("ticker", "")
-
+        ticker = self.router.page.params.get("ticker", "")
         data = await load_company_data_async(ticker)
         self.overview = data["overview"]
         self.shareholders = data["shareholders"]
@@ -87,25 +82,12 @@ class State(rx.State):
         self.price_data = data["price_data"]
 
     @rx.event
-    def load_financial_ratios(self):
-        """Load financial ratios data dynamically"""
-        params = self.router.page.params
-        ticker = params.get("ticker", "")
-
-        report_range = self.switch_value
-        financial_df = Finance(symbol=ticker, source="VCI").ratio(
-            report_range=report_range, is_all=True
-        )
-        financial_df.columns = financial_df.columns.droplevel(0)
-
-        self.financial_df = financial_df
-
-    @rx.event
     async def load_transformed_dataframes(self):
-        params = self.router.page.params
-        ticker = params.get("ticker", "")
+        ticker = self.router.page.params.get("ticker", "")
+        period_mapping = {"quarterly": "quarter", "yearly": "year"}
+        mapped_period = period_mapping.get(self.switch_value, "year")
 
-        result = await get_transformed_dataframes(ticker, period=self.switch_value)
+        result = await get_transformed_dataframes(ticker, period=mapped_period)
 
         self.transformed_dataframes = result
         self.income_statement = result["transformed_income_statement"]
@@ -115,10 +97,10 @@ class State(rx.State):
         categorized_ratios = result.get("categorized_ratios", {})
         self.available_metrics_by_category = {}
         self.selected_metrics = {}
+        excluded_columns = {"Year", "Quarter"}
 
         for category, data in categorized_ratios.items():
             if data:
-                excluded_columns = {"Year", "Quarter", "Date", "Period"}
                 metrics = [col for col in data[0].keys() if col not in excluded_columns]
                 self.available_metrics_by_category[category] = metrics
                 if metrics:
@@ -126,27 +108,37 @@ class State(rx.State):
 
     @rx.event
     def set_metric_for_category(self, category: str, metric: str):
-        """Set selected metric for a specific category"""
         self.selected_metrics[category] = metric
 
     @rx.var()
     def get_chart_data_for_category(self) -> Dict[str, List[Dict[str, Any]]]:
-        """Get chart data for all categories"""
         chart_data = {}
         categorized_ratios = self.transformed_dataframes.get("categorized_ratios", {})
 
         for category, data in categorized_ratios.items():
-            selected_metric = self.selected_metrics[category]
-            chart_data[category] = [
-                {"year": row["Year"], "value": row.get(selected_metric, 0) or 0}
-                for row in reversed(data)
-            ][-8:]
+            selected_metric = self.selected_metrics.get(category)
+            if selected_metric:
+                if self.switch_value == "quarterly":
+                    formatted_data = format_quarter_data(data)
+                    time_key = "formatted_quarter"
+                else:
+                    formatted_data = data
+                    time_key = "Year"
+
+                chart_data[category] = [
+                    {
+                        "year": row.get(time_key, ""),
+                        "value": row.get(selected_metric, 0) or 0,
+                    }
+                    for row in reversed(formatted_data)
+                ][-8:]
+            else:
+                chart_data[category] = []
 
         return chart_data
 
     @rx.var
     def get_categories_list(self) -> List[str]:
-        """Get list of available categories"""
         return list(self.transformed_dataframes.get("categorized_ratios", {}).keys())
 
     @rx.var(cache=True)
@@ -168,8 +160,48 @@ class State(rx.State):
         return data
 
 
-def create_dynamic_chart(category: str):
-    """Create a dynamic chart for a specific category"""
+def create_chart_component(category: str, position: int, is_placeholder: bool = False):
+    if is_placeholder:
+        return rx.card(
+            rx.vstack(
+                rx.hstack(
+                    rx.heading(f"Chart {position + 1}", size="4", weight="medium"),
+                    rx.spacer(),
+                    rx.select(
+                        [f"Metric {position + 1}.1", f"Metric {position + 1}.2"],
+                        value=f"Metric {position + 1}.1",
+                        size="1",
+                    ),
+                    align="center",
+                    justify="between",
+                    width="100%",
+                ),
+                rx.box(
+                    rx.center(
+                        rx.text(
+                            f"Placeholder for Chart {position + 1}",
+                            size="3",
+                            color="gray",
+                        ),
+                        height="280px",
+                    ),
+                    width="100%",
+                    style={
+                        "overflow": "hidden",
+                        "border": "2px dashed #ccc",
+                        "borderRadius": "8px",
+                    },
+                ),
+                spacing="3",
+                align="stretch",
+            ),
+            width="100%",
+            flex="1",
+            min_width="0",
+            max_width="100%",
+            style={"padding": "1em", "minWidth": 0, "overflow": "hidden"},
+        )
+
     return rx.card(
         rx.vstack(
             rx.hstack(
@@ -222,134 +254,35 @@ def create_dynamic_chart(category: str):
     )
 
 
-def create_placeholder_chart(title: str, position: int):
-    """Create placeholder chart when no data is available"""
-    return rx.card(
-        rx.vstack(
-            rx.hstack(
-                rx.heading(title, size="4", weight="medium"),
-                rx.spacer(),
-                rx.select(
-                    [f"Metric {position + 1}.1", f"Metric {position + 1}.2"],
-                    value=f"Metric {position + 1}.1",
-                    size="1",
+def create_chart_row(start_idx: int, end_idx: int):
+    categories = State.get_categories_list
+
+    charts = []
+    for i in range(start_idx, end_idx):
+        charts.append(
+            rx.cond(
+                categories.length() > i,
+                rx.foreach(
+                    categories[i : i + 1],
+                    lambda category, index: create_chart_component(category, i),
                 ),
-                align="center",
-                justify="between",
-                width="100%",
-            ),
-            rx.box(
-                rx.center(
-                    rx.text(f"Placeholder for {title}", size="3", color="gray"),
-                    height="280px",
-                ),
-                width="100%",
-                style={
-                    "overflow": "hidden",
-                    "border": "2px dashed #ccc",
-                    "borderRadius": "8px",
-                },
-            ),
-            spacing="3",
-            align="stretch",
-        ),
+                create_chart_component("", i, is_placeholder=True),
+            )
+        )
+
+    return rx.hstack(
+        *charts,
+        spacing="4",
         width="100%",
-        flex="1",
-        min_width="0",
-        max_width="100%",
-        style={"padding": "1em", "minWidth": 0, "overflow": "hidden"},
+        align="stretch",
+        justify="between",
     )
 
 
 def performance_cards():
-    """Create performance cards with dynamic charts"""
-    categories = State.get_categories_list
-
     return rx.vstack(
-        rx.hstack(
-            rx.foreach(
-                categories[:3],
-                lambda category: create_dynamic_chart(category),
-            ),
-            rx.cond(
-                categories.length() < 3,
-                rx.vstack(
-                    rx.cond(
-                        categories.length() == 0,
-                        rx.hstack(
-                            create_placeholder_chart("Chart 1", 0),
-                            create_placeholder_chart("Chart 2", 1),
-                            create_placeholder_chart("Chart 3", 2),
-                            spacing="4",
-                            width="100%",
-                            align="stretch",
-                            justify="between",
-                        ),
-                    ),
-                    rx.cond(
-                        categories.length() == 1,
-                        rx.hstack(
-                            create_placeholder_chart("Chart 2", 1),
-                            create_placeholder_chart("Chart 3", 2),
-                            spacing="4",
-                            width="100%",
-                            align="stretch",
-                            justify="between",
-                        ),
-                    ),
-                    rx.cond(
-                        categories.length() == 2,
-                        create_placeholder_chart("Chart 3", 2),
-                    ),
-                ),
-            ),
-            spacing="4",
-            width="100%",
-            align="stretch",
-            justify="between",
-        ),
-        rx.hstack(
-            rx.foreach(
-                categories[3:6],
-                lambda category: create_dynamic_chart(category),
-            ),
-            rx.cond(
-                categories.length() < 6,
-                rx.vstack(
-                    rx.cond(
-                        categories.length() <= 3,
-                        rx.hstack(
-                            create_placeholder_chart("Chart 4", 3),
-                            create_placeholder_chart("Chart 5", 4),
-                            create_placeholder_chart("Chart 6", 5),
-                            spacing="4",
-                            width="100%",
-                            align="stretch",
-                            justify="between",
-                        ),
-                    ),
-                    rx.cond(
-                        categories.length() == 4,
-                        rx.hstack(
-                            create_placeholder_chart("Chart 5", 4),
-                            create_placeholder_chart("Chart 6", 5),
-                            spacing="4",
-                            width="100%",
-                            align="stretch",
-                            justify="between",
-                        ),
-                    ),
-                    rx.cond(
-                        categories.length() == 5,
-                        create_placeholder_chart("Chart 6", 5),
-                    ),
-                ),
-            ),
-            spacing="4",
-            width="100%",
-            align="stretch",
-            justify="between",
-        ),
+        create_chart_row(0, 3),
+        create_chart_row(3, 6),
         spacing="3",
         width="100%",
         align="stretch",
@@ -357,46 +290,41 @@ def performance_cards():
 
 
 def name_card():
-    technical_metrics = State.technical_metrics
-    return (
-        card_wrapper(
-            rx.vstack(
-                rx.hstack(
-                    rx.heading(technical_metrics["ticker"], size="9"),
-                    rx.button(
-                        rx.icon("plus", size=16),
-                        size="2",
-                        variant="soft",
-                        on_click=lambda: CartState.add_item(
-                            technical_metrics["ticker"]
-                        ),
+    return card_wrapper(
+        rx.vstack(
+            rx.hstack(
+                rx.heading(State.technical_metrics["ticker"], size="9"),
+                rx.button(
+                    rx.icon("plus", size=16),
+                    size="2",
+                    variant="soft",
+                    on_click=lambda: CartState.add_item(
+                        State.technical_metrics["ticker"]
                     ),
-                    justify="center",
-                    align="center",
                 ),
-                rx.hstack(
-                    rx.badge(f"{technical_metrics['exchange']}", variant="surface"),
-                    rx.badge(f"{technical_metrics['industry']}"),
-                ),
+                justify="center",
+                align="center",
             ),
-            style={"width": "100%", "padding": "1em"},
+            rx.hstack(
+                rx.badge(f"{State.technical_metrics['exchange']}", variant="surface"),
+                rx.badge(f"{State.technical_metrics['industry']}"),
+            ),
         ),
+        style={"width": "100%", "padding": "1em"},
     )
 
 
 def general_info_card():
-    technical_metrics = State.technical_metrics
-    info = State.overview
-    website = info.get("website", "")
     return rx.vstack(
         card_wrapper(
-            rx.text(f"{info['short_name']} (Est. {info['established_year']})"),
-            rx.link(website, href=f"https://{website}", is_external=True),
-            rx.text(f"Market cap: {technical_metrics['market_cap']}"),
-            rx.text(f"Issue Shares: {info['issue_share']}"),
-            rx.text(f"Outstanding Shares: {info['outstanding_share']}"),
+            rx.text(f"Market cap: {State.technical_metrics['market_cap']}"),
             rx.text(
-                f"{info['no_shareholders']} shareholders ({info['foreign_percent']}% foreign)"
+                f"{State.overview['short_name']} (Est. {State.overview['established_year']})"
+            ),
+            rx.link(
+                State.overview.get("website", ""),
+                href=f"https://{State.overview.get('website', '')}",
+                is_external=True,
             ),
             style={"width": "100%", "padding": "1em"},
         ),
@@ -582,7 +510,103 @@ def price_chart_card():
     )
 
 
-def company_generic_info_card():
+def officers_section():
+    return rx.card(
+        rx.scroll_area(
+            rx.vstack(
+                rx.foreach(
+                    State.officers,
+                    lambda officer: rx.box(
+                        rx.hstack(
+                            rx.heading(
+                                officer["officer_name"],
+                                weight="medium",
+                                size="3",
+                            ),
+                            rx.badge(
+                                f"{officer['officer_own_percent']}%",
+                                color_scheme="gray",
+                                variant="surface",
+                                high_contrast=True,
+                            ),
+                            align="center",
+                        ),
+                        rx.text(officer["officer_position"], size="2"),
+                    ),
+                ),
+                spacing="3",
+                width="100%",
+            ),
+            style={"height": "24.3em"},
+        ),
+        width="100%",
+    )
+
+
+def events_section():
+    return rx.scroll_area(
+        rx.vstack(
+            rx.foreach(
+                State.events,
+                lambda event: rx.box(
+                    rx.card(
+                        rx.hstack(
+                            rx.heading(
+                                event["event_name"],
+                                weight="medium",
+                                size="3",
+                            ),
+                            rx.badge(f"{event['price_change_ratio']}%"),
+                            align="center",
+                        ),
+                        rx.text(
+                            event["event_desc"],
+                            weight="regular",
+                            size="1",
+                        ),
+                    ),
+                ),
+            ),
+            spacing="3",
+        ),
+        style={"height": "45.3em"},
+    )
+
+
+def news_section():
+    return rx.scroll_area(
+        rx.vstack(
+            rx.foreach(
+                State.news,
+                lambda news: rx.card(
+                    rx.hstack(
+                        rx.text(
+                            f"{news['title']} ({news['publish_date']})",
+                            weight="regular",
+                            size="2",
+                        ),
+                        rx.cond(
+                            (news["price_change_ratio"] != None)
+                            & ~(
+                                news["price_change_ratio"] != news["price_change_ratio"]
+                            ),
+                            rx.badge(f"{news['price_change_ratio']}%"),
+                        ),
+                        align="center",
+                        justify="between",
+                        width="100%",
+                    ),
+                    width="100%",
+                ),
+            ),
+        ),
+        spacing="2",
+        width="100%",
+        style={"height": "45.3em"},
+    )
+
+
+def company_card():
     return rx.card(
         rx.vstack(
             rx.box(
@@ -609,100 +633,15 @@ def company_generic_info_card():
                         align_items="center",
                         style={"marginTop": "2.5em", "marginBottom": "2.5em"},
                     ),
-                    rx.card(
-                        rx.scroll_area(
-                            rx.vstack(
-                                rx.foreach(
-                                    State.officers,
-                                    lambda officer: rx.box(
-                                        rx.hstack(
-                                            rx.heading(
-                                                officer["officer_name"],
-                                                weight="medium",
-                                                size="3",
-                                            ),
-                                            rx.badge(
-                                                f"{officer['officer_own_percent']}%",
-                                                color_scheme="gray",
-                                                variant="surface",
-                                                high_contrast=True,
-                                            ),
-                                            align="center",
-                                        ),
-                                        rx.text(officer["officer_position"], size="2"),
-                                    ),
-                                ),
-                                spacing="3",
-                                width="100%",
-                            ),
-                            style={"height": "24.3em"},
-                        ),
-                        width="100%",
-                    ),
+                    officers_section(),
                     justify="center",
                     align="center",
                     width="100%",
                 ),
                 rx.cond(
                     State.company_control == "events",
-                    rx.scroll_area(
-                        rx.vstack(
-                            rx.foreach(
-                                State.events,
-                                lambda event: rx.box(
-                                    rx.card(
-                                        rx.hstack(
-                                            rx.heading(
-                                                event["event_name"],
-                                                weight="medium",
-                                                size="3",
-                                            ),
-                                            rx.badge(f"{event['price_change_ratio']}%"),
-                                            align="center",
-                                        ),
-                                        rx.text(
-                                            event["event_desc"],
-                                            weight="regular",
-                                            size="1",
-                                        ),
-                                    ),
-                                ),
-                            ),
-                            spacing="3",
-                        ),
-                        style={"height": "45.3em"},
-                    ),
-                    rx.scroll_area(
-                        rx.vstack(
-                            rx.foreach(
-                                State.news,
-                                lambda news: rx.card(
-                                    rx.hstack(
-                                        rx.text(
-                                            f"{news['title']} ({news['publish_date']})",
-                                            weight="regular",
-                                            size="2",
-                                        ),
-                                        rx.cond(
-                                            (news["price_change_ratio"] is not None)
-                                            & ~(
-                                                news["price_change_ratio"]
-                                                != news["price_change_ratio"]
-                                            ),
-                                            rx.badge(f"{news['price_change_ratio']}%"),
-                                        ),
-                                        align="center",
-                                        justify="between",
-                                        width="100%",
-                                    ),
-                                    width="100%",
-                                ),
-                            ),
-                        ),
-                        spacing="2",
-                        width="100%",
-                        style={"height": "45.3em"},
-                    ),
+                    events_section(),
+                    news_section(),
                 ),
             ),
             justify="center",
@@ -791,7 +730,6 @@ def company_profile_card():
     on_load=[
         State.load_technical_metrics,
         State.load_company_data,
-        State.load_financial_ratios,
         State.load_transformed_dataframes,
         PriceChartState.load_state,
     ],
