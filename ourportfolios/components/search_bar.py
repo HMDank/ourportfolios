@@ -92,7 +92,7 @@ class SearchBarState(rx.State):
 
     @rx.event(background=True)
     async def load_state(self):
-        """Preload tickers & assign top 3 tickers, called periodically with local_scheduler"""
+        """Preload tickers & assign top 3 tickers"""
         while True:
             async with self:
                 # Preload all tickers

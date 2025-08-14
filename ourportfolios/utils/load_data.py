@@ -11,9 +11,9 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-@db_scheduler.scheduled_job(
-    trigger="interval", seconds=db_settings.interval, id="populate_db"
-)
+# @db_scheduler.scheduled_job(
+#     trigger="interval", seconds=db_settings.interval, id="populate_db"
+# )
 def populate_db():
     with db_settings.conn.connect() as connection:
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS comparison"))
@@ -26,7 +26,20 @@ def populate_db():
         left=stock_df, right=price_board_df, left_on="ticker", right_on="symbol"
     )
 
-    result.to_sql("comparison_df", db_settings.conn, schema="comparison", if_exists="replace", index=False)
+    with db_settings.conn.begin() as conn:
+        try: 
+            result.to_sql(
+            name="comparison_df",
+            con=conn,
+            schema="comparison",
+            if_exists="replace",
+            index=False,
+        )
+        except Exception as e:
+            conn.rollback()
+            print(f"Error populating database: {e}")
+            
+        
 
 
 def load_price_board(tickers: list[str]) -> pd.DataFrame:

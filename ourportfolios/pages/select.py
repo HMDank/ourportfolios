@@ -1,6 +1,7 @@
 import reflex as rx
 import pandas as pd
 
+from sqlalchemy import text
 # from ourportfolios.components.loading import loading_wrapper
 
 from ..components.navbar import navbar
@@ -24,7 +25,7 @@ class State(rx.State):
 
     @rx.var(cache=True)
     def get_all_tickers(self) -> list[dict]:
-        df = pd.read_sql("SELECT * FROM comparison.comparison_df", db_settings.conn)
+        df = pd.read_sql(text("SELECT * FROM comparison.comparison_df"), db_settings.conn)
 
         return df[["ticker", "industry"]].to_dict("records")
 
