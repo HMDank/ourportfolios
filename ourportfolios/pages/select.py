@@ -1,5 +1,4 @@
 import reflex as rx
-import sqlite3
 import pandas as pd
 import itertools
 from typing import List, Dict, Any
@@ -9,6 +8,7 @@ from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
 from ..components.graph import mini_price_graph, pct_change_badge
 from ..utils.load_data import fetch_data_for_symbols
+from ..utils.scheduler import db_settings
 
 
 class State(rx.State):

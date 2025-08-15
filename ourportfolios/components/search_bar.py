@@ -1,76 +1,111 @@
 import reflex as rx
 import pandas as pd
 import time
-import sqlite3
+import asyncio
+from sqlalchemy import text
 import itertools
+
 from typing import List, Dict, Any
 
 from .graph import pct_change_badge
+from ..utils.scheduler import db_settings
 
 
 class SearchBarState(rx.State):
     search_query: str = ""
     display_suggestion: bool = False
     outstanding_tickers: Dict[str, Any] = {}
+    ticker_list: List[Dict[str, Any]] = []
 
     @rx.event
     def set_query(self, text: str = ""):
-        self.search_query = text
+        self.search_query = text.upper() if text != "" else text
 
     @rx.event
-    def set_display_suggestions(self, mode: bool):
+    def set_display_suggestions(self, state: bool):
         yield time.sleep(0.2)  # Delay the set action
-        self.display_suggestion = mode
+        self.display_suggestion = state
 
     @rx.var
     def get_suggest_ticker(self) -> List[Dict[str, Any]]:
         """Recommends tickers on user's keystroke"""
         if not self.display_suggestion:
             return []
+        if self.search_query == "":
+            return self.ticker_list
 
         # At first, try to fetch exact ticker
         result: pd.DataFrame = self.fetch_ticker(
-            match_conditions="ticker LIKE ?", params=(f"{self.search_query}%",)
+            match_conditions="ticker LIKE :pattern",
+            params={"pattern": f"{self.search_query}%"},
         )
 
         # In-case of mistype or no ticker returned, calculate all possible permutation of provided search_query with fixed length
         if result.empty:
             # All possible combination of ticker's letter
-            combos = list(
+            combos: List[tuple] = list(
                 itertools.permutations(list(self.search_query), len(self.search_query))
             )
-            all_combination = [f"{''.join(combo)}%" for combo in combos]
+
+            all_combination = {
+                f"pattern_{idx}": f"{''.join(combo)}%"
+                for idx, combo in enumerate(combos)
+            }
 
             result: pd.DataFrame = self.fetch_ticker(
-                match_conditions=" OR ".join(["ticker LIKE ?"] * len(combos)),
+                match_conditions=" OR ".join(
+                    [f"ticker LIKE :pattern_{i}" for i in range(len(all_combination))]
+                ),
                 params=all_combination,
             )
 
         # Suggest base of the first letter if still no ticker matched
         if result.empty:
             result: pd.DataFrame = self.fetch_ticker(
-                match_conditions="ticker LIKE ?", params=(f"{self.search_query[0]}%",)
+                match_conditions="ticker LIKE :pattern",
+                params={"pattern": f"{self.search_query[0]}%"},
             )
 
-        # Fetch and store the top 3 trending tickers in memory, get calls only once on initial load
-        if not self.outstanding_tickers:
-            self.outstanding_tickers: Dict[str, Any] = {
-                item: 1 for item in result["ticker"].to_list()[:3]
-            }
+        return result.to_dict("records")
 
-        return result.to_dict("records")[:50]
-
-    def fetch_ticker(self, match_conditions: str, params: Any) -> pd.DataFrame:
-        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
-        query: str = f"""
+    def fetch_ticker(
+        self, match_conditions: str = "all", params: Any = None
+    ) -> pd.DataFrame:
+        query: str = """
                         SELECT ticker, pct_price_change, industry
-                        FROM data_vni
-                        WHERE {match_conditions}
-                        ORDER BY accumulated_volume DESC, market_cap DESC
+                        FROM comparison.comparison_df
                     """
-        result: pd.DataFrame = pd.read_sql(query, conn, params=params)
-        conn.close()
+        if match_conditions != "all":
+            query += f"WHERE {match_conditions}\n"
+
+        query += "ORDER BY accumulated_volume DESC, market_cap DESC"
+        with db_settings.conn.connect() as connection:
+            if connection.in_transaction():
+                try:
+                    db_settings.conn.rollback()
+                except Exception:
+                    pass
+
+        result: pd.DataFrame = pd.read_sql(text(query), db_settings.conn, params=params)
+
         return result
+
+    @rx.event(background=True)
+    async def load_state(self):
+        """Preload tickers & assign top 3 tickers, called periodically with local_scheduler"""
+        while True:
+            async with self:
+                # Preload all tickers
+                self.ticker_list = self.fetch_ticker(match_conditions="all").to_dict(
+                    "records"
+                )
+
+                # Fetch and store the top 3 trending tickers in memory
+                self.outstanding_tickers: Dict[str, Any] = {
+                    item["ticker"]: 1 for item in self.ticker_list[:3]
+                }
+
+            await asyncio.sleep(db_settings.interval)
 
 
 def search_bar():
@@ -92,7 +127,7 @@ def search_bar():
                 SearchBarState.display_suggestion,
                 # Scrollable suggestion dropdown
                 rx.fragment(
-                    rx.vstack(
+                    rx.flex(
                         rx.scroll_area(
                             rx.foreach(
                                 SearchBarState.get_suggest_ticker,
@@ -111,12 +146,15 @@ def search_bar():
                         position="absolute",
                         top="calc(100% + 5px)",
                         border_radius=4,
+                        direction="column",
                     ),
+                    as_child=True,
                 ),
                 rx.fragment(),
             ),
             position="relative",
             width="20vw",
+            on_mount=SearchBarState.load_state,
         ),
     )
 

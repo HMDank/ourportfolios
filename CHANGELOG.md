@@ -2,6 +2,43 @@
 
 <!-- version list -->
 
+## v0.2.3 (2025-08-11)
+
+### Bug Fixes
+
+- **db**: Add rollback ([#48](https://github.com/HMDank/ourportfolios/pull/48),
+  [`b14bb46`](https://github.com/HMDank/ourportfolios/commit/b14bb463a3d9c945c072c15cb6342df3b31acafe))
+
+### Chores
+
+- Add rollback ([#48](https://github.com/HMDank/ourportfolios/pull/48),
+  [`b14bb46`](https://github.com/HMDank/ourportfolios/commit/b14bb463a3d9c945c072c15cb6342df3b31acafe))
+
+- **db**: Rollback ([#48](https://github.com/HMDank/ourportfolios/pull/48),
+  [`b14bb46`](https://github.com/HMDank/ourportfolios/commit/b14bb463a3d9c945c072c15cb6342df3b31acafe))
+
+
+## v0.2.2 (2025-08-11)
+
+### Bug Fixes
+
+- **db**: Add rollback ([#47](https://github.com/HMDank/ourportfolios/pull/47),
+  [`4d8f0cb`](https://github.com/HMDank/ourportfolios/commit/4d8f0cbe449c87da551a4810fe32b74cda83a510))
+
+
+## v0.2.1 (2025-08-09)
+
+### Bug Fixes
+
+- Add template file ([#46](https://github.com/HMDank/ourportfolios/pull/46),
+  [`f271d73`](https://github.com/HMDank/ourportfolios/commit/f271d739116a5774621739f6c5e2d53fe7082e50))
+
+### Continuous Integration
+
+- Rename steps ([#45](https://github.com/HMDank/ourportfolios/pull/45),
+  [`b761c30`](https://github.com/HMDank/ourportfolios/commit/b761c30ea52aa6674af0feb632f21f81db12d958))
+
+
 ## v0.2.0 (2025-07-13)
 
 ### Bug Fixes
