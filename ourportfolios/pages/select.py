@@ -1,7 +1,9 @@
 import reflex as rx
 import pandas as pd
 import itertools
+
 from typing import List, Dict, Any
+from sqlalchemy import text
 
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
@@ -44,8 +46,8 @@ class State(rx.State):
     sort_options: Dict[str, str] = {
         "A-Z": "ticker",
         "Market Cap": "market_cap",
-        "% Change":"pct_price_change",
-        "Volume": "accumulated_volume"
+        "% Change": "pct_price_change",
+        "Volume": "accumulated_volume",
     }
 
     # Filters
@@ -75,16 +77,14 @@ class State(rx.State):
 
     @rx.var(cache=True)
     def get_all_tickers(self) -> List[Dict[str, Any]]:
-        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
-
         query = [
             """SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change 
-            FROM data_vni 
+            FROM comparison.comparison_df 
             WHERE """
         ]
 
         if self.search_query != "":
-            match_conditions, params = self.fetch_ticker()
+            match_conditions, params = self.get_suggest_ticker()
             query.append(match_conditions)
         else:
             query.append("1=1")
@@ -138,8 +138,7 @@ class State(rx.State):
             else " ".join(query)
         )
 
-        df = pd.read_sql(full_query, conn, params=params)
-        conn.close()
+        df = pd.read_sql(full_query, db_settings.conn, params=params)
 
         return df[
             [
@@ -158,9 +157,9 @@ class State(rx.State):
     # Set all metrics/options to their default setting
     @rx.event
     def get_all_industries(self):
-        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         industries: pd.DataFrame = pd.read_sql(
-            "SELECT DISTINCT industry FROM data_vni", con=conn
+            "SELECT DISTINCT industry FROM comparison.comparison_df",
+            con=db_settings.conn,
         )
 
         self.industry_filter: Dict[str, bool] = {
@@ -169,9 +168,9 @@ class State(rx.State):
 
     @rx.event
     def get_all_exchanges(self):
-        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
         exchanges: pd.DataFrame = pd.read_sql(
-            "SELECT DISTINCT exchange FROM data_vni", con=conn
+            "SELECT DISTINCT exchange FROM comparison.comparison_df",
+            con=db_settings.conn,
         )
 
         self.exchange_filter: Dict[str, bool] = {
@@ -284,12 +283,12 @@ class State(rx.State):
     def set_search_query(self, value: str):
         self.search_query = value
 
-    def fetch_ticker(self) -> tuple[str, Any]:
+    def get_suggest_ticker(self) -> tuple[str, Any]:
         # At first, try to fetch exact ticker
-        match_conditions = "ticker LIKE ?"
-        params = (f"{self.search_query}%",)
-        result: bool = self.validate_search_query(
-            match_conditions=match_conditions, params=params
+        match_query = "ticker LIKE :pattern"
+        match_params = {"pattern": f"{self.search_query}%"}
+        result: bool = self.fetch_ticker(
+            match_conditions=match_query, params=match_params
         )
 
         # In-case of mistype or no ticker returned, calculate all possible permutation of provided search_query with fixed length
@@ -298,32 +297,40 @@ class State(rx.State):
             combos = list(
                 itertools.permutations(list(self.search_query), len(self.search_query))
             )
-            params = [f"{''.join(combo)}%" for combo in combos]
 
-            match_conditions = " OR ".join(["ticker LIKE ?"] * len(combos))
-            result: bool = self.validate_search_query(
-                match_conditions=match_conditions, params=params
+            match_query = (
+                " OR ".join(
+                    [f"ticker LIKE :pattern_{i}" for i in range(len(match_params))]
+                ),
+            )
+            match_params = {
+                f"pattern_{idx}": f"{''.join(combo)}%"
+                for idx, combo in enumerate(combos)
+            }
+
+            result: pd.DataFrame = self.fetch_ticker(
+                match_conditions=match_query,
+                params=match_params,
             )
 
         # Suggest base of the first letter if still no ticker matched
         if not result:
-            match_conditions = "ticker LIKE ?"
-            params = (f"{self.search_query[0]}%",)
-            result: bool = self.validate_search_query(
-                match_conditions=match_conditions, params=params
+            match_query = "ticker LIKE :pattern"
+            match_params = {"pattern": f"{self.search_query[0]}%"}
+            result: bool = self.fetch_ticker(
+                match_conditions=match_query, params=match_params
             )
 
-        return match_conditions, params
+        return match_query, match_params
 
-    def validate_search_query(self, match_conditions: str, params: Any) -> bool:
+    def fetch_ticker(self, match_conditions: str, params: Any) -> bool:
         """Attempt to fetch data"""
-        conn = sqlite3.connect("ourportfolios/data/data_vni.db")
-        query: str = f"""
+        query: str = text(f"""
                         SELECT ticker
-                        FROM data_vni 
+                        FROM comparison.comparison_df 
                         WHERE {match_conditions}
-                    """
-        if pd.read_sql(query, conn, params=params).empty:
+                    """)
+        if pd.read_sql(query, db_settings.conn, params=params).empty:
             return False
         return True
 
@@ -988,33 +995,33 @@ def selected_filter_chip(item: str, filter: str) -> rx.Component:
     return rx.badge(
         rx.text(
             rx.cond(
-                filter == 'fundamental',
+                filter == "fundamental",
                 f"{item}: {State.fundamental_metric_filter.get(item, [0.00, 0.00])[0]}-{State.fundamental_metric_filter.get(item, [0.00, 0.00])[1]}",
                 rx.cond(
-                    filter == 'technical',
+                    filter == "technical",
                     f"{item}: {State.technical_metric_filter.get(item, [0.00, 0.00])[0]}-{State.technical_metric_filter.get(item, [0.00, 0.00])[1]}",
-                    item
-                )
+                    item,
+                ),
             ),
-            size="2", 
-            weight="medium"
+            size="2",
+            weight="medium",
         ),
         rx.button(
             rx.icon("circle-x", size=11),
             variant="ghost",
             on_click=rx.cond(
-                filter == 'industry',
+                filter == "industry",
                 State.set_industry(item, False),
                 rx.cond(
-                    filter == 'exchange',
+                    filter == "exchange",
                     State.set_exchange(item, False),
                     rx.cond(
-                        filter == 'fundamental',
+                        filter == "fundamental",
                         State.set_fundamental_metric(item, [0.00, 0.00]),
-                        State.set_technical_metric(item, [0.00, 0.00])
+                        State.set_technical_metric(item, [0.00, 0.00]),
                     ),
                 ),
-            )
+            ),
         ),
         color_scheme="violet",
         radius="large",
@@ -1026,10 +1033,20 @@ def selected_filter_chip(item: str, filter: str) -> rx.Component:
 
 def display_selected_filter() -> rx.Component:
     return rx.flex(
-        rx.foreach(State.selected_industry, lambda item: selected_filter_chip(item, 'industry')),
-        rx.foreach(State.selected_exchange, lambda item: selected_filter_chip(item, 'exchange')),
-        rx.foreach(State.selected_fundamental_metric, lambda item: selected_filter_chip(item, 'fundamental')),
-        rx.foreach(State.selected_technical_metric, lambda item: selected_filter_chip(item, 'technical')),
+        rx.foreach(
+            State.selected_industry, lambda item: selected_filter_chip(item, "industry")
+        ),
+        rx.foreach(
+            State.selected_exchange, lambda item: selected_filter_chip(item, "exchange")
+        ),
+        rx.foreach(
+            State.selected_fundamental_metric,
+            lambda item: selected_filter_chip(item, "fundamental"),
+        ),
+        rx.foreach(
+            State.selected_technical_metric,
+            lambda item: selected_filter_chip(item, "technical"),
+        ),
         direction="row",
         spacing="2",
         align="center",
