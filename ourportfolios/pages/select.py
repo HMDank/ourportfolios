@@ -132,7 +132,7 @@ class State(rx.State):
                 )
             )
 
-        full_query = (
+        full_query = text(
             " ".join(query) + f" {order_by_clause}"
             if order_by_clause
             else " ".join(query)
@@ -281,7 +281,7 @@ class State(rx.State):
 
     @rx.event
     def set_search_query(self, value: str):
-        self.search_query = value
+        self.search_query = value.upper()
 
     def get_suggest_ticker(self) -> tuple[str, Any]:
         # At first, try to fetch exact ticker
@@ -353,36 +353,33 @@ def index():
     return rx.vstack(
         navbar(),
         page_selection(),
-        rx.box(
-            rx.hstack(
-                rx.vstack(
-                    rx.text("asdjfkhsdjf"),
-                    industry_roller(),
-                    # Filters
-                    ticker_filter(),
-                    # Tickers info
-                    ticker_list(),
-                    rx.hstack(
-                        rx.button(
-                            "Previous",
-                            on_click=State.prev_page,
-                            disabled=State.offset == 0,
-                        ),
-                        rx.button(
-                            "Next",
-                            on_click=State.next_page,
-                            disabled=State.offset + State.limit
-                            >= State.get_all_tickers_length,
-                        ),
-                        spacing="2",
+        rx.hstack(
+            rx.vstack(
+                rx.text("asdjfkhsdjf"),
+                industry_roller(),
+                # Filters
+                ticker_filter(),
+                # Tickers info
+                ticker_basic_info(),
+                rx.hstack(
+                    rx.button(
+                        "Previous",
+                        on_click=State.prev_page,
+                        disabled=State.offset == 0,
                     ),
+                    rx.button(
+                        "Next",
+                        on_click=State.next_page,
+                        disabled=State.offset + State.limit
+                        >= State.get_all_tickers_length,
+                    ),
+                    spacing="2",
                 ),
-                card_with_scrollable_area(),
-                width="100%",
-                justify="center",
-                spacing="6",
             ),
+            card_with_scrollable_area(),
             width="100%",
+            justify="center",
+            spacing="6",
             padding="2em",
             padding_top="5em",
         ),
@@ -620,54 +617,51 @@ def ticker_card(
     )
 
 
-def ticker_list():
-    return (
-        rx.box(
+def ticker_basic_info():
+    return rx.box(
+        rx.card(
+            rx.flex(
+                # rx.box(
+                #     rx.text("Symbol", weight="medium", color="white", size="5"),
+                #     width="40%",
+                #     justify="start",
+                # ),
+                # rx.box(rx.text("Price", weight="medium", color="white", size="5")),
+                # rx.box(rx.text("%", weight="medium", color="white", size="5")),
+                # rx.box(rx.text("Volume", weight="medium", color="white", size="5")),
+                # width="100%",
+                # align="center",
+                # direction="row",
+                # paddingBottom="1em",
+                
+            ),
             rx.card(
                 rx.flex(
-                    rx.box(
-                        rx.text("Symbol", weight="medium", color="white", size="5"),
-                        width="40%",
-                        paddingLeft="1em",
-                    ),
-                    rx.grid(
-                        rx.box(
-                            rx.text("Price", weight="medium", color="white", size="5")
-                        ),
-                        rx.box(rx.text("%", weight="medium", color="white", size="5")),
-                        rx.box(
-                            rx.text("Volume", weight="medium", color="white", size="5")
-                        ),
-                        rows="1",
-                        columns="3",
-                        width="50%",
-                        flow="row-dense",
-                    ),
-                    rx.box(),
-                    width="100%",
-                    justify="between",
-                    align="center",
+                    rx.text("Symbol", weight="medium", color="white", size="5"),
+                    rx.text("Price", weight="medium", color="white", size="5"),
+                    rx.text("%", weight="medium", color="white", size="5"),
+                    rx.text("Volume", weight="medium", color="white", size="5"),
                     direction="row",
-                    wrap="wrap",
-                    paddingBottom="1em",
+                    padding="1em",
+                    align="center",
+                    justify="between",
                 ),
-                rx.foreach(
-                    State.paged_tickers,
-                    lambda value: ticker_card(
-                        ticker=value.ticker,
-                        organ_name=value.organ_name,
-                        current_price=value.current_price,
-                        accumulated_volume=value.accumulated_volume,
-                        pct_price_change=value.pct_price_change,
-                    ),
+                variant="ghost"
+            ),
+            rx.foreach(
+                State.paged_tickers,
+                lambda value: ticker_card(
+                    ticker=value.ticker,
+                    organ_name=value.organ_name,
+                    current_price=value.current_price,
+                    accumulated_volume=value.accumulated_volume,
+                    pct_price_change=value.pct_price_change,
                 ),
             ),
-            style={
-                "backgroundColor": "#000000",
-                "borderRadius": "4px",
-                "width": "100%",
-            },
         ),
+        background_color="#000000F2", # black A12
+        border_radius=6,
+        width="100%",
     )
 
 
@@ -687,15 +681,17 @@ def ticker_filter():
                 on_change=State.set_search_query,
             ),
             width="40%",
-            justify="start",
+            height="auto",
+            align="center",
         ),
         # Selected filter option
         rx.scroll_area(
             display_selected_filter(),
             scrollbars="horizontal",
             type="hover",
-            height="2.5vw",
             width="40vw",
+            height="auto",
+            align="center",
         ),
         rx.spacer(),  # Push filter button far right
         # Filter
