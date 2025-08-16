@@ -19,9 +19,9 @@ This project uses **[uv](https://docs.astral.sh/uv)** for dependency and package
 
    ```
 
-3. (Optional) [A PostgreSQL Database URI](https://www.postgresql.org/docs/current/libpq-connect.html) could be provided through a `.env` file. Duplicate the `.template` file and paste your own Database URI.
+3. (Optional) [A PostgreSQL Database URI](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING-URIS) could be provided through a `.env` file. Duplicate the `.template` file and paste your own Database URI.
 
-4. **Running the frontend locally**
+4. **Run the frontend locally**
    ```bash
    uv run reflex run
    ```
