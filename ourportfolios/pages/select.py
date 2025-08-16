@@ -564,52 +564,67 @@ def ticker_card(
     )
     return rx.card(
         rx.flex(
-            # Column 1: Ticker and organ_name
-            rx.box(
-                rx.vstack(
+            # Basic info
+            rx.flex(
+                # Ticker and organ_name
+                rx.box(
                     rx.link(
                         rx.text(ticker, weight="medium", size="4"),
                         href=f"/analyze/{ticker}",
                         style={"textDecoration": "none", "color": "inherit"},
                     ),
                     rx.text(organ_name, color=rx.color("gray", 7), size="2"),
+                    align="center",
+                    justify="start",
+                    width="40%",
                 ),
-                width="30%",
-            ),
-            rx.grid(
-                # Column 2: Current price
-                rx.box(
-                    rx.text(
-                        f"{current_price}", weight="regular", size="3", color=color
+                rx.flex(
+                    # Current price
+                    # Percentage change
+                    # Accumulated volume
+                    rx.foreach(
+                        [
+                            rx.text(
+                                f"{current_price}",
+                                weight="regular",
+                                size="3",
+                                color=color,
+                            ),
+                            pct_change_badge(diff=pct_price_change),
+                            rx.text(
+                                f"{accumulated_volume:,.3f}", size="3", weight="regular"
+                            ),
+                        ],
+                        lambda item: rx.stack(
+                            item,
+                            width="30%",
+                            justify="end",
+                            align="center",
+                        ),
                     ),
+                    direction="row",
+                    align="center",
+                    justify="between",
+                    width="60%",
+                    spacing="2",
                 ),
-                # Column 3: Percentage change
-                rx.box(
-                    pct_change_badge(diff=pct_price_change),
-                ),
-                # Column 4: Accumulated volume
-                rx.box(
-                    rx.text(f"{accumulated_volume:,.3f}", size="3", weight="regular"),
-                ),
-                rows="1",
-                columns="3",
-                width="50%",
-                flow="row-dense",
+                direction="row",
+                width="80%",
             ),
-            # Column 5: Cart button
-            rx.box(
+            # Cart button
+            rx.stack(
                 rx.button(
                     rx.icon("shopping-cart", size=16),
                     size="1",
                     variant="soft",
                     on_click=lambda: CartState.add_item(ticker),
                 ),
+                align="center",
+                justify="end",
+                width="20%",
             ),
-            width="100%",
-            justify="between",
-            align="center",
             direction="row",
-            wrap="wrap",
+            width="100%",
         ),
         padding="1em",
         width="100%",
@@ -621,33 +636,49 @@ def ticker_basic_info():
     return rx.box(
         rx.card(
             rx.flex(
-                # rx.box(
-                #     rx.text("Symbol", weight="medium", color="white", size="5"),
-                #     width="40%",
-                #     justify="start",
-                # ),
-                # rx.box(rx.text("Price", weight="medium", color="white", size="5")),
-                # rx.box(rx.text("%", weight="medium", color="white", size="5")),
-                # rx.box(rx.text("Volume", weight="medium", color="white", size="5")),
-                # width="100%",
-                # align="center",
-                # direction="row",
-                # paddingBottom="1em",
-                
-            ),
-            rx.card(
+                # Header
                 rx.flex(
-                    rx.text("Symbol", weight="medium", color="white", size="5"),
-                    rx.text("Price", weight="medium", color="white", size="5"),
-                    rx.text("%", weight="medium", color="white", size="5"),
-                    rx.text("Volume", weight="medium", color="white", size="5"),
+                    # Ticker and organ_name
+                    rx.box(
+                        rx.text("Symbol", weight="medium", color="white", size="5"),
+                        align="center",
+                        justify="start",
+                        width="40%",
+                    ),
+                    rx.flex(
+                        rx.foreach(
+                            # Current price
+                            # Percentage change
+                            # Accumulated volume
+                            ["Price", "%", "Volume"],
+                            lambda label: rx.stack(
+                                rx.text(
+                                    label, weight="medium", color="white", size="5"
+                                ),
+                                width="30%",
+                                justify="end",
+                                align="center",
+                            ),
+                        ),
+                        direction="row",
+                        justify="between",
+                        align="center",
+                        width="60%",
+                        spacing="2",
+                    ),
                     direction="row",
-                    padding="1em",
-                    align="center",
-                    justify="between",
+                    width="80%",
                 ),
-                variant="ghost"
+                # Placeholder for cart
+                rx.stack(
+                    width="20%",
+                    variant="ghost",
+                ),
+                direction="row",
+                width="100%",
+                padding="1em",
             ),
+            # Ticker
             rx.foreach(
                 State.paged_tickers,
                 lambda value: ticker_card(
@@ -659,7 +690,7 @@ def ticker_basic_info():
                 ),
             ),
         ),
-        background_color="#000000F2", # black A12
+        background_color="#000000F2",  # black A12
         border_radius=6,
         width="100%",
     )
