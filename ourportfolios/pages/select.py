@@ -25,7 +25,9 @@ class State(rx.State):
 
     @rx.var(cache=True)
     def get_all_tickers(self) -> list[dict]:
-        df = pd.read_sql(text("SELECT * FROM comparison.comparison_df"), db_settings.conn)
+        df = pd.read_sql(
+            text("SELECT * FROM comparison.comparison_df"), db_settings.conn
+        )
 
         return df[["ticker", "industry"]].to_dict("records")
 

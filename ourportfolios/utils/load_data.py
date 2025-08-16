@@ -1,5 +1,5 @@
 from .preprocess_texts import process_events_for_display
-from .scheduler import db_scheduler, db_settings
+from .scheduler import db_settings
 from sqlalchemy import text
 import pandas as pd
 import numpy as np
@@ -27,19 +27,17 @@ def populate_db():
     )
 
     with db_settings.conn.begin() as conn:
-        try: 
+        try:
             result.to_sql(
-            name="comparison_df",
-            con=conn,
-            schema="comparison",
-            if_exists="replace",
-            index=False,
-        )
+                name="comparison_df",
+                con=conn,
+                schema="comparison",
+                if_exists="replace",
+                index=False,
+            )
         except Exception as e:
             conn.rollback()
             print(f"Error populating database: {e}")
-            
-        
 
 
 def load_price_board(tickers: list[str]) -> pd.DataFrame:
