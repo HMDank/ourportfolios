@@ -712,7 +712,7 @@ def ticker_filter():
                 on_change=State.set_search_query,
             ),
             width="40%",
-            height="auto",
+            height="100%",
             align="center",
         ),
         # Selected filter option
@@ -721,7 +721,7 @@ def ticker_filter():
             scrollbars="horizontal",
             type="hover",
             width="40vw",
-            height="auto",
+            height="2.7vw",
             align="center",
         ),
         rx.spacer(),  # Push filter button far right
@@ -789,9 +789,10 @@ def ticker_filter():
             modal=False,
         ),
         width="100%",
-        align="center",
+        align="start",
         direction="row",
         spacing="2",
+        height="3vw",
     )
 
 
