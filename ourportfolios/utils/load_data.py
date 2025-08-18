@@ -11,9 +11,6 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-# @db_scheduler.scheduled_job(
-#     trigger="interval", seconds=db_settings.interval, id="populate_db"
-# )
 def populate_db():
     with db_settings.conn.connect() as connection:
         connection.execute(text("CREATE SCHEMA IF NOT EXISTS comparison"))
