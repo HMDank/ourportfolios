@@ -31,7 +31,9 @@ def preprocess_events_texts(text: str) -> str:
 
     buffer = ""
     for line in lines:
-        if re.match(r'^\s*- Name of person/ corporation that conducts the transfer:', line):
+        if re.match(
+            r"^\s*- Name of person/ corporation that conducts the transfer:", line
+        ):
             if buffer:
                 summaries.append(buffer.strip())
                 buffer = ""
@@ -49,27 +51,29 @@ def preprocess_events_texts(text: str) -> str:
             match = re.search(pattern, entry)
             return match.group(1).strip() if match else ""
 
-        name = get(r'transfer:\s*(.*?)\s*-')
-        position = get(r'Current position:\s*(.*?)\s*-')
-        tx_type = get(r'Type of transaction registered:\s*(.*?)\s*-')
+        name = get(r"transfer:\s*(.*?)\s*-")
+        position = get(r"Current position:\s*(.*?)\s*-")
+        tx_type = get(r"Type of transaction registered:\s*(.*?)\s*-")
 
         # Extract shares and percentages
-        shares_before = get(
-            r'before the transaction:\s*([\d,]+)\s*shares').replace(",", "")
-        percent_before = get(r'before the transaction:.*?([\d.]+%)')
+        shares_before = get(r"before the transaction:\s*([\d,]+)\s*shares").replace(
+            ",", ""
+        )
+        percent_before = get(r"before the transaction:.*?([\d.]+%)")
         shares_registered = get(
-            r'Number of shares registered:\s*([\d,]+)\s*shares').replace(",", "")
-        acquired_shares = get(
-            r'Acquired shares:\s*([-\d,]+)\s*shares').replace(",", "")
-        shares_after = get(
-            r'after the transaction:\s*([\d,]+)\s*shares').replace(",", "")
-        percent_after = get(r'after the transaction:.*?([\d.]+%)')
-        exec_date = get(r'Exec:\s*(\d{4}-\d{2}-\d{2})')
+            r"Number of shares registered:\s*([\d,]+)\s*shares"
+        ).replace(",", "")
+        acquired_shares = get(r"Acquired shares:\s*([-\d,]+)\s*shares").replace(",", "")
+        shares_after = get(r"after the transaction:\s*([\d,]+)\s*shares").replace(
+            ",", ""
+        )
+        percent_after = get(r"after the transaction:.*?([\d.]+%)")
+        exec_date = get(r"Exec:\s*(\d{4}-\d{2}-\d{2})")
 
         # Calculate percentage difference and registered shares percentage
         try:
-            before_pct = float(percent_before.replace('%', ''))
-            after_pct = float(percent_after.replace('%', ''))
+            before_pct = float(percent_before.replace("%", ""))
+            after_pct = float(percent_after.replace("%", ""))
             pct_diff = after_pct - before_pct
             pct_diff_str = f" ({pct_diff:+.2f}% change)"
         except Exception:
@@ -77,8 +81,7 @@ def preprocess_events_texts(text: str) -> str:
 
         # Calculate percentage of registered shares relative to initial holdings
         try:
-            registered_pct = (float(shares_registered) /
-                              float(shares_before)) * 100
+            registered_pct = (float(shares_registered) / float(shares_before)) * 100
             registered_pct_str = f" ({registered_pct:.2f}% of initial)"
         except Exception:
             registered_pct_str = ""
@@ -110,12 +113,18 @@ def process_events_for_display(events: list) -> list:
             enhanced_desc = f"{event_desc} Notify: {event.get('notify_date', '')}, Exec: {event.get('exer_date', '')}"
             # Preprocess this single event
             summary_text = preprocess_events_texts(enhanced_desc)
-            summary_lines = [line.strip() for line in summary_text.split('\n') if line.strip()]
+            summary_lines = [
+                line.strip() for line in summary_text.split("\n") if line.strip()
+            ]
             summary = summary_lines[0] if summary_lines else event_desc
 
             # Extract exec date if found
-            exec_date_match = re.search(r'on (\d{4}-\d{2}-\d{2})', summary)
-            exec_date = exec_date_match.group(1) if exec_date_match else event.get("exer_date", "")
+            exec_date_match = re.search(r"on (\d{4}-\d{2}-\d{2})", summary)
+            exec_date = (
+                exec_date_match.group(1)
+                if exec_date_match
+                else event.get("exer_date", "")
+            )
 
             new_event = event.copy()
             new_event["event_desc"] = summary

@@ -40,7 +40,9 @@ def index() -> rx.Component:
         rx.vstack(
             rx.center(
                 rx.vstack(
-                    rx.heading("OurPortfolios", size="9", font_size="5rem", weight="medium"),
+                    rx.heading(
+                        "OurPortfolios", size="9", font_size="5rem", weight="medium"
+                    ),
                     rx.text("Build your portfolios. We'll build ours", size="4"),
                     spacing="5",
                     align="center",
