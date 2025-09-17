@@ -95,20 +95,19 @@ class SearchBarState(rx.State):
 
     @rx.event(background=True)
     async def load_state(self):
-        """Preload tickers & assign top 3 tickers, called periodically with local_scheduler"""
-        while True:
-            async with self:
-                # Preload all tickers
-                self.ticker_list = self.fetch_ticker(match_conditions="all").to_dict(
-                    "records"
-                )
+        """Preload tickers & assign top 3 tickers"""
+        async with self:
+            # Preload all tickers
+            self.ticker_list = self.fetch_ticker(match_conditions="all").to_dict(
+                "records"
+            )
 
-                # Fetch and store the top 3 trending tickers in memory
-                self.outstanding_tickers: Dict[str, Any] = {
-                    item["ticker"]: 1 for item in self.ticker_list[:3]
-                }
+            # Fetch and store the top 3 trending tickers in memory
+            self.outstanding_tickers: Dict[str, Any] = {
+                item["ticker"]: 1 for item in self.ticker_list[:3]
+            }
 
-            await asyncio.sleep(db_settings.interval)
+
 
 
 def search_bar():
