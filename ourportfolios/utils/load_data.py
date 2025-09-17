@@ -1,9 +1,8 @@
 from .preprocess_texts import process_events_for_display
-from sqlalchemy import text
 import pandas as pd
 import numpy as np
 from datetime import date, timedelta
-from vnstock import Vnstock, Screener, Trading
+from vnstock import Vnstock
 import asyncio
 import warnings
 
