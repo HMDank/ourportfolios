@@ -8,7 +8,7 @@ from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
 from ..components.graph import mini_price_graph
 from ..utils.load_data import fetch_data_for_symbols
-from ..utils.scheduler import db_settings
+from ..database.etl import db_settings
 
 
 class State(rx.State):
@@ -24,14 +24,15 @@ class State(rx.State):
 
     @rx.var(cache=True)
     def get_all_tickers(self) -> list[dict]:
-        df = pd.read_sql("SELECT * FROM comparison.comparison_df", db_settings.conn)
+        df = pd.read_sql(
+            "SELECT * FROM comparison.comparison_df", db_settings.conn)
 
         return df[["ticker", "industry"]].to_dict("records")
 
     @rx.var(cache=True)
     def paged_tickers(self) -> list[dict]:
         tickers = self.get_all_tickers
-        return tickers[self.offset : self.offset + self.limit]
+        return tickers[self.offset: self.offset + self.limit]
 
     @rx.var(cache=True)
     def get_all_tickers_length(self) -> int:
@@ -280,7 +281,8 @@ def index():
                     ),
                     rx.card(
                         rx.foreach(
-                            State.paged_tickers, lambda ticker: ticker_card(ticker)
+                            State.paged_tickers, lambda ticker: ticker_card(
+                                ticker)
                         ),
                         style={"width": "100%", "marginTop": "1em"},
                     ),

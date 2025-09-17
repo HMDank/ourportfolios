@@ -1,5 +1,4 @@
 from .preprocess_texts import process_events_for_display
-from .scheduler import db_scheduler, db_settings
 from sqlalchemy import text
 import pandas as pd
 import numpy as np
@@ -9,63 +8,6 @@ import asyncio
 import warnings
 
 warnings.filterwarnings("ignore")
-
-
-@db_scheduler.scheduled_job(
-    trigger="interval", seconds=db_settings.interval, id="populate_db"
-)
-def populate_db():
-    with db_settings.conn.connect() as connection:
-        connection.execute(text("CREATE SCHEMA IF NOT EXISTS comparison"))
-        connection.commit()
-
-    stock_df = load_comparison_table()
-    price_board_df = load_price_board(tickers=stock_df["ticker"].tolist())
-
-    result = pd.merge(
-        left=stock_df, right=price_board_df, left_on="ticker", right_on="symbol"
-    )
-
-    result.to_sql("comparison_df", db_settings.conn, schema="comparison", if_exists="replace", index=False)
-
-
-def load_price_board(tickers: list[str]) -> pd.DataFrame:
-    df = Trading(source="vci", symbol="ACB").price_board(symbols_list=tickers)
-    df.columns = df.columns.droplevel(0)  # Flatten columns
-    df = df.drop("exchange", axis=1)
-    df = df.loc[:, ~df.columns.duplicated()]
-
-    # Compute instrument
-    if "match_price" in df.columns:
-        df = df.rename(columns={"match_price": "current_price"})
-        df["price_change"] = df["current_price"] - df["ref_price"]
-        df["pct_price_change"] = (df["price_change"] / df["ref_price"]) * 100
-
-    else:
-        df = df.rename(columns={"ref_price": "current_price"})
-        df["price_change"] = 0
-        df["pct_price_change"] = 0
-
-    # Normalize
-    df["current_price"] = round(df["current_price"] * 1e-3, 2)
-    df["price_change"] = round(df["price_change"] * 1e-3, 2)
-    df["pct_price_change"] = round(df["pct_price_change"], 2)
-
-    return df
-
-
-def load_comparison_table():
-    screener = Screener(source="TCBS")
-    default_params = {
-        "exchangeName": "HOSE,HNX",
-        "marketCap": (2000, 99999999999),
-    }
-    df = screener.stock(default_params, limit=1700, lang="en")
-
-    # Remove unstable columns
-    df = df.drop([x for x in df.columns if x.startswith("price_vs")], axis=1)
-
-    return df
 
 
 def load_historical_data(
@@ -102,7 +44,8 @@ def get_mini_graph_data(df):
     else:
         normalized_close = np.zeros_like(close_vals)
 
-    latest_df = latest_df.assign(normalized_close=normalized_close).to_dict("records")
+    latest_df = latest_df.assign(
+        normalized_close=normalized_close).to_dict("records")
 
     last_close_today = close_vals[-1]
     last_close_prev = prev_df["close"].values[-1]
@@ -158,7 +101,8 @@ def load_company_events(ticker: str):
     stock = Vnstock().stock(symbol=ticker, source="TCBS")
     company = stock.company
     events = company.events()
-    events["price_change_ratio"] = (events["price_change_ratio"] * 100).round(2)
+    events["price_change_ratio"] = (
+        events["price_change_ratio"] * 100).round(2)
     events = events.to_dict("records")
     processed_events = process_events_for_display(events)
     return processed_events
@@ -199,7 +143,8 @@ def load_officers_info(ticker: str):
         .reset_index()
         .sort_values(by="officer_own_percent", ascending=False)
     )
-    officers["officer_own_percent"] = (officers["officer_own_percent"] * 100).round(2)
+    officers["officer_own_percent"] = (
+        officers["officer_own_percent"] * 100).round(2)
 
     officers = officers.sort_values(by="officer_own_percent", ascending=False).to_dict(
         "records"
@@ -257,7 +202,3 @@ async def load_company_data_async(ticker: str):
         "officers": officers,
         "price_data": price_data,
     }
-
-
-if __name__ == "__main__":
-    populate_db()

@@ -7,7 +7,7 @@ from collections import defaultdict
 from ..components.navbar import navbar
 from ..components.drawer import CartState, drawer_button
 from ..components.loading import loading_screen
-from ..utils.scheduler import db_settings
+from ..database.etl import db_settings
 
 
 class StockComparisonState(rx.State):
@@ -153,7 +153,8 @@ class StockComparisonState(rx.State):
     def toggle_metric(self, metric: str):
         """Toggle a metric in the selected_metrics list"""
         if metric in self.selected_metrics:
-            self.selected_metrics = [m for m in self.selected_metrics if m != metric]
+            self.selected_metrics = [
+                m for m in self.selected_metrics if m != metric]
         else:
             self.selected_metrics = self.selected_metrics + [metric]
 
@@ -195,7 +196,8 @@ class StockComparisonState(rx.State):
                 "rsi14, industry, tcbs_recommend "
                 "FROM comparison.comparison_df WHERE ticker = :pattern"
             )
-            df = pd.read_sql(query, db_settings.conn, params={"pattern": ticker})
+            df = pd.read_sql(query, db_settings.conn,
+                             params={"pattern": ticker})
             if not df.empty:
                 stocks.append(df.iloc[0].to_dict())
 
@@ -226,7 +228,8 @@ def metric_selector_popover() -> rx.Component:
                     rx.heading("Select metrics"),
                     rx.spacer(),
                     rx.popover.close(
-                        rx.button(rx.icon("x", size=16), variant="ghost", size="1")
+                        rx.button(rx.icon("x", size=16),
+                                  variant="ghost", size="1")
                     ),
                     width="100%",
                     align="center",
