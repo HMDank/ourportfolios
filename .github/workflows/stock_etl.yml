@@ -1,0 +1,31 @@
+name: "Schedule ETL -> NeonDB"
+
+on:
+  schedule:
+    - cron: "0 10 * * *" # Every day at 10 UTC 12pm in Germany and 17h in Viet Nam
+  workflow_dispatch:
+
+jobs:
+  run-etl:
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v4"
+
+      - name: "Setup python"
+        uses: "actions/setup-python@v5"
+        with:
+          python-version: "3.13"
+
+      - name: "install uv"
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: "sync dependencies"
+        run: uv sync
+
+      - name: "run etl"
+        env:
+          DATABASE_URI: ${{secrets.DATABASE_URI}}
+        run: "uv run ourportfolios/database/etl.py"
