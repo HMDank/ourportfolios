@@ -79,6 +79,12 @@ class SearchBarState(rx.State):
             query += f"WHERE {match_conditions}\n"
 
         query += "ORDER BY accumulated_volume DESC, market_cap DESC"
+        with db_settings.conn.connect() as connection:
+            if connection.in_transaction():
+                try:
+                    db_settings.conn.rollback()
+                except Exception:
+                    pass
 
         result: pd.DataFrame = pd.read_sql(text(query), db_settings.conn, params=params)
 
