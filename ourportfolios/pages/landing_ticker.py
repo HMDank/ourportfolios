@@ -10,7 +10,7 @@ from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
 from ..components.financial_statement import financial_statements
 from ..components.loading import loading_screen
-from ..components.metric_cards import performance_cards  # New import
+from ..components.metric_cards import performance_cards  # Updated import
 
 from ..utils.scheduler import db_settings
 from ..utils.load_data import load_company_data_async
@@ -133,14 +133,12 @@ class State(rx.State):
         categorized_ratios = self.transformed_dataframes.get("categorized_ratios", {})
 
         for category, data in categorized_ratios.items():
-            selected_metric = self.selected_metrics.get(category, "")
-            if selected_metric:
-                chart_data[category] = [
-                    {"year": row["Year"], "value": row.get(selected_metric, 0) or 0}
-                    for row in reversed(data)
-                ][-8:]
-            else:
-                chart_data[category] = []
+            selected_metric = self.selected_metrics[category]
+            chart_data[category] = [
+                {"year": row["Year"], "value": row.get(selected_metric, 0) or 0}
+                for row in reversed(data)
+            ][-8:]
+
 
         return chart_data
 
@@ -167,9 +165,9 @@ class State(rx.State):
             d["fill"] = colors[idx % len(colors)]
         return data
 
-    def create_metric_change_handler(self, category: str, value: str):
+    def create_metric_change_handler(self, category: str):
         """Create a metric change handler for a specific category"""
-        return self.set_metric_for_category(category, value)
+        return lambda value: self.set_metric_for_category(category, value)
 
 
 def name_card():
@@ -253,6 +251,7 @@ def key_metrics_card():
                     align="center",
                 ),
                 rx.tabs.content(
+                    # Using the new performance_cards component
                     performance_cards(
                         categories=State.get_categories_list,
                         metrics_by_category=State.available_metrics_by_category,
