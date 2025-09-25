@@ -43,7 +43,7 @@ class PriceChartState(rx.State):
     @rx.event
     def load_state(self):
         """Initialize chart with default settings"""
-        ticker: str = self.router.page.params.get("ticker", "")
+        ticker: str = self.ticker
 
         # Fetch data for each interval. Time ranges are {
         #     1D: 3 years
