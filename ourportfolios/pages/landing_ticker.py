@@ -10,6 +10,7 @@ from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
 from ..components.financial_statement import financial_statements
 from ..components.loading import loading_screen
+from ..components.metric_cards import performance_cards  # New import
 
 from ..utils.scheduler import db_settings
 from ..utils.load_data import load_company_data_async
@@ -132,11 +133,14 @@ class State(rx.State):
         categorized_ratios = self.transformed_dataframes.get("categorized_ratios", {})
 
         for category, data in categorized_ratios.items():
-            selected_metric = self.selected_metrics[category]
-            chart_data[category] = [
-                {"year": row["Year"], "value": row.get(selected_metric, 0) or 0}
-                for row in reversed(data)
-            ][-8:]
+            selected_metric = self.selected_metrics.get(category, "")
+            if selected_metric:
+                chart_data[category] = [
+                    {"year": row["Year"], "value": row.get(selected_metric, 0) or 0}
+                    for row in reversed(data)
+                ][-8:]
+            else:
+                chart_data[category] = []
 
         return chart_data
 
@@ -163,193 +167,9 @@ class State(rx.State):
             d["fill"] = colors[idx % len(colors)]
         return data
 
-
-def create_dynamic_chart(category: str):
-    """Create a dynamic chart for a specific category"""
-    return rx.card(
-        rx.vstack(
-            rx.hstack(
-                rx.heading(category, size="4", weight="medium"),
-                rx.spacer(),
-                rx.select(
-                    State.available_metrics_by_category[category],
-                    value=State.selected_metrics[category],
-                    on_change=lambda value: State.set_metric_for_category(
-                        category, value
-                    ),
-                    size="1",
-                ),
-                align="center",
-                justify="between",
-                width="100%",
-            ),
-            rx.box(
-                rx.recharts.line_chart(
-                    rx.recharts.line(
-                        data_key="value",
-                        stroke_width=3,
-                        type_="monotone",
-                        dot=False,
-                    ),
-                    rx.recharts.x_axis(
-                        data_key="year",
-                        angle=-45,
-                        text_anchor="end",
-                        padding={"left": 20, "right": 20},
-                    ),
-                    rx.recharts.y_axis(),
-                    rx.recharts.tooltip(),
-                    data=State.get_chart_data_for_category[category],
-                    width="100%",
-                    height=280,
-                    margin={"top": 10, "right": 10, "left": 5, "bottom": 35},
-                ),
-                width="100%",
-                style={"overflow": "hidden"},
-            ),
-            spacing="3",
-            align="stretch",
-        ),
-        width="100%",
-        flex="1",
-        min_width="0",
-        max_width="100%",
-        style={"padding": "1em", "minWidth": 0, "overflow": "hidden"},
-    )
-
-
-def create_placeholder_chart(title: str, position: int):
-    """Create placeholder chart when no data is available"""
-    return rx.card(
-        rx.vstack(
-            rx.hstack(
-                rx.heading(title, size="4", weight="medium"),
-                rx.spacer(),
-                rx.select(
-                    [f"Metric {position + 1}.1", f"Metric {position + 1}.2"],
-                    value=f"Metric {position + 1}.1",
-                    size="1",
-                ),
-                align="center",
-                justify="between",
-                width="100%",
-            ),
-            rx.box(
-                rx.center(
-                    rx.text(f"Placeholder for {title}", size="3", color="gray"),
-                    height="280px",
-                ),
-                width="100%",
-                style={
-                    "overflow": "hidden",
-                    "border": "2px dashed #ccc",
-                    "borderRadius": "8px",
-                },
-            ),
-            spacing="3",
-            align="stretch",
-        ),
-        width="100%",
-        flex="1",
-        min_width="0",
-        max_width="100%",
-        style={"padding": "1em", "minWidth": 0, "overflow": "hidden"},
-    )
-
-
-def performance_cards():
-    """Create performance cards with dynamic charts"""
-    categories = State.get_categories_list
-
-    return rx.vstack(
-        rx.hstack(
-            rx.foreach(
-                categories[:3],
-                lambda category: create_dynamic_chart(category),
-            ),
-            rx.cond(
-                categories.length() < 3,
-                rx.vstack(
-                    rx.cond(
-                        categories.length() == 0,
-                        rx.hstack(
-                            create_placeholder_chart("Chart 1", 0),
-                            create_placeholder_chart("Chart 2", 1),
-                            create_placeholder_chart("Chart 3", 2),
-                            spacing="4",
-                            width="100%",
-                            align="stretch",
-                            justify="between",
-                        ),
-                    ),
-                    rx.cond(
-                        categories.length() == 1,
-                        rx.hstack(
-                            create_placeholder_chart("Chart 2", 1),
-                            create_placeholder_chart("Chart 3", 2),
-                            spacing="4",
-                            width="100%",
-                            align="stretch",
-                            justify="between",
-                        ),
-                    ),
-                    rx.cond(
-                        categories.length() == 2,
-                        create_placeholder_chart("Chart 3", 2),
-                    ),
-                ),
-            ),
-            spacing="4",
-            width="100%",
-            align="stretch",
-            justify="between",
-        ),
-        rx.hstack(
-            rx.foreach(
-                categories[3:6],
-                lambda category: create_dynamic_chart(category),
-            ),
-            rx.cond(
-                categories.length() < 6,
-                rx.vstack(
-                    rx.cond(
-                        categories.length() <= 3,
-                        rx.hstack(
-                            create_placeholder_chart("Chart 4", 3),
-                            create_placeholder_chart("Chart 5", 4),
-                            create_placeholder_chart("Chart 6", 5),
-                            spacing="4",
-                            width="100%",
-                            align="stretch",
-                            justify="between",
-                        ),
-                    ),
-                    rx.cond(
-                        categories.length() == 4,
-                        rx.hstack(
-                            create_placeholder_chart("Chart 5", 4),
-                            create_placeholder_chart("Chart 6", 5),
-                            spacing="4",
-                            width="100%",
-                            align="stretch",
-                            justify="between",
-                        ),
-                    ),
-                    rx.cond(
-                        categories.length() == 5,
-                        create_placeholder_chart("Chart 6", 5),
-                    ),
-                ),
-            ),
-            spacing="4",
-            width="100%",
-            align="stretch",
-            justify="between",
-        ),
-        spacing="3",
-        width="100%",
-        align="stretch",
-    )
+    def create_metric_change_handler(self, category: str, value: str):
+        """Create a metric change handler for a specific category"""
+        return self.set_metric_for_category(category, value)
 
 
 def name_card():
@@ -433,7 +253,13 @@ def key_metrics_card():
                     align="center",
                 ),
                 rx.tabs.content(
-                    performance_cards(),
+                    performance_cards(
+                        categories=State.get_categories_list,
+                        metrics_by_category=State.available_metrics_by_category,
+                        selected_metrics=State.selected_metrics,
+                        chart_data_by_category=State.get_chart_data_for_category,
+                        on_metric_change_factory=State.create_metric_change_handler,
+                    ),
                     value="performance",
                     padding_top="1em",
                 ),
