@@ -165,9 +165,9 @@ class State(rx.State):
             d["fill"] = colors[idx % len(colors)]
         return data
 
-    def create_metric_change_handler(self, category: str):
+    def create_metric_change_handler(self, category: str, value: str):
         """Create a metric change handler for a specific category"""
-        return lambda value: self.set_metric_for_category(category, value)
+        return self.set_metric_for_category(category, value)
 
 
 def name_card():
@@ -251,7 +251,6 @@ def key_metrics_card():
                     align="center",
                 ),
                 rx.tabs.content(
-                    # Using the new performance_cards component
                     performance_cards(
                         categories=State.get_categories_list,
                         metrics_by_category=State.available_metrics_by_category,
