@@ -24,9 +24,14 @@ class State(rx.State):
 
     @rx.var(cache=True)
     def get_all_tickers(self) -> list[dict]:
-        df = pd.read_sql("SELECT * FROM comparison.comparison_df", db_settings.conn)
-
-        return df[["ticker", "industry"]].to_dict("records")
+        try:
+            # Create a new connection for this operation
+            with db_settings.conn.connect() as connection:
+                df = pd.read_sql("SELECT * FROM comparison.comparison_df", connection)
+                return df[["ticker", "industry"]].to_dict("records")
+        except Exception as e:
+            print(f"Database error: {e}")
+            return []
 
     @rx.var(cache=True)
     def paged_tickers(self) -> list[dict]:
@@ -53,11 +58,16 @@ class State(rx.State):
 
     @rx.event
     def get_all_industries(self):
-        industries = pd.read_sql(
-            "SELECT DISTINCT industry FROM comparison.comparison_df;", db_settings.conn
-        )
-
-        self.industries = industries["industry"].tolist()
+        try:
+            with db_settings.conn.connect() as connection:
+                industries = pd.read_sql(
+                    "SELECT DISTINCT industry FROM comparison.comparison_df;",
+                    connection,
+                )
+                self.industries = industries["industry"].tolist()
+        except Exception as e:
+            print(f"Database error: {e}")
+            self.industries = []
 
 
 def page_selection():
