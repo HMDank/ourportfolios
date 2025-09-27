@@ -10,17 +10,14 @@ from ..components.page_roller import card_roller, card_link
 from ..components.loading import loading_screen
 
 
-# Database connection
 DATABASE_URI = os.getenv("DATABASE_URI")
 
 
 def get_db_connection():
-    """Create and return a database connection"""
     return psycopg2.connect(DATABASE_URI, cursor_factory=RealDictCursor)
 
 
 def execute_query(query: str, params: tuple = None) -> List[Dict]:
-    """Execute a query and return results as a list of dictionaries"""
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(query, params)
@@ -29,25 +26,19 @@ def execute_query(query: str, params: tuple = None) -> List[Dict]:
             return []
 
 
-# State Management
 class FrameworkState(rx.State):
-    # UI State
     active_scope: str = "fundamental"
     scopes: List[Dict] = []
     frameworks: List[Dict] = []
-
-    # Loading states
     loading_scopes: bool = False
     loading_frameworks: bool = False
 
     async def on_load(self):
-        """Load initial data when page loads"""
         await self.load_scopes()
         if self.scopes:
             await self.change_scope(self.scopes[0]["value"])
 
     async def load_scopes(self):
-        """Load all available scopes from database"""
         self.loading_scopes = True
         try:
             query = "SELECT DISTINCT scope FROM frameworks.frameworks WHERE scope IS NOT NULL ORDER BY scope"
@@ -60,13 +51,11 @@ class FrameworkState(rx.State):
                 for scope in scopes
             ]
 
-            # Set default active scope if available
             if self.scopes and not self.active_scope:
                 self.active_scope = self.scopes[0]["value"]
 
         except Exception as e:
             print(f"Error loading scopes: {e}")
-            # Fallback to default scopes if database fails
             self.scopes = [
                 {"value": "fundamental", "title": "Fundamental"},
                 {"value": "technical", "title": "Technical"},
@@ -75,12 +64,10 @@ class FrameworkState(rx.State):
             self.loading_scopes = False
 
     async def change_scope(self, scope: str):
-        """Change the active scope and reload frameworks"""
         self.active_scope = scope
         await self.load_frameworks()
 
     async def load_frameworks(self):
-        """Load frameworks for active scope"""
         self.loading_frameworks = True
         try:
             query = """
@@ -96,77 +83,90 @@ class FrameworkState(rx.State):
             self.loading_frameworks = False
 
 
-
-
-# UI Components
 def scope_button(scope: Dict):
-    """Create a scope button"""
     return rx.button(
         rx.hstack(
-            rx.text(scope["title"], size="2", weight="medium"),
+            rx.text(scope["title"], size="3", weight="medium"),
             spacing="2",
             align="center",
             width="100%",
             justify="start",
         ),
         on_click=FrameworkState.change_scope(scope["value"]),
-        variant=rx.cond(
-            FrameworkState.active_scope == scope["value"], "solid", "outline"
-        ),
+        variant="soft",
         color_scheme=rx.cond(
             FrameworkState.active_scope == scope["value"], "white", "gray"
         ),
-        size="2",
+        size="3",
         width="100%",
+        height="3em",
         justify="start",
+        style={
+            "minHeight": "3em",
+            "padding": "0.75em",
+        },
     )
 
 
 def framework_card(framework: Dict):
-    """Create a framework card"""
     return rx.card(
         rx.vstack(
             rx.hstack(
-                rx.heading(framework["title"], size="4"),
+                rx.heading(framework["title"], size="6", weight="bold"),
                 rx.spacer(),
                 rx.hstack(
-                    rx.badge(framework["scope"], color_scheme="blue", variant="soft"),
-                    rx.badge(framework["complexity"], color_scheme="purple"),
+                    rx.badge(
+                        framework["scope"],
+                        color_scheme="plum",
+                        variant="soft",
+                        size="1",
+                    ),
+                    rx.badge(
+                        framework["complexity"],
+                        color_scheme=rx.cond(
+                            framework["complexity"] == "complex", "accent", "jade"
+                        ),
+                        variant="soft",
+                        size="1",
+                    ),
                     spacing="2",
                 ),
                 justify="between",
                 align="center",
                 width="100%",
             ),
-            rx.hstack(
-                rx.text(f"{framework['author']}", color="gray", size="2"),
-                spacing="3",
-                width="100%",
-            ),
-            spacing="2",
+            rx.spacer(),
+            rx.text(f"{framework['author']}", color="gray", size="2"),
+            spacing="1",
             align="start",
             width="100%",
+            justify="start",
+            height='100%',
         ),
         width="100%",
-        margin_bottom="0.5em",
+        style={
+            # "padding": "0.75em",
+            "transition": "all 0.2s ease",
+            "cursor": "pointer",
+        },
+        _hover={
+            "transform": "translateY(-0.25em)",
+            "boxShadow": "0 0.5em 1.5em rgba(0,0,0,0.1)",
+        },
     )
 
 
-
-
-
 def categories_sidebar():
-    """Left sidebar with scope selection only"""
     return rx.card(
         rx.vstack(
             rx.vstack(
-                rx.heading("Scope", size="3"),
+                rx.text("Scope", size="4"),
                 rx.cond(
                     FrameworkState.loading_scopes,
-                    rx.spinner(),
+                    rx.center(rx.spinner(size="3"), height="6em"),
                     rx.vstack(
                         rx.foreach(FrameworkState.scopes, scope_button),
-                        spacing="2",
+                        spacing="3",
                         width="100%",
                         align="stretch",
                     ),
@@ -178,31 +178,32 @@ def categories_sidebar():
             align="stretch",
         ),
         flex=1,
-        min_width=0,
-        max_width="100%",
-        style={"padding": "1em", "minWidth": 0, "overflow": "hidden"},
+        style={"padding": "0.75em", "minWidth": "15em", "overflow": "hidden"},
     )
 
 
 def frameworks_content():
-    """Right content area with frameworks"""
     return rx.card(
         rx.vstack(
-            rx.heading("Frameworks", size="3", margin_bottom="1em"),
+            rx.text("Frameworks", size="4"),
             rx.cond(
                 FrameworkState.loading_frameworks,
-                rx.spinner(),
+                rx.center(rx.spinner(size="3"), height="12em"),
                 rx.cond(
                     FrameworkState.frameworks.length() > 0,
                     rx.vstack(
                         rx.foreach(FrameworkState.frameworks, framework_card),
-                        spacing="2",
+                        spacing="3",
                         width="100%",
+                        padding="0.5em",
                     ),
-                    rx.text(
-                        "No frameworks in this category yet.",
-                        color="gray",
-                        size="2",
+                    rx.center(
+                        rx.text(
+                            "No frameworks in this category yet.",
+                            color="gray",
+                            size="3",
+                        ),
+                        height="12em",
                     ),
                 ),
             ),
@@ -213,7 +214,7 @@ def frameworks_content():
         flex=4,
         min_width=0,
         max_width="100%",
-        style={"padding": "1em", "minWidth": 0, "overflow": "hidden"},
+        style={"padding": "0.75em", "minWidth": 0, "overflow": "hidden"},
     )
 
 
@@ -283,16 +284,14 @@ def index() -> rx.Component:
                 rx.hstack(
                     categories_sidebar(),
                     frameworks_content(),
-                    spacing="4",
+                    spacing="3",
                     width="100%",
-                    align="stretch",
-                    justify="between",
                 ),
                 width="86vw",
             ),
             width="100%",
-            padding="2em",
-            padding_top="5em",
+            padding="2rem",
+            padding_top="5rem",
             position="relative",
         ),
     )
