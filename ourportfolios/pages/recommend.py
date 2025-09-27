@@ -3,7 +3,6 @@ from typing import List, Dict
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from datetime import datetime
 
 from ..components.navbar import navbar
 from ..components.page_roller import card_roller, card_link
@@ -141,7 +140,7 @@ def framework_card(framework: Dict):
             align="start",
             width="100%",
             justify="start",
-            height='100%',
+            height="100%",
         ),
         width="100%",
         style={
