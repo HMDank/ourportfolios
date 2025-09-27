@@ -32,9 +32,8 @@ def execute_query(query: str, params: tuple = None) -> List[Dict]:
 # State Management
 class FrameworkState(rx.State):
     # UI State
-    sort_by: str = "Sort by Complexity"
-    active_category: Optional[str] = None
-    categories: List[Dict] = []  # Will contain either complexity levels or authors
+    active_scope: str = "fundamental"
+    scopes: List[Dict] = []
     frameworks: List[Dict] = []
 
     # Form states for adding new items
@@ -45,71 +44,66 @@ class FrameworkState(rx.State):
     new_framework_complexity: Literal["beginner-friendly", "complex"] = (
         "beginner-friendly"
     )
+    new_framework_scope: str = "fundamental"
 
     # Loading states
-    loading_categories: bool = False
+    loading_scopes: bool = False
     loading_frameworks: bool = False
 
     async def on_load(self):
         """Load initial data when page loads"""
-        await self.load_categories()
-        if self.categories:
-            await self.set_active_category(self.categories[0]["value"])
+        await self.load_scopes()
+        if self.scopes:
+            await self.change_scope(self.scopes[0]["value"])
 
-    async def change_sort_by(self, sort_by: str):
-        """Change the sorting method and reload categories"""
-        self.sort_by = sort_by
-        await self.load_categories()
-
-    async def load_categories(self):
-        """Load all categories based on sort_by selection"""
-        self.loading_categories = True
+    async def load_scopes(self):
+        """Load all available scopes from database"""
+        self.loading_scopes = True
         try:
-            if self.sort_by == "Sort by Complexity":
-                self.categories = [
-                    {"value": "beginner-friendly", "title": "Beginner-Friendly"},
-                    {"value": "complex", "title": "Complex"},
-                ]
-            else:  # "Sort by Author"
-                query = "SELECT DISTINCT author FROM frameworks.frameworks WHERE author IS NOT NULL ORDER BY author"
-                authors = execute_query(query)
-                self.categories = [
-                    {"value": author["author"], "title": author["author"]}
-                    for author in authors
-                ]
-        except Exception as e:
-            print(f"Error loading categories: {e}")
-        finally:
-            self.loading_categories = False
+            query = "SELECT DISTINCT scope FROM frameworks.frameworks WHERE scope IS NOT NULL ORDER BY scope"
+            scopes = execute_query(query)
+            self.scopes = [
+                {
+                    "value": scope["scope"],
+                    "title": scope["scope"].replace("_", " ").title(),
+                }
+                for scope in scopes
+            ]
 
-    async def load_frameworks(self, category: str):
-        """Load frameworks for specific category based on sort_by"""
+            # Set default active scope if available
+            if self.scopes and not self.active_scope:
+                self.active_scope = self.scopes[0]["value"]
+
+        except Exception as e:
+            print(f"Error loading scopes: {e}")
+            # Fallback to default scopes if database fails
+            self.scopes = [
+                {"value": "fundamental", "title": "Fundamental"},
+                {"value": "technical", "title": "Technical"},
+            ]
+        finally:
+            self.loading_scopes = False
+
+    async def change_scope(self, scope: str):
+        """Change the active scope and reload frameworks"""
+        self.active_scope = scope
+        await self.load_frameworks()
+
+    async def load_frameworks(self):
+        """Load frameworks for active scope"""
         self.loading_frameworks = True
         try:
-            if self.sort_by == "Sort by Complexity":
-                query = """
-                    SELECT * FROM frameworks.frameworks 
-                    WHERE complexity = %s 
-                    ORDER BY title
-                """
-            else:  # Sort by Author
-                query = """
-                    SELECT * FROM frameworks.frameworks 
-                    WHERE author = %s 
-                    ORDER BY title
-                """
-
-            frameworks = execute_query(query, (category,))
+            query = """
+                SELECT * FROM frameworks.frameworks 
+                WHERE scope = %s
+                ORDER BY title
+            """
+            frameworks = execute_query(query, (self.active_scope,))
             self.frameworks = frameworks
         except Exception as e:
             print(f"Error loading frameworks: {e}")
         finally:
             self.loading_frameworks = False
-
-    async def set_active_category(self, category: str):
-        """Set active category and load its frameworks"""
-        self.active_category = category
-        await self.load_frameworks(category)
 
     async def add_framework(self):
         """Add new framework to database"""
@@ -119,14 +113,15 @@ class FrameworkState(rx.State):
         try:
             query = """
                 INSERT INTO frameworks.frameworks 
-                (title, description, author, complexity) 
-                VALUES (%s, %s, %s, %s)
+                (title, description, author, complexity, scope) 
+                VALUES (%s, %s, %s, %s, %s)
             """
             params = (
                 self.new_framework_title.strip(),
                 self.new_framework_description.strip() or None,
                 self.new_framework_author.strip() or None,
                 self.new_framework_complexity,
+                self.new_framework_scope,
             )
 
             with get_db_connection() as conn:
@@ -134,60 +129,65 @@ class FrameworkState(rx.State):
                     cur.execute(query, params)
                     conn.commit()
 
-            # Clear form and reload frameworks
+            # Clear form
             self.new_framework_title = ""
             self.new_framework_description = ""
             self.new_framework_author = ""
+            self.new_framework_scope = "fundamental"
             self.show_framework_form = False
 
-            # Reload frameworks if current category matches the new framework
-            if (
-                self.sort_by == "Sort by Complexity"
-                and self.active_category == self.new_framework_complexity
-            ) or (
-                self.sort_by == "author"
-                and self.active_category == self.new_framework_author
-            ):
-                await self.load_frameworks(self.active_category)
+            # Reload frameworks if current scope matches
+            if self.active_scope == self.new_framework_scope:
+                await self.load_frameworks()
+
+            # Reload scopes in case a new scope was added
+            await self.load_scopes()
 
         except Exception as e:
             print(f"Error adding framework: {e}")
 
     def toggle_framework_form(self):
+        """Toggle the framework form visibility"""
         self.show_framework_form = not self.show_framework_form
+
+    def set_new_framework_title(self, value: str):
+        """Set new framework title"""
+        self.new_framework_title = value
+
+    def set_new_framework_description(self, value: str):
+        """Set new framework description"""
+        self.new_framework_description = value
+
+    def set_new_framework_author(self, value: str):
+        """Set new framework author"""
+        self.new_framework_author = value
+
+    def set_new_framework_complexity(self, value: str):
+        """Set new framework complexity"""
+        self.new_framework_complexity = value
+
+    def set_new_framework_scope(self, value: str):
+        """Set new framework scope"""
+        self.new_framework_scope = value
 
 
 # UI Components
-def sorting_selector():
-    """Create sorting method selector"""
-    return rx.radio_group(
-        items=[
-            "Sort by Complexity",
-            "Sort by Author",
-        ],
-        value=FrameworkState.sort_by,
-        on_change=FrameworkState.change_sort_by,
-        direction="row",
-        spacing="4",
-    )
-
-
-def category_button(category: Dict):
-    """Create a category button"""
+def scope_button(scope: Dict):
+    """Create a scope button"""
     return rx.button(
         rx.hstack(
-            rx.text(category["title"], size="2", weight="medium"),
+            rx.text(scope["title"], size="2", weight="medium"),
             spacing="2",
             align="center",
             width="100%",
             justify="start",
         ),
-        on_click=FrameworkState.set_active_category(category["value"]),
+        on_click=FrameworkState.change_scope(scope["value"]),
         variant=rx.cond(
-            FrameworkState.active_category == category["value"], "solid", "outline"
+            FrameworkState.active_scope == scope["value"], "solid", "outline"
         ),
         color_scheme=rx.cond(
-            FrameworkState.active_category == category["value"], "blue", "gray"
+            FrameworkState.active_scope == scope["value"], "white", "gray"
         ),
         size="2",
         width="100%",
@@ -200,20 +200,19 @@ def framework_card(framework: Dict):
     return rx.card(
         rx.vstack(
             rx.hstack(
-                rx.heading(framework["title"], size="3"),
+                rx.heading(framework["title"], size="4"),
                 rx.spacer(),
-                rx.badge(framework["complexity"], color_scheme="purple"),
+                rx.hstack(
+                    rx.badge(framework["scope"], color_scheme="blue", variant="soft"),
+                    rx.badge(framework["complexity"], color_scheme="purple"),
+                    spacing="2",
+                ),
                 justify="between",
                 align="center",
                 width="100%",
             ),
-            rx.cond(
-                framework["description"],
-                rx.text(framework["description"], size="2", color="gray"),
-                rx.fragment(),
-            ),
             rx.hstack(
-                rx.text(f"Author: {framework['author']}", color="gray", size="2"),
+                rx.text(f"{framework['author']}", color="gray", size="2"),
                 spacing="3",
                 width="100%",
             ),
@@ -223,41 +222,6 @@ def framework_card(framework: Dict):
         ),
         width="100%",
         margin_bottom="0.5em",
-    )
-
-
-def add_category_form():
-    """Form to add new category"""
-    return rx.cond(
-        FrameworkState.show_category_form,
-        rx.card(
-            rx.vstack(
-                rx.heading("Add New Category", size="3"),
-                rx.input(
-                    placeholder="Category Title",
-                    value=FrameworkState.new_category_name,
-                    on_change=FrameworkState.set_new_category_name,
-                ),
-                rx.input(
-                    placeholder="Description (optional)",
-                    value=FrameworkState.new_category_description,
-                    on_change=FrameworkState.set_new_category_description,
-                ),
-                rx.hstack(
-                    rx.button(
-                        "Cancel",
-                        on_click=FrameworkState.toggle_category_form,
-                        variant="outline",
-                    ),
-                    rx.button("Add Category", on_click=FrameworkState.add_category),
-                    spacing="2",
-                ),
-                spacing="3",
-                width="100%",
-            ),
-            margin_bottom="1em",
-        ),
-        rx.fragment(),
     )
 
 
@@ -283,11 +247,21 @@ def add_framework_form():
                     value=FrameworkState.new_framework_author,
                     on_change=FrameworkState.set_new_framework_author,
                 ),
-                rx.select(
-                    ["beginner-friendly", "complex"],
-                    value=FrameworkState.new_framework_complexity,
-                    placeholder="Select complexity level",
-                    on_change=FrameworkState.set_new_framework_complexity,
+                rx.hstack(
+                    rx.select(
+                        ["fundamental", "technical"],
+                        value=FrameworkState.new_framework_scope,
+                        placeholder="Select scope",
+                        on_change=FrameworkState.set_new_framework_scope,
+                    ),
+                    rx.select(
+                        ["beginner-friendly", "complex"],
+                        value=FrameworkState.new_framework_complexity,
+                        placeholder="Select complexity",
+                        on_change=FrameworkState.set_new_framework_complexity,
+                    ),
+                    spacing="2",
+                    width="100%",
                 ),
                 rx.hstack(
                     rx.button(
@@ -308,22 +282,16 @@ def add_framework_form():
 
 
 def categories_sidebar():
-    """Left sidebar with categories"""
+    """Left sidebar with scope selection only"""
     return rx.card(
         rx.vstack(
             rx.vstack(
-                rx.heading("Sort By", size="3"),
-                sorting_selector(),
-                width="100%",
-                margin_bottom="1em",
-            ),
-            rx.vstack(
-                rx.heading("Categories", size="3"),
+                rx.heading("Scope", size="3"),
                 rx.cond(
-                    FrameworkState.loading_categories,
+                    FrameworkState.loading_scopes,
                     rx.spinner(),
                     rx.vstack(
-                        rx.foreach(FrameworkState.categories, category_button),
+                        rx.foreach(FrameworkState.scopes, scope_button),
                         spacing="2",
                         width="100%",
                         align="stretch",
