@@ -1,5 +1,5 @@
 import reflex as rx
-from typing import List, Dict, Optional, Literal
+from typing import List, Dict
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -35,16 +35,6 @@ class FrameworkState(rx.State):
     active_scope: str = "fundamental"
     scopes: List[Dict] = []
     frameworks: List[Dict] = []
-
-    # Form states for adding new items
-    show_framework_form: bool = False
-    new_framework_title: str = ""
-    new_framework_description: str = ""
-    new_framework_author: str = ""
-    new_framework_complexity: Literal["beginner-friendly", "complex"] = (
-        "beginner-friendly"
-    )
-    new_framework_scope: str = "fundamental"
 
     # Loading states
     loading_scopes: bool = False
@@ -105,70 +95,7 @@ class FrameworkState(rx.State):
         finally:
             self.loading_frameworks = False
 
-    async def add_framework(self):
-        """Add new framework to database"""
-        if not self.new_framework_title.strip():
-            return
 
-        try:
-            query = """
-                INSERT INTO frameworks.frameworks 
-                (title, description, author, complexity, scope) 
-                VALUES (%s, %s, %s, %s, %s)
-            """
-            params = (
-                self.new_framework_title.strip(),
-                self.new_framework_description.strip() or None,
-                self.new_framework_author.strip() or None,
-                self.new_framework_complexity,
-                self.new_framework_scope,
-            )
-
-            with get_db_connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(query, params)
-                    conn.commit()
-
-            # Clear form
-            self.new_framework_title = ""
-            self.new_framework_description = ""
-            self.new_framework_author = ""
-            self.new_framework_scope = "fundamental"
-            self.show_framework_form = False
-
-            # Reload frameworks if current scope matches
-            if self.active_scope == self.new_framework_scope:
-                await self.load_frameworks()
-
-            # Reload scopes in case a new scope was added
-            await self.load_scopes()
-
-        except Exception as e:
-            print(f"Error adding framework: {e}")
-
-    def toggle_framework_form(self):
-        """Toggle the framework form visibility"""
-        self.show_framework_form = not self.show_framework_form
-
-    def set_new_framework_title(self, value: str):
-        """Set new framework title"""
-        self.new_framework_title = value
-
-    def set_new_framework_description(self, value: str):
-        """Set new framework description"""
-        self.new_framework_description = value
-
-    def set_new_framework_author(self, value: str):
-        """Set new framework author"""
-        self.new_framework_author = value
-
-    def set_new_framework_complexity(self, value: str):
-        """Set new framework complexity"""
-        self.new_framework_complexity = value
-
-    def set_new_framework_scope(self, value: str):
-        """Set new framework scope"""
-        self.new_framework_scope = value
 
 
 # UI Components
@@ -225,60 +152,7 @@ def framework_card(framework: Dict):
     )
 
 
-def add_framework_form():
-    """Form to add new framework"""
-    return rx.cond(
-        FrameworkState.show_framework_form,
-        rx.card(
-            rx.vstack(
-                rx.heading("Add New Framework", size="3"),
-                rx.input(
-                    placeholder="Framework title",
-                    value=FrameworkState.new_framework_title,
-                    on_change=FrameworkState.set_new_framework_title,
-                ),
-                rx.text_area(
-                    placeholder="Description (optional)",
-                    value=FrameworkState.new_framework_description,
-                    on_change=FrameworkState.set_new_framework_description,
-                ),
-                rx.input(
-                    placeholder="Author name",
-                    value=FrameworkState.new_framework_author,
-                    on_change=FrameworkState.set_new_framework_author,
-                ),
-                rx.hstack(
-                    rx.select(
-                        ["fundamental", "technical"],
-                        value=FrameworkState.new_framework_scope,
-                        placeholder="Select scope",
-                        on_change=FrameworkState.set_new_framework_scope,
-                    ),
-                    rx.select(
-                        ["beginner-friendly", "complex"],
-                        value=FrameworkState.new_framework_complexity,
-                        placeholder="Select complexity",
-                        on_change=FrameworkState.set_new_framework_complexity,
-                    ),
-                    spacing="2",
-                    width="100%",
-                ),
-                rx.hstack(
-                    rx.button(
-                        "Cancel",
-                        on_click=FrameworkState.toggle_framework_form,
-                        variant="outline",
-                    ),
-                    rx.button("Add Framework", on_click=FrameworkState.add_framework),
-                    spacing="2",
-                ),
-                spacing="3",
-                width="100%",
-            ),
-            margin_bottom="1em",
-        ),
-        rx.fragment(),
-    )
+
 
 
 def categories_sidebar():
@@ -314,20 +188,7 @@ def frameworks_content():
     """Right content area with frameworks"""
     return rx.card(
         rx.vstack(
-            rx.hstack(
-                rx.heading("Frameworks", size="3"),
-                rx.button(
-                    rx.icon("plus", size=16),
-                    on_click=FrameworkState.toggle_framework_form,
-                    size="1",
-                    variant="outline",
-                ),
-                justify="between",
-                align="center",
-                width="100%",
-                margin_bottom="1em",
-            ),
-            add_framework_form(),
+            rx.heading("Frameworks", size="3", margin_bottom="1em"),
             rx.cond(
                 FrameworkState.loading_frameworks,
                 rx.spinner(),
@@ -339,7 +200,7 @@ def frameworks_content():
                         width="100%",
                     ),
                     rx.text(
-                        "No frameworks in this category yet. Add one!",
+                        "No frameworks in this category yet.",
                         color="gray",
                         size="2",
                     ),
