@@ -31,6 +31,8 @@ class FrameworkState(rx.State):
     frameworks: List[Dict] = []
     loading_scopes: bool = False
     loading_frameworks: bool = False
+    selected_framework: Dict = {}
+    show_dialog: bool = False
 
     async def on_load(self):
         await self.load_scopes()
@@ -80,6 +82,21 @@ class FrameworkState(rx.State):
             print(f"Error loading frameworks: {e}")
         finally:
             self.loading_frameworks = False
+
+    @rx.event
+    def show_framework_dialog(self, framework: Dict):
+        self.selected_framework = framework
+        self.show_dialog = True
+
+    @rx.event
+    def close_dialog(self):
+        self.show_dialog = False
+        self.selected_framework = {}
+
+    @rx.event
+    def handle_dialog_open(self, value: bool):
+        if not value:
+            self.close_dialog()
 
 
 def scope_button(scope: Dict):
@@ -143,8 +160,8 @@ def framework_card(framework: Dict):
             height="100%",
         ),
         width="100%",
+        on_click=lambda: FrameworkState.show_framework_dialog(framework),
         style={
-            # "padding": "0.75em",
             "transition": "all 0.2s ease",
             "cursor": "pointer",
         },
@@ -152,6 +169,112 @@ def framework_card(framework: Dict):
             "transform": "translateY(-0.25em)",
             "boxShadow": "0 0.5em 1.5em rgba(0,0,0,0.1)",
         },
+    )
+
+
+def framework_dialog():
+    return rx.cond(
+        FrameworkState.show_dialog,
+        rx.dialog.root(
+            rx.dialog.trigger(rx.button("hidden", style={"display": "none"})),
+            rx.dialog.content(
+                rx.vstack(
+                    rx.hstack(
+                        rx.dialog.close(
+                            rx.text(
+                                rx.icon("x"),
+                                on_click=FrameworkState.close_dialog,
+                                style={
+                                    "cursor": "pointer",
+                                    "userSelect": "none",
+                                    "color": rx.color("accent", 10),
+                                    "_hover": {
+                                        "color": rx.color("accent", 7),
+                                    },
+                                },
+                            ),
+                        ),
+                        rx.heading(
+                            FrameworkState.selected_framework["title"],
+                            size="7",
+                            weight="bold",
+                        ),
+                        width="100%",
+                        padding_bottom="1rem",
+                        align="center",
+                        justify="between",
+                    ),
+                    # Content area
+                    rx.vstack(
+                        # Tags section
+                        rx.hstack(
+                            rx.badge(
+                                FrameworkState.selected_framework["scope"],
+                                color_scheme="plum",
+                                variant="soft",
+                                size="2",
+                            ),
+                            rx.badge(
+                                FrameworkState.selected_framework["complexity"],
+                                color_scheme=rx.cond(
+                                    FrameworkState.selected_framework["complexity"]
+                                    == "complex",
+                                    "accent",
+                                    "jade",
+                                ),
+                                variant="soft",
+                                size="2",
+                            ),
+                            spacing="3",
+                            padding_bottom="1rem",
+                        ),
+                        # Author section
+                        rx.hstack(
+                            rx.text("Author:", weight="medium", size="4"),
+                            rx.text(
+                                FrameworkState.selected_framework["author"], size="4"
+                            ),
+                            spacing="2",
+                            padding_bottom="1rem",
+                            width="100%",
+                            justify="start",
+                        ),
+                        # Description section
+                        rx.vstack(
+                            rx.text("Description:", weight="medium", size="4"),
+                            rx.scroll_area(
+                                rx.text(
+                                    FrameworkState.selected_framework["description"],
+                                    size="3",
+                                ),
+                                style={
+                                    "width": "100%",
+                                },
+                                scrollbars="vertical",
+                            ),
+                            spacing="2",
+                            align="start",
+                            width="100%",
+                        ),
+                        spacing="3",
+                        align="start",
+                        width="100%",
+                    ),
+                    spacing="4",
+                    align="start",
+                    width="100%",
+                    height="100%",
+                ),
+                width="60vw",
+                style={
+                    "height": "50vh",
+                    "padding": "2rem",
+                },
+            ),
+            open=True,
+            on_open_change=FrameworkState.handle_dialog_open,
+        ),
+        None,
     )
 
 
@@ -182,38 +305,41 @@ def categories_sidebar():
 
 
 def frameworks_content():
-    return rx.card(
-        rx.vstack(
-            rx.text("Frameworks", size="4"),
-            rx.cond(
-                FrameworkState.loading_frameworks,
-                rx.center(rx.spinner(size="3"), height="12em"),
+    return rx.fragment(
+        rx.card(
+            rx.vstack(
+                rx.text("Frameworks", size="4"),
                 rx.cond(
-                    FrameworkState.frameworks.length() > 0,
-                    rx.vstack(
-                        rx.foreach(FrameworkState.frameworks, framework_card),
-                        spacing="3",
-                        width="100%",
-                        padding="0.5em",
-                    ),
-                    rx.center(
-                        rx.text(
-                            "No frameworks in this category yet.",
-                            color="gray",
-                            size="3",
+                    FrameworkState.loading_frameworks,
+                    rx.center(rx.spinner(size="3"), height="12em"),
+                    rx.cond(
+                        FrameworkState.frameworks.length() > 0,
+                        rx.vstack(
+                            rx.foreach(FrameworkState.frameworks, framework_card),
+                            spacing="3",
+                            width="100%",
+                            padding="0.5em",
                         ),
-                        height="12em",
+                        rx.center(
+                            rx.text(
+                                "No frameworks in this category yet.",
+                                color="gray",
+                                size="3",
+                            ),
+                            height="12em",
+                        ),
                     ),
                 ),
+                spacing="2",
+                width="100%",
+                align="stretch",
             ),
-            spacing="2",
-            width="100%",
-            align="stretch",
+            flex=4,
+            min_width=0,
+            max_width="100%",
+            style={"padding": "0.75em", "minWidth": 0, "overflow": "hidden"},
         ),
-        flex=4,
-        min_width=0,
-        max_width="100%",
-        style={"padding": "0.75em", "minWidth": 0, "overflow": "hidden"},
+        framework_dialog(),  # Dialog included here instead of in index()
     )
 
 
