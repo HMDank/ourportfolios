@@ -194,80 +194,79 @@ def framework_dialog():
                                 },
                             ),
                         ),
-                        rx.heading(
-                            FrameworkState.selected_framework["title"],
-                            size="7",
-                            weight="bold",
+                        rx.spacer(),
+                        rx.vstack(
+                            rx.vstack(
+                                rx.heading(
+                                    FrameworkState.selected_framework["title"],
+                                    size="7",
+                                    weight="bold",
+                                    text_align="right",
+                                ),
+                                rx.text(
+                                    FrameworkState.selected_framework["author"],
+                                    size="2",
+                                    color="gray",
+                                    text_align="right",
+                                ),
+                                align="end",
+                                spacing="1",
+                            ),
+                            rx.hstack(
+                                rx.badge(
+                                    FrameworkState.selected_framework["scope"],
+                                    color_scheme="plum",
+                                    variant="soft",
+                                    size="2",
+                                ),
+                                rx.badge(
+                                    FrameworkState.selected_framework["complexity"],
+                                    color_scheme=rx.cond(
+                                        FrameworkState.selected_framework["complexity"]
+                                        == "complex",
+                                        "accent",
+                                        "jade",
+                                    ),
+                                    variant="soft",
+                                    size="2",
+                                ),
+                                spacing="2",
+                                justify="end",
+                            ),
+                            align="end",
+                            spacing="2",
                         ),
                         width="100%",
-                        padding_bottom="1rem",
-                        align="center",
+                        align="start",
                         justify="between",
+                        padding_bottom="1rem",
                     ),
-                    # Content area
                     rx.vstack(
-                        # Tags section
-                        rx.hstack(
-                            rx.badge(
-                                FrameworkState.selected_framework["scope"],
-                                color_scheme="plum",
-                                variant="soft",
-                                size="2",
+                        rx.scroll_area(
+                            rx.blockquote(
+                                FrameworkState.selected_framework["description"],
+                                size="3",
                             ),
-                            rx.badge(
-                                FrameworkState.selected_framework["complexity"],
-                                color_scheme=rx.cond(
-                                    FrameworkState.selected_framework["complexity"]
-                                    == "complex",
-                                    "accent",
-                                    "jade",
-                                ),
-                                variant="soft",
-                                size="2",
-                            ),
-                            spacing="3",
-                            padding_bottom="1rem",
+                            style={
+                                "width": "100%",
+                                "height": "100%",
+                            },
+                            scrollbars="vertical",
                         ),
-                        # Author section
-                        rx.hstack(
-                            rx.text("Author:", weight="medium", size="4"),
-                            rx.text(
-                                FrameworkState.selected_framework["author"], size="4"
-                            ),
-                            spacing="2",
-                            padding_bottom="1rem",
-                            width="100%",
-                            justify="start",
-                        ),
-                        # Description section
-                        rx.vstack(
-                            rx.text("Description:", weight="medium", size="4"),
-                            rx.scroll_area(
-                                rx.text(
-                                    FrameworkState.selected_framework["description"],
-                                    size="3",
-                                ),
-                                style={
-                                    "width": "100%",
-                                },
-                                scrollbars="vertical",
-                            ),
-                            spacing="2",
-                            align="start",
-                            width="100%",
-                        ),
-                        spacing="3",
+                        spacing="2",
                         align="start",
                         width="100%",
+                        height="100%",
                     ),
                     spacing="4",
                     align="start",
                     width="100%",
                     height="100%",
                 ),
-                width="60vw",
                 style={
-                    "height": "50vh",
+                    "width": "60vw",
+                    "height": "52vh",
+                    "maxWidth": "60vw",
                     "padding": "2rem",
                 },
             ),
@@ -339,7 +338,7 @@ def frameworks_content():
             max_width="100%",
             style={"padding": "0.75em", "minWidth": 0, "overflow": "hidden"},
         ),
-        framework_dialog(),  # Dialog included here instead of in index()
+        framework_dialog(),
     )
 
 
