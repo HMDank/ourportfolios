@@ -1,7 +1,6 @@
 import reflex as rx
 import pandas as pd
 import time
-import asyncio
 from sqlalchemy import text
 import itertools
 
@@ -106,8 +105,6 @@ class SearchBarState(rx.State):
             self.outstanding_tickers: Dict[str, Any] = {
                 item["ticker"]: 1 for item in self.ticker_list[:3]
             }
-
-
 
 
 def search_bar():

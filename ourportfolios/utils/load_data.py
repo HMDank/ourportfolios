@@ -43,8 +43,7 @@ def get_mini_graph_data(df):
     else:
         normalized_close = np.zeros_like(close_vals)
 
-    latest_df = latest_df.assign(
-        normalized_close=normalized_close).to_dict("records")
+    latest_df = latest_df.assign(normalized_close=normalized_close).to_dict("records")
 
     last_close_today = close_vals[-1]
     last_close_prev = prev_df["close"].values[-1]
@@ -100,8 +99,7 @@ def load_company_events(ticker: str):
     stock = Vnstock().stock(symbol=ticker, source="TCBS")
     company = stock.company
     events = company.events()
-    events["price_change_ratio"] = (
-        events["price_change_ratio"] * 100).round(2)
+    events["price_change_ratio"] = (events["price_change_ratio"] * 100).round(2)
     events = events.to_dict("records")
     processed_events = process_events_for_display(events)
     return processed_events
@@ -142,8 +140,7 @@ def load_officers_info(ticker: str):
         .reset_index()
         .sort_values(by="officer_own_percent", ascending=False)
     )
-    officers["officer_own_percent"] = (
-        officers["officer_own_percent"] * 100).round(2)
+    officers["officer_own_percent"] = (officers["officer_own_percent"] * 100).round(2)
 
     officers = officers.sort_values(by="officer_own_percent", ascending=False).to_dict(
         "records"

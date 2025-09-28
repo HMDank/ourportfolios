@@ -119,8 +119,7 @@ class State(rx.State):
         for category, data in categorized_ratios.items():
             if data:
                 excluded_columns = {"Year", "Quarter", "Date", "Period"}
-                metrics = [col for col in data[0].keys(
-                ) if col not in excluded_columns]
+                metrics = [col for col in data[0].keys() if col not in excluded_columns]
                 self.available_metrics_by_category[category] = metrics
                 if metrics:
                     self.selected_metrics[category] = metrics[0]
@@ -134,14 +133,12 @@ class State(rx.State):
     def get_chart_data_for_category(self) -> Dict[str, List[Dict[str, Any]]]:
         """Get chart data for all categories"""
         chart_data = {}
-        categorized_ratios = self.transformed_dataframes.get(
-            "categorized_ratios", {})
+        categorized_ratios = self.transformed_dataframes.get("categorized_ratios", {})
 
         for category, data in categorized_ratios.items():
             selected_metric = self.selected_metrics[category]
             chart_data[category] = [
-                {"year": row["Year"], "value": row.get(
-                    selected_metric, 0) or 0}
+                {"year": row["Year"], "value": row.get(selected_metric, 0) or 0}
                 for row in reversed(data)
             ][-8:]
 
@@ -243,8 +240,7 @@ def create_placeholder_chart(title: str, position: int):
             ),
             rx.box(
                 rx.center(
-                    rx.text(f"Placeholder for {title}",
-                            size="3", color="gray"),
+                    rx.text(f"Placeholder for {title}", size="3", color="gray"),
                     height="280px",
                 ),
                 width="100%",
@@ -379,8 +375,7 @@ def name_card():
                     align="center",
                 ),
                 rx.hstack(
-                    rx.badge(
-                        f"{technical_metrics['exchange']}", variant="surface"),
+                    rx.badge(f"{technical_metrics['exchange']}", variant="surface"),
                     rx.badge(f"{technical_metrics['industry']}"),
                 ),
             ),
@@ -415,8 +410,7 @@ def key_metrics_card():
                 rx.hstack(
                     rx.tabs.list(
                         rx.tabs.trigger("Performance", value="performance"),
-                        rx.tabs.trigger("Financial Statements",
-                                        value="statement"),
+                        rx.tabs.trigger("Financial Statements", value="statement"),
                     ),
                     rx.spacer(),
                     rx.hstack(
@@ -518,8 +512,7 @@ def price_chart_card():
             rx.flex(
                 rx.menu.root(
                     rx.menu.trigger(
-                        rx.button(rx.icon("settings", size=20),
-                                  variant="ghost")
+                        rx.button(rx.icon("settings", size=20), variant="ghost")
                     ),
                     rx.menu.content(
                         rx.menu.sub(
@@ -636,8 +629,7 @@ def company_generic_info_card():
                                             ),
                                             align="center",
                                         ),
-                                        rx.text(
-                                            officer["officer_position"], size="2"),
+                                        rx.text(officer["officer_position"], size="2"),
                                     ),
                                 ),
                                 spacing="3",
@@ -665,8 +657,7 @@ def company_generic_info_card():
                                                 weight="medium",
                                                 size="3",
                                             ),
-                                            rx.badge(
-                                                f"{event['price_change_ratio']}%"),
+                                            rx.badge(f"{event['price_change_ratio']}%"),
                                             align="center",
                                         ),
                                         rx.text(
@@ -693,14 +684,12 @@ def company_generic_info_card():
                                             size="2",
                                         ),
                                         rx.cond(
-                                            (news["price_change_ratio"]
-                                             is not None)
+                                            (news["price_change_ratio"] is not None)
                                             & ~(
                                                 news["price_change_ratio"]
                                                 != news["price_change_ratio"]
                                             ),
-                                            rx.badge(
-                                                f"{news['price_change_ratio']}%"),
+                                            rx.badge(f"{news['price_change_ratio']}%"),
                                         ),
                                         align="center",
                                         justify="between",

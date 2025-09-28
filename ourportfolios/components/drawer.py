@@ -108,8 +108,7 @@ def cart_drawer_content():
                                                     align_items="center",
                                                 ),
                                                 rx.button(
-                                                    rx.icon(
-                                                        "list-minus", size=16),
+                                                    rx.icon("list-minus", size=16),
                                                     color_scheme="ruby",
                                                     size="1",
                                                     variant="soft",
@@ -126,8 +125,7 @@ def cart_drawer_content():
                                                 justify_content="space-between",
                                                 width="100%",
                                             ),
-                                            background_color=rx.color(
-                                                "accent", 2),
+                                            background_color=rx.color("accent", 2),
                                             padding="0.8em 1em",
                                             margin_bottom="0.7em",
                                             width="100%",  # Changed from "92%" to "100%"
