@@ -1,14 +1,13 @@
 import reflex as rx
 import pandas as pd
 import time
-import asyncio
 from sqlalchemy import text
 import itertools
 
 from typing import List, Dict, Any
 
 from .graph import pct_change_badge
-from ..utils.scheduler import db_settings
+from ..database.fetch_data import db_settings
 
 
 class SearchBarState(rx.State):
@@ -44,7 +43,8 @@ class SearchBarState(rx.State):
         if result.empty:
             # All possible combination of ticker's letter
             combos: List[tuple] = list(
-                itertools.permutations(list(self.search_query), len(self.search_query))
+                itertools.permutations(
+                    list(self.search_query), len(self.search_query))
             )
 
             all_combination = {
@@ -54,7 +54,8 @@ class SearchBarState(rx.State):
 
             result: pd.DataFrame = self.fetch_ticker(
                 match_conditions=" OR ".join(
-                    [f"ticker LIKE :pattern_{i}" for i in range(len(all_combination))]
+                    [f"ticker LIKE :pattern_{i}" for i in range(
+                        len(all_combination))]
                 ),
                 params=all_combination,
             )
@@ -86,26 +87,24 @@ class SearchBarState(rx.State):
                 except Exception:
                     pass
 
-        result: pd.DataFrame = pd.read_sql(text(query), db_settings.conn, params=params)
+        result: pd.DataFrame = pd.read_sql(
+            text(query), db_settings.conn, params=params)
 
         return result
 
     @rx.event(background=True)
     async def load_state(self):
-        """Preload tickers & assign top 3 tickers, called periodically with local_scheduler"""
-        while True:
-            async with self:
-                # Preload all tickers
-                self.ticker_list = self.fetch_ticker(match_conditions="all").to_dict(
-                    "records"
-                )
+        """Preload tickers & assign top 3 tickers"""
+        async with self:
+            # Preload all tickers
+            self.ticker_list = self.fetch_ticker(match_conditions="all").to_dict(
+                "records"
+            )
 
-                # Fetch and store the top 3 trending tickers in memory
-                self.outstanding_tickers: Dict[str, Any] = {
-                    item["ticker"]: 1 for item in self.ticker_list[:3]
-                }
-
-            await asyncio.sleep(db_settings.interval)
+            # Fetch and store the top 3 trending tickers in memory
+            self.outstanding_tickers: Dict[str, Any] = {
+                item["ticker"]: 1 for item in self.ticker_list[:3]
+            }
 
 
 def search_bar():
@@ -200,7 +199,8 @@ def suggestion_card(value: Dict[str, Any]) -> rx.Component:
             align="center",
             spacing="1",
         ),
-        on_click=[rx.redirect(f"/analyze/{ticker}"), SearchBarState.set_query("")],
+        on_click=[rx.redirect(
+            f"/analyze/{ticker}"), SearchBarState.set_query("")],
         width="100%",
         padding="10px",
         cursor="pointer",

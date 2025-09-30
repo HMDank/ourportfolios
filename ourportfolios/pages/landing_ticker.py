@@ -11,7 +11,7 @@ from ..components.drawer import drawer_button, CartState
 from ..components.financial_statement import financial_statements
 from ..components.loading import loading_screen
 
-from ..utils.scheduler import db_settings
+from ..database.fetch_data import db_settings
 from ..utils.load_data import load_company_data_async
 from ..utils.preprocessing.financial_statements import get_transformed_dataframes
 
