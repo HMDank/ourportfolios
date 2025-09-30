@@ -5,20 +5,28 @@ from ..database.etl import db_settings
 
 
 def get_industry(ticker: str) -> str:
-    with db_settings.conn.connect() as connection:
-        if connection.in_transaction():
+    max_retries = 3
+    retry_count = 0
+
+    while retry_count < max_retries:
+        try:
+            with db_settings.conn.connect() as connection:
+                query = text("""
+                    SELECT industry
+                    FROM comparison.comparison_df
+                    WHERE ticker = :pattern
+                """)
+                df = pd.read_sql(query, connection, params={"pattern": ticker})
+                return df["industry"].iloc[0]
+
+        except Exception as e:
+            retry_count += 1
+            if retry_count >= max_retries:
+                raise e
             try:
-                db_settings.conn.rollback()
+                db_settings.conn.dispose()  # Close all connections in the pool
             except Exception:
                 pass
-
-    query = text("""
-        SELECT industry
-        FROM comparison.comparison_df
-        WHERE ticker = :pattern
-    """)
-    df = pd.read_sql(query, db_settings.conn, params={"pattern": ticker})
-    return df["industry"].iloc[0]
 
 
 class CartState(rx.State):

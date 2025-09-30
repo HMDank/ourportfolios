@@ -68,14 +68,12 @@ class State(rx.State):
 
     @rx.event
     def load_technical_metrics(self):
-        params = self.router.page.params
-        ticker = params.get("ticker", "")
+        ticker = self.ticker
         self.technical_metrics = fetch_technical_metrics(ticker)
 
     @rx.event
     async def load_company_data(self):
-        params = self.router.page.params
-        ticker = params.get("ticker", "")
+        ticker = self.ticker
 
         data = await load_company_data_async(ticker)
         self.overview = data["overview"]
@@ -89,8 +87,7 @@ class State(rx.State):
     @rx.event
     def load_financial_ratios(self):
         """Load financial ratios data dynamically"""
-        params = self.router.page.params
-        ticker = params.get("ticker", "")
+        ticker = self.ticker
 
         report_range = self.switch_value
         financial_df = Finance(symbol=ticker, source="VCI").ratio(
@@ -102,8 +99,7 @@ class State(rx.State):
 
     @rx.event
     async def load_transformed_dataframes(self):
-        params = self.router.page.params
-        ticker = params.get("ticker", "")
+        ticker = self.ticker
 
         result = await get_transformed_dataframes(ticker, period=self.switch_value)
 

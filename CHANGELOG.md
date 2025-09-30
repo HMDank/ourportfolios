@@ -2,6 +2,50 @@
 
 <!-- version list -->
 
+## v0.2.4 (2025-09-25)
+
+### Bug Fixes
+
+- **db**: Add rollback ([#50](https://github.com/HMDank/ourportfolios/pull/50),
+  [`8daeb16`](https://github.com/HMDank/ourportfolios/commit/8daeb16b370810cace0a25e27ec3d4b2e5da423e))
+
+### Chores
+
+- Add error catching ([#50](https://github.com/HMDank/ourportfolios/pull/50),
+  [`8daeb16`](https://github.com/HMDank/ourportfolios/commit/8daeb16b370810cace0a25e27ec3d4b2e5da423e))
+
+- Add readme
+  ([`9c41e28`](https://github.com/HMDank/ourportfolios/commit/9c41e28d4c39bfc8c77b6bd30805d8d893787425))
+
+- Add rollback ([#50](https://github.com/HMDank/ourportfolios/pull/50),
+  [`8daeb16`](https://github.com/HMDank/ourportfolios/commit/8daeb16b370810cace0a25e27ec3d4b2e5da423e))
+
+- Add rollback
+  ([`d4a8a68`](https://github.com/HMDank/ourportfolios/commit/d4a8a6804723f80ab36063d27037a87a749877e9))
+
+- Suppress warning ([#50](https://github.com/HMDank/ourportfolios/pull/50),
+  [`8daeb16`](https://github.com/HMDank/ourportfolios/commit/8daeb16b370810cace0a25e27ec3d4b2e5da423e))
+
+- Update depricated method of fetching the route
+  ([#50](https://github.com/HMDank/ourportfolios/pull/50),
+  [`8daeb16`](https://github.com/HMDank/ourportfolios/commit/8daeb16b370810cace0a25e27ec3d4b2e5da423e))
+
+- Update depricated syntax ([#50](https://github.com/HMDank/ourportfolios/pull/50),
+  [`8daeb16`](https://github.com/HMDank/ourportfolios/commit/8daeb16b370810cace0a25e27ec3d4b2e5da423e))
+
+- Update readme
+  ([`9feb90c`](https://github.com/HMDank/ourportfolios/commit/9feb90c27752b6691a25d218243b455d2aa58783))
+
+- Update readme
+  ([`2f26273`](https://github.com/HMDank/ourportfolios/commit/2f2627378eb041cbe62d8b3da3f104a21284e323))
+
+- Update versioning ([#50](https://github.com/HMDank/ourportfolios/pull/50),
+  [`8daeb16`](https://github.com/HMDank/ourportfolios/commit/8daeb16b370810cace0a25e27ec3d4b2e5da423e))
+
+- **conn**: Add retry mechanism ([#50](https://github.com/HMDank/ourportfolios/pull/50),
+  [`8daeb16`](https://github.com/HMDank/ourportfolios/commit/8daeb16b370810cace0a25e27ec3d4b2e5da423e))
+
+
 ## v0.2.3 (2025-08-11)
 
 ### Bug Fixes
