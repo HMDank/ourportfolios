@@ -1,7 +1,7 @@
 import reflex as rx
 import pandas as pd
 from sqlalchemy import text
-from ..database.etl import db_settings
+from ..database.fetch_data import db_settings
 
 
 def get_industry(ticker: str) -> str:

@@ -7,7 +7,7 @@ import itertools
 from typing import List, Dict, Any
 
 from .graph import pct_change_badge
-from ..database.etl import db_settings
+from ..database.fetch_data import db_settings
 
 
 class SearchBarState(rx.State):

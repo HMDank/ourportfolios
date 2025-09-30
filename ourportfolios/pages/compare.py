@@ -7,7 +7,7 @@ from collections import defaultdict
 from ..components.navbar import navbar
 from ..components.drawer import CartState, drawer_button
 from ..components.loading import loading_screen
-from ..database.etl import db_settings
+from ..database.fetch_data import db_settings
 
 
 class StockComparisonState(rx.State):
