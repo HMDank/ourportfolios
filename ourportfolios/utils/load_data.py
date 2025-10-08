@@ -26,7 +26,13 @@ def populate_db():
         left=stock_df, right=price_board_df, left_on="ticker", right_on="symbol"
     )
 
-    result.to_sql("comparison_df", db_settings.conn, schema="comparison", if_exists="replace", index=False)
+    result.to_sql(
+        "comparison_df",
+        db_settings.conn,
+        schema="comparison",
+        if_exists="replace",
+        index=False,
+    )
 
 
 def load_price_board(tickers: list[str]) -> pd.DataFrame:
