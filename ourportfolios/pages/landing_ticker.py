@@ -99,6 +99,9 @@ class State(rx.State):
 
     @rx.event
     async def load_transformed_dataframes(self):
+        if self.transformed_dataframes:
+            return
+
         ticker = self.ticker
 
         result = await get_transformed_dataframes(ticker, period=self.switch_value)
@@ -436,6 +439,7 @@ def key_metrics_card():
                     performance_cards(),
                     value="performance",
                     padding_top="1em",
+                    on_mount=lambda: [State.load_financial_ratios(), State.load_transformed_dataframes()],
                 ),
                 rx.tabs.content(
                     rx.box(
@@ -787,8 +791,6 @@ def company_profile_card():
     on_load=[
         State.load_technical_metrics,
         State.load_company_data,
-        State.load_financial_ratios,
-        State.load_transformed_dataframes,
         PriceChartState.load_state,
     ],
 )
@@ -822,7 +824,7 @@ def index():
                             align="center",
                             flex="0 0 auto",
                         ),
-                        price_chart_card(),
+                        # price_chart_card(),
                         spacing="4",
                         width="100%",
                         align="stretch",
