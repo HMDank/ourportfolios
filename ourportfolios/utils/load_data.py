@@ -26,7 +26,13 @@ def populate_db():
         left=stock_df, right=price_board_df, left_on="ticker", right_on="symbol"
     )
 
-    result.to_sql("comparison_df", db_settings.conn, schema="comparison", if_exists="replace", index=False)
+    result.to_sql(
+        "comparison_df",
+        db_settings.conn,
+        schema="comparison",
+        if_exists="replace",
+        index=False,
+    )
 
 
 def load_price_board(tickers: list[str]) -> pd.DataFrame:
@@ -168,6 +174,7 @@ def load_company_news(ticker: str):
     stock = Vnstock().stock(symbol=ticker, source="TCBS")
     company = stock.company
     news = company.news()
+    news["price_change_ratio"] = pd.to_numeric(news["price_change_ratio"], errors='coerce')
     news = news[~news["title"].str.contains("insider", case=False, na=False)]
     news["price_change_ratio"] = (news["price_change_ratio"] * 100).round(2)
     news = news.to_dict("records")
