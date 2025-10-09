@@ -174,6 +174,7 @@ def load_company_news(ticker: str):
     stock = Vnstock().stock(symbol=ticker, source="TCBS")
     company = stock.company
     news = company.news()
+    news["price_change_ratio"] = pd.to_numeric(news["price_change_ratio"], errors='coerce')
     news = news[~news["title"].str.contains("insider", case=False, na=False)]
     news["price_change_ratio"] = (news["price_change_ratio"] * 100).round(2)
     news = news.to_dict("records")
