@@ -1,15 +1,15 @@
 import reflex as rx
 import pandas as pd
-import itertools
 
 from typing import List, Dict, Any
-from sqlalchemy import text
+from sqlalchemy import text, TextClause
 
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
 from ..components.graph import mini_price_graph, pct_change_badge
 from ..utils.load_data import fetch_data_for_symbols
+from ..utils.generate_query import get_suggest_ticker
 from ..utils.scheduler import db_settings
 
 
@@ -84,8 +84,10 @@ class State(rx.State):
         ]
 
         if self.search_query != "":
-            match_conditions, params = self.get_suggest_ticker()
-            query.append(match_conditions)
+            match_query, params = get_suggest_ticker(
+                search_query=self.search_query, return_type="query"
+            )
+            query.append(match_query)
         else:
             query.append("1=1")
             params = None
@@ -93,7 +95,6 @@ class State(rx.State):
         query = [" ".join(query)]
 
         # Order and filter
-        order_by_clause = ""
 
         # Filter by industry
         if self.selected_industry:
@@ -108,6 +109,8 @@ class State(rx.State):
             )
 
         # Order by condition
+        order_by_clause = ""
+
         if self.selected_sort_option:
             order_by_clause = f"ORDER BY {self.sort_options[self.selected_sort_option]} {self.selected_sort_order}"
 
@@ -132,7 +135,7 @@ class State(rx.State):
                 )
             )
 
-        full_query = text(
+        full_query: TextClause = text(
             " ".join(query) + f" {order_by_clause}"
             if order_by_clause
             else " ".join(query)
@@ -140,15 +143,7 @@ class State(rx.State):
 
         df = pd.read_sql(full_query, db_settings.conn, params=params)
 
-        return df[
-            [
-                "ticker",
-                "organ_name",
-                "current_price",
-                "accumulated_volume",
-                "pct_price_change",
-            ]
-        ].to_dict("records")
+        return df.to_dict("records")
 
     @rx.var(cache=True)
     def get_all_tickers_length(self) -> int:
@@ -282,57 +277,6 @@ class State(rx.State):
     @rx.event
     def set_search_query(self, value: str):
         self.search_query = value.upper()
-
-    def get_suggest_ticker(self) -> tuple[str, Any]:
-        # At first, try to fetch exact ticker
-        match_query = "ticker LIKE :pattern"
-        match_params = {"pattern": f"{self.search_query}%"}
-        result: bool = self.fetch_ticker(
-            match_conditions=match_query, params=match_params
-        )
-
-        # In-case of mistype or no ticker returned, calculate all possible permutation of provided search_query with fixed length
-        if not result:
-            # All possible combination of ticker's letter
-            combos = list(
-                itertools.permutations(list(self.search_query), len(self.search_query))
-            )
-
-            match_query = (
-                " OR ".join(
-                    [f"ticker LIKE :pattern_{i}" for i in range(len(match_params))]
-                ),
-            )
-            match_params = {
-                f"pattern_{idx}": f"{''.join(combo)}%"
-                for idx, combo in enumerate(combos)
-            }
-
-            result: pd.DataFrame = self.fetch_ticker(
-                match_conditions=match_query,
-                params=match_params,
-            )
-
-        # Suggest base of the first letter if still no ticker matched
-        if not result:
-            match_query = "ticker LIKE :pattern"
-            match_params = {"pattern": f"{self.search_query[0]}%"}
-            result: bool = self.fetch_ticker(
-                match_conditions=match_query, params=match_params
-            )
-
-        return match_query, match_params
-
-    def fetch_ticker(self, match_conditions: str, params: Any) -> bool:
-        """Attempt to fetch data"""
-        query: str = text(f"""
-                        SELECT ticker
-                        FROM comparison.comparison_df 
-                        WHERE {match_conditions}
-                    """)
-        if pd.read_sql(query, db_settings.conn, params=params).empty:
-            return False
-        return True
 
 
 # Filter section
