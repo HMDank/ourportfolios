@@ -3,7 +3,6 @@ import reflex as rx
 config = rx.Config(
     app_name="ourportfolios",
     plugins=[
-        rx.plugins.TailwindV4Plugin(),
-        rx.plugins.sitemap.SitemapPlugin(),
-        ],
+        rx.plugins.TailwindV3Plugin(),
+        rx.plugins.sitemap.SitemapPlugin()],
 )

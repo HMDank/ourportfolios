@@ -68,14 +68,12 @@ class State(rx.State):
 
     @rx.event
     def load_technical_metrics(self):
-        params = self.router.page.params
-        ticker = params.get("ticker", "")
+        ticker = self.ticker
         self.technical_metrics = fetch_technical_metrics(ticker)
 
     @rx.event
     async def load_company_data(self):
-        params = self.router.page.params
-        ticker = params.get("ticker", "")
+        ticker = self.ticker
 
         data = await load_company_data_async(ticker)
         self.overview = data["overview"]
@@ -89,8 +87,7 @@ class State(rx.State):
     @rx.event
     def load_financial_ratios(self):
         """Load financial ratios data dynamically"""
-        params = self.router.page.params
-        ticker = params.get("ticker", "")
+        ticker = self.ticker
 
         report_range = self.switch_value
         financial_df = Finance(symbol=ticker, source="VCI").ratio(
@@ -102,8 +99,10 @@ class State(rx.State):
 
     @rx.event
     async def load_transformed_dataframes(self):
-        params = self.router.page.params
-        ticker = params.get("ticker", "")
+        if self.transformed_dataframes:
+            return
+
+        ticker = self.ticker
 
         result = await get_transformed_dataframes(ticker, period=self.switch_value)
 
@@ -265,94 +264,31 @@ def performance_cards():
     """Create performance cards with dynamic charts"""
     categories = State.get_categories_list
 
-    return rx.vstack(
-        rx.hstack(
-            rx.foreach(
-                categories[:3],
-                lambda category: create_dynamic_chart(category),
-            ),
-            rx.cond(
-                categories.length() < 3,
-                rx.vstack(
-                    rx.cond(
-                        categories.length() == 0,
-                        rx.hstack(
-                            create_placeholder_chart("Chart 1", 0),
-                            create_placeholder_chart("Chart 2", 1),
-                            create_placeholder_chart("Chart 3", 2),
-                            spacing="4",
-                            width="100%",
-                            align="stretch",
-                            justify="between",
-                        ),
-                    ),
-                    rx.cond(
-                        categories.length() == 1,
-                        rx.hstack(
-                            create_placeholder_chart("Chart 2", 1),
-                            create_placeholder_chart("Chart 3", 2),
-                            spacing="4",
-                            width="100%",
-                            align="stretch",
-                            justify="between",
-                        ),
-                    ),
-                    rx.cond(
-                        categories.length() == 2,
-                        create_placeholder_chart("Chart 3", 2),
-                    ),
+    return rx.cond(
+        categories.length() > 0,
+        rx.vstack(
+            rx.hstack(
+                rx.foreach(
+                    categories[:3],
+                    lambda category: create_dynamic_chart(category),
                 ),
+                spacing="4",
+                width="100%",
             ),
-            spacing="4",
-            width="100%",
-            align="stretch",
-            justify="between",
-        ),
-        rx.hstack(
-            rx.foreach(
-                categories[3:6],
-                lambda category: create_dynamic_chart(category),
-            ),
-            rx.cond(
-                categories.length() < 6,
-                rx.vstack(
-                    rx.cond(
-                        categories.length() <= 3,
-                        rx.hstack(
-                            create_placeholder_chart("Chart 4", 3),
-                            create_placeholder_chart("Chart 5", 4),
-                            create_placeholder_chart("Chart 6", 5),
-                            spacing="4",
-                            width="100%",
-                            align="stretch",
-                            justify="between",
-                        ),
-                    ),
-                    rx.cond(
-                        categories.length() == 4,
-                        rx.hstack(
-                            create_placeholder_chart("Chart 5", 4),
-                            create_placeholder_chart("Chart 6", 5),
-                            spacing="4",
-                            width="100%",
-                            align="stretch",
-                            justify="between",
-                        ),
-                    ),
-                    rx.cond(
-                        categories.length() == 5,
-                        create_placeholder_chart("Chart 6", 5),
-                    ),
+            rx.hstack(
+                rx.foreach(
+                    categories[3:6],
+                    lambda category: create_dynamic_chart(category),
                 ),
+                spacing="4",
+                width="100%",
             ),
-            spacing="4",
+            spacing="3",
             width="100%",
-            align="stretch",
-            justify="between",
         ),
-        spacing="3",
-        width="100%",
-        align="stretch",
+        rx.center(
+            rx.spinner(size="3"),
+        ),
     )
 
 
@@ -460,6 +396,10 @@ def key_metrics_card():
                     ),
                     value="statement",
                     padding_top="1em",
+                    on_mount=lambda: [
+                        State.load_financial_ratios(),
+                        State.load_transformed_dataframes(),
+                    ],
                 ),
                 default_value="performance",
                 width="100%",
@@ -791,8 +731,6 @@ def company_profile_card():
     on_load=[
         State.load_technical_metrics,
         State.load_company_data,
-        State.load_financial_ratios,
-        State.load_transformed_dataframes,
         PriceChartState.load_state,
     ],
 )

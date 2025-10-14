@@ -23,8 +23,7 @@ class State(rx.State):
 
     @rx.event
     def download_table_csv(self, data: list, idx: int):
-        params = self.router.page.params
-        ticker = params.get("ticker", "")
+        ticker = self.ticker
         if not data:
             return
         output = io.StringIO()
