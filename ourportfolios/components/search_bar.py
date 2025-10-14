@@ -1,12 +1,9 @@
 import reflex as rx
-import pandas as pd
 import time
 import asyncio
+
 from ..utils.generate_query import get_suggest_ticker, fetch_ticker
-import itertools
-
 from typing import List, Dict, Any
-
 from .graph import pct_change_badge
 from ..utils.scheduler import db_settings
 
