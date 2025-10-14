@@ -86,10 +86,12 @@ def fetch_ticker(
         completed_query += "ORDER BY accumulated_volume DESC, market_cap DESC"
 
     with db_settings.conn.connect() as connection:
-        if connection.in_transaction():
-            try:
-                db_settings.conn.rollback()
-            except Exception:
-                pass
-
-    return pd.read_sql(text(completed_query), db_settings.conn, params=params)
+        try:
+            if connection.in_transaction():
+                try:
+                    db_settings.conn.rollback()
+                except Exception:
+                    pass
+            return pd.read_sql(text(completed_query), connection, params=params)
+        except Exception:
+            return pd.DataFrame()

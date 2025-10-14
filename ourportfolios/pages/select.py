@@ -136,8 +136,13 @@ class State(rx.State):
             )
 
         full_query: TextClause = text(" ".join(query))
-        df = pd.read_sql(full_query, db_settings.conn, params=params)
-        return df.to_dict("records")
+        with db_settings.conn.connect() as connection:
+            try:
+                df: pd.DataFrame = pd.read_sql(full_query, connection, params=params)
+                return df.to_dict("records")
+
+            except Exception:
+                return []
 
     @rx.var(cache=True)
     def get_all_tickers_length(self) -> int:
