@@ -77,7 +77,7 @@ class State(rx.State):
 
     @rx.var(cache=True)
     def get_all_tickers(self) -> List[Dict[str, Any]]:
-        query = [
+        query: List[str] = [
             """SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change 
             FROM comparison.comparison_df 
             WHERE """
@@ -92,7 +92,7 @@ class State(rx.State):
             query.append("1=1")
             params = None
 
-        query = [" ".join(query)]
+        query: List[str] = [" ".join(query)]
 
         # Order and filter
 
@@ -107,12 +107,6 @@ class State(rx.State):
             query.append(
                 f"AND exchange IN ({', '.join(f"'{exchange}'" for exchange in self.selected_exchange)})"
             )
-
-        # Order by condition
-        order_by_clause = ""
-
-        if self.selected_sort_option:
-            order_by_clause = f"ORDER BY {self.sort_options[self.selected_sort_option]} {self.selected_sort_order}"
 
         # Filter by metrics
         if self.selected_fundamental_metric:  # Fundamental
@@ -135,14 +129,14 @@ class State(rx.State):
                 )
             )
 
-        full_query: TextClause = text(
-            " ".join(query) + f" {order_by_clause}"
-            if order_by_clause
-            else " ".join(query)
-        )
+        # Order by condition
+        if self.selected_sort_option:
+            query.append(
+                f"ORDER BY {self.sort_options[self.selected_sort_option]} {self.selected_sort_order}"
+            )
 
+        full_query: TextClause = text(" ".join(query))
         df = pd.read_sql(full_query, db_settings.conn, params=params)
-
         return df.to_dict("records")
 
     @rx.var(cache=True)
