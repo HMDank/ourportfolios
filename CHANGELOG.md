@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.3.0 (2025-10-14)
+
+### Features
+
+- Add error handler
+  ([`4f00744`](https://github.com/HMDank/ourportfolios/commit/4f0074424f3f38375741ce30b527f72d7de7eea0))
+
+
 ## v0.2.5 (2025-10-09)
 
 ### Bug Fixes
