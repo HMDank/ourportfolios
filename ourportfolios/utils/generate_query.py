@@ -27,9 +27,8 @@ def get_suggest_ticker(
         match_query=match_query, params=match_params, return_type=return_type
     )
 
-    # In-case of mistype or no ticker returned, calculate all possible permutation of provided search_query with fixed length
+    # In-case of mistype or no ticker returned, calculate all possible combination of provided search_query with fixed length
     if result.empty:
-        # All possible combination of ticker's letter
         combos: List[Tuple] = list(
             itertools.permutations(list(search_query), len(search_query))
         )
@@ -73,8 +72,10 @@ def fetch_ticker(
     Returns:
         pd.DataFrame: _description_
     """
-    completed_query: str = """
-        SELECT ticker, pct_price_change, industry
+    completed_query: str = f"""
+        SELECT {
+        "ticker, pct_price_change, industry" if return_type == "df" else "ticker"
+    }
         FROM comparison.comparison_df
     """
 
