@@ -25,7 +25,7 @@ class State(rx.State):
         try:
             # Create a new connection for this operation
             with db_settings.conn.connect() as connection:
-                df = pd.read_sql("SELECT * FROM comparison.comparison_df", connection)
+                df = pd.read_sql("SELECT * FROM overview.overview", connection)
                 return df[["ticker", "industry"]].to_dict("records")
         except Exception as e:
             print(f"Database error: {e}")
@@ -55,7 +55,7 @@ class State(rx.State):
         try:
             with db_settings.conn.connect() as connection:
                 industries = pd.read_sql(
-                    "SELECT DISTINCT industry FROM comparison.comparison_df;",
+                    "SELECT DISTINCT industry FROM overview.overview;",
                     connection,
                 )
                 self.industries = industries["industry"].tolist()
