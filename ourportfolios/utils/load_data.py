@@ -61,7 +61,7 @@ def populate_db():
     )
 
     result.to_sql(
-        "overview",
+        "overview_df",
         db_settings.conn,
         schema="overview",
         if_exists="replace",
