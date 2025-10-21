@@ -13,7 +13,7 @@ def get_industry(ticker: str) -> str:
             with db_settings.conn.connect() as connection:
                 query = text("""
                     SELECT industry
-                    FROM comparison.comparison_df
+                    FROM overview.overview
                     WHERE ticker = :pattern
                 """)
                 df = pd.read_sql(query, connection, params={"pattern": ticker})

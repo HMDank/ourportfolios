@@ -4,8 +4,10 @@ from sqlalchemy import text
 import pandas as pd
 import numpy as np
 from datetime import date, timedelta
-from vnstock import Vnstock, Screener, Trading
+from vnstock import Vnstock, Screener, Trading, Company
+import time
 import asyncio
+from tqdm import tqdm
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -16,20 +18,52 @@ warnings.filterwarnings("ignore")
 )
 def populate_db():
     with db_settings.conn.connect() as connection:
-        connection.execute(text("CREATE SCHEMA IF NOT EXISTS comparison"))
+        connection.execute(text("CREATE SCHEMA IF NOT EXISTS overview"))
         connection.commit()
 
-    stock_df = load_comparison_table()
-    price_board_df = load_price_board(tickers=stock_df["ticker"].tolist())
+    screener = Screener(source="TCBS")
+    default_params = {
+        "exchangeName": "HOSE,HNX",
+        "marketCap": (2000, 99999999999),
+    }
+    df = screener.stock(default_params, limit=1700, lang="en")
+
+    # Remove unstable columns
+    df = df.drop([x for x in df.columns if x.startswith("price_vs")], axis=1)
+    ticker_list = df["ticker"].tolist()
+
+    overview_list = []
+
+    for ticker in tqdm(ticker_list, desc="Fetching company data"):
+        overview = Company("TCBS", ticker).overview()
+        if overview is not None and not overview.empty:
+            overview_list.append(overview)
+        time.sleep(0.5)
+
+    overview_df = pd.concat(overview_list, ignore_index=True).drop(
+        [
+            "industry_id",
+            "industry_id_v2",
+            "delta_in_year",
+            "delta_in_month",
+            "delta_in_week",
+            "stock_rating",
+            "company_type",
+        ],
+        axis=1,
+    )
+    price_board_df = load_price_board(tickers=ticker_list)[
+        ["symbol", "pct_price_change"]
+    ]
 
     result = pd.merge(
-        left=stock_df, right=price_board_df, left_on="ticker", right_on="symbol"
+        left=overview_df, right=price_board_df, left_on="symbol", right_on="symbol"
     )
 
     result.to_sql(
-        "comparison_df",
+        "overview",
         db_settings.conn,
-        schema="comparison",
+        schema="overview",
         if_exists="replace",
         index=False,
     )
@@ -37,7 +71,7 @@ def populate_db():
 
 def load_price_board(tickers: list[str]) -> pd.DataFrame:
     df = Trading(source="vci", symbol="ACB").price_board(symbols_list=tickers)
-    df.columns = df.columns.droplevel(0)  # Flatten columns
+    df.columns = df.columns.droplevel(0)
     df = df.drop("exchange", axis=1)
     df = df.loc[:, ~df.columns.duplicated()]
 
@@ -149,7 +183,9 @@ def load_company_news(ticker: str):
     stock = Vnstock().stock(symbol=ticker, source="TCBS")
     company = stock.company
     news = company.news()
-    news["price_change_ratio"] = pd.to_numeric(news["price_change_ratio"], errors='coerce')
+    news["price_change_ratio"] = pd.to_numeric(
+        news["price_change_ratio"], errors="coerce"
+    )
     news = news[~news["title"].str.contains("insider", case=False, na=False)]
     news["price_change_ratio"] = (news["price_change_ratio"] * 100).round(2)
     news = news.to_dict("records")
