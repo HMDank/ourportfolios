@@ -60,20 +60,6 @@ def load_price_board(tickers: list[str]) -> pd.DataFrame:
     return df
 
 
-def load_comparison_table():
-    screener = Screener(source="TCBS")
-    default_params = {
-        "exchangeName": "HOSE,HNX",
-        "marketCap": (2000, 99999999999),
-    }
-    df = screener.stock(default_params, limit=1700, lang="en")
-
-    # Remove unstable columns
-    df = df.drop([x for x in df.columns if x.startswith("price_vs")], axis=1)
-
-    return df
-
-
 def load_historical_data(
     symbol,
     start=date.today().strftime("%Y-%m-%d"),
@@ -117,17 +103,6 @@ def get_mini_graph_data(df):
     )
 
     return latest_df, percent_diff
-
-
-def fetch_data_for_symbols(symbols: list[str]):
-    graph_data = []
-    for symbol in symbols:
-        df = load_historical_data(symbol)
-        scaled_data, percent_diff = get_mini_graph_data(df)
-        graph_data.append(
-            {"label": symbol, "data": scaled_data, "percent_diff": percent_diff}
-        )
-    return graph_data
 
 
 def load_company_overview(ticker: str):

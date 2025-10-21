@@ -6,8 +6,6 @@ import pandas as pd
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
-from ..components.graph import mini_price_graph
-from ..utils.load_data import fetch_data_for_symbols
 from ..utils.scheduler import db_settings
 
 
@@ -51,10 +49,6 @@ class State(rx.State):
     def prev_page(self):
         if self.offset - self.limit >= 0:
             self.offset -= self.limit
-
-    @rx.event
-    def get_graph(self, ticker_list):
-        self.data = fetch_data_for_symbols(ticker_list)
 
     @rx.event
     def get_all_industries(self):
@@ -136,25 +130,6 @@ def card_with_scrollable_area():
             value=State.control,
             size="1",
             style={"height": "2em"},
-        ),
-        rx.scroll_area(
-            rx.vstack(
-                rx.foreach(
-                    State.data,
-                    lambda data: mini_price_graph(
-                        label=data["label"],
-                        data=data["data"],
-                        diff=data["percent_diff"],
-                        size=(120, 80),
-                    ),
-                ),
-                spacing="2",
-                height="100%",
-                width="100%",
-                align_items="flex-start",
-            ),
-            scrollbars="vertical",
-            type="auto",
         ),
         style={
             "boxShadow": "0 2px 8px rgba(0,0,0,0.1)",
