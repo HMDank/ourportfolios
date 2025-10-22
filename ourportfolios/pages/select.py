@@ -668,6 +668,8 @@ def ticker_filter():
             align="center",
         ),
         rx.spacer(),  # Push filter button far right
+        # Sort
+        display_sort_options(),        
         # Filter
         rx.menu.root(
             rx.menu.trigger(
@@ -689,8 +691,6 @@ def ticker_filter():
                         rx.tabs.trigger("Technical", value="technical"),
                         rx.spacer(),
                         rx.flex(
-                            # Sort
-                            display_sort_options(),
                             # Clear filter
                             rx.button(
                                 rx.hstack(
@@ -889,7 +889,7 @@ def display_sort_options():
                                 "arrow-down-a-z",
                                 "arrow-down-z-a",
                             ),
-                            size=12,
+                            size=18,
                         ),
                         rx.text(State.selected_sort_option),
                         align="center",
