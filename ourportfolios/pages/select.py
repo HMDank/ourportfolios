@@ -633,7 +633,7 @@ def ticker_basic_info():
                 ),
             ),
         ),
-        background_color=rx.color('gray', 1),
+        background_color=rx.color("gray", 1),
         border_radius=6,
         width="100%",
     )
@@ -725,8 +725,8 @@ def ticker_filter():
                     ),
                     default_value="fundamental",
                 ),
-                width="60vw",
-                height="30vw",
+                width="50vw",
+                height="28vw",
                 side="left",
             ),
             modal=False,
@@ -741,19 +741,6 @@ def ticker_filter():
 
 def category_filter():
     return rx.vstack(
-        rx.hstack(
-            rx.text("Category", size="6", font_weight="medium"),
-            rx.spacer(),
-            rx.button(
-                rx.icon("filter-x", size=15),
-                variant="outline",
-                on_click=State.clear_category_filter,
-            ),
-            spacing="2",
-            width="100%",
-            paddingTop="1em",
-            paddingLeft="1em",
-        ),
         # Exchange
         rx.vstack(
             rx.heading("Exchange", size="6", paddingLeft="1em"),
@@ -770,12 +757,14 @@ def category_filter():
                 ),
                 rows=f"{State.exchange_filter.length() // 4}",
                 columns="4",
-                spacing="3",
-                flow="row-dense",
+                spacing="4",
+                flow="row",
                 align="center",
-                paddingLeft="2em",
+                paddingLeft="1em",
+                justify="center",
             ),
         ),
+        rx.spacer(),
         # Industry
         rx.vstack(
             rx.heading("Industry", size="6", paddingLeft="1em"),
@@ -789,16 +778,19 @@ def category_filter():
                         on_change=lambda value: State.set_industry(
                             industry=item[0], value=value
                         ),
+                        size="2",
                     ),
                 ),
                 rows=f"{State.industry_filter.length() // 4}",
                 columns="4",
-                spacing="3",
-                flow="row-dense",
+                spacing="4",
+                flow="row",
                 align="center",
-                paddingLeft="2em",
+                paddingLeft="1em",
+                justify="between",
             ),
         ),
+        paddingTop="2em",
         spacing="5",
         width="100%",
     )
@@ -810,27 +802,6 @@ def metrics_filter(option: str = "F") -> rx.Component:
                    "T" for Technical-metrics}
     """
     return rx.fragment(
-        rx.hstack(
-            rx.text(
-                rx.cond(option == "F", "Fundamentals:", "Technicals:"),
-                size="6",
-                font_weight="medium",
-            ),
-            rx.spacer(),
-            rx.button(
-                rx.icon("filter-x", size=15),
-                variant="outline",
-                on_click=rx.cond(
-                    option == "F",
-                    State.clear_fundamental_metric_filter,
-                    State.clear_technical_metric_filter,
-                ),
-            ),
-            spacing="3",
-            width="100%",
-            paddingTop="1em",
-            paddingLeft="1em",
-        ),
         rx.scroll_area(
             rx.flex(
                 rx.foreach(
@@ -845,6 +816,7 @@ def metrics_filter(option: str = "F") -> rx.Component:
                 wrap="wrap",
                 align="center",
             ),
+            paddingTop="0.5em",
             height="23vw",
             scrollbars="vertical",
             type="always",
@@ -901,7 +873,7 @@ def metric_slider(metric_tag: str, option: str):
         ),
         width="33%",
         align="start",
-        padding="3em",
+        padding="2.5em",
     )
 
 
