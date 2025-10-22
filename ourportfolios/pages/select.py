@@ -633,7 +633,7 @@ def ticker_basic_info():
                 ),
             ),
         ),
-        background_color="#000000F2",  # black A12
+        background_color=rx.color('gray', 1),
         border_radius=6,
         width="100%",
     )
