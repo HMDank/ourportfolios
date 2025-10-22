@@ -318,6 +318,7 @@ def index():
                     ),
                     spacing="2",
                 ),
+                spacing="1"
             ),
             card_with_scrollable_area(),
             width="100%",
@@ -731,6 +732,8 @@ def ticker_filter():
             ),
             modal=False,
         ),
+        paddingTop="0.75em",
+        paddingBottom="0.5em",
         width="100%",
         align="start",
         direction="row",
