@@ -17,8 +17,6 @@ class State(rx.State):
     control: str = "home"
     show_arrow: bool = True
     data: List[Dict] = []
-    offset: int = 0
-    limit: int = 8  # Number of ticker cards to show per page
 
     # Search bar
     search_query = ""
@@ -183,23 +181,6 @@ class State(rx.State):
             item: [0.00, 0.00] for item in self.technical_metrics
         }
 
-    # Page navigation
-
-    @rx.var
-    def paged_tickers(self) -> List[Dict]:
-        tickers = self.get_all_tickers
-        return tickers[self.offset : self.offset + self.limit]
-
-    @rx.event
-    def next_page(self):
-        if self.offset + self.limit < len(self.get_all_tickers):
-            self.offset += self.limit
-
-    @rx.event
-    def prev_page(self):
-        if self.offset - self.limit >= 0:
-            self.offset -= self.limit
-
     @rx.event
     def get_graph(self, ticker_list):
         self.data = fetch_data_for_symbols(ticker_list)
@@ -304,21 +285,8 @@ def index():
                 ticker_filter(),
                 # Tickers info
                 ticker_basic_info(),
-                rx.hstack(
-                    rx.button(
-                        "Previous",
-                        on_click=State.prev_page,
-                        disabled=State.offset == 0,
-                    ),
-                    rx.button(
-                        "Next",
-                        on_click=State.next_page,
-                        disabled=State.offset + State.limit
-                        >= State.get_all_tickers_length,
-                    ),
-                    spacing="2",
-                ),
-                spacing="1"
+                spacing="1",
+                width="62em",
             ),
             card_with_scrollable_area(),
             width="100%",
@@ -500,143 +468,141 @@ def ticker_card(
     current_price: float,
     accumulated_volume: int,
     pct_price_change: float,
+    **kwargs,
 ):
     color = rx.cond(
         pct_price_change.to(int) > 0,
         rx.color("green", 11),
         rx.cond(pct_price_change.to(int) < 0, rx.color("red", 9), rx.color("gray", 7)),
     )
+    instrument_text_props = {
+        "weight": "regular",
+        "size":"5",
+        "color": color
+    }
     return rx.card(
         rx.flex(
-            # Basic info
-            rx.flex(
-                # Ticker and organ_name
-                rx.box(
-                    rx.link(
-                        rx.text(ticker, weight="medium", size="4"),
-                        href=f"/analyze/{ticker}",
-                        style={"textDecoration": "none", "color": "inherit"},
-                    ),
-                    rx.text(organ_name, color=rx.color("gray", 7), size="2"),
-                    align="center",
-                    justify="start",
-                    width="40%",
+            # Ticker and organ_name
+            rx.box(
+                rx.link(
+                    rx.text(ticker, weight="medium", size="7"),
+                    href=f"/analyze/{ticker}",
+                    style={"textDecoration": "none", "color": "inherit"},
                 ),
-                rx.flex(
-                    # Current price
-                    # Percentage change
-                    # Accumulated volume
-                    rx.foreach(
-                        [
-                            rx.text(
-                                f"{current_price}",
-                                weight="regular",
-                                size="3",
-                                color=color,
-                            ),
-                            pct_change_badge(diff=pct_price_change),
-                            rx.text(
-                                f"{accumulated_volume:,.3f}", size="3", weight="regular"
-                            ),
-                        ],
-                        lambda item: rx.stack(
-                            item,
-                            width="30%",
-                            justify="end",
-                            align="center",
-                        ),
-                    ),
-                    direction="row",
-                    align="center",
-                    justify="between",
-                    width="70%",
-                    spacing="2",
-                ),
-                direction="row",
-                width="80%",
+                rx.text(organ_name, color=rx.color("gray", 7), size="2"),
+                **kwargs["layout_segments"]["symbol"],
+            ),
+            rx.text(
+                current_price,
+                **instrument_text_props,
+                **kwargs["layout_segments"]["instrument"],
+            ),
+            rx.text(
+                pct_change_badge(diff=pct_price_change),
+                **instrument_text_props,
+                **kwargs["layout_segments"]["instrument"],
+            ),
+            rx.text(
+                f"{accumulated_volume:,.3f}",
+                **instrument_text_props,
+                **kwargs["layout_segments"]["instrument"],
             ),
             # Cart button
-            rx.stack(
-                rx.button(
-                    rx.icon("shopping-cart", size=16),
-                    size="1",
-                    variant="soft",
-                    on_click=lambda: CartState.add_item(ticker),
-                ),
-                align="center",
-                justify="end",
-                width="20%",
+            rx.spacer(),
+            rx.button(
+                rx.icon("shopping-cart", size=16),
+                size="2",
+                variant="soft",
+                on_click=lambda: CartState.add_item(ticker),
             ),
+            align="center",
             direction="row",
             width="100%",
         ),
-        padding="1em",
         width="100%",
-        marginBottom="1em",
+        **kwargs["layout_spacing"],
+    )
+
+
+def ticker_basic_info_header(**kwargs) -> rx.Component:
+    heading_text_props = {
+        "weight": "medium",
+        "color": "white",
+        "size": "3",
+    }
+    return rx.card(
+        rx.flex(
+            rx.heading(
+                "Symbol",
+                **heading_text_props,
+                **kwargs["layout_segments"]["symbol"],
+            ),
+            rx.heading(
+                "Price",
+                **heading_text_props,
+                **kwargs["layout_segments"]["instrument"],
+            ),
+            rx.heading(
+                "% Change",
+                **heading_text_props,
+                **kwargs["layout_segments"]["instrument"],
+            ),
+            rx.heading(
+                "Volume",
+                **heading_text_props,
+                **kwargs["layout_segments"]["instrument"],
+            ),
+            direction="row",
+            width="100%",
+            **kwargs["layout_spacing"],
+        ),
+        variant="ghost",
     )
 
 
 def ticker_basic_info():
-    return rx.box(
+    # Predefine card layout, use for both ticker info card's header and content
+    card_layout = {
+        "layout_spacing": {
+            "paddingRight": "2em",
+            "paddingLeft": "2em",
+            "marginTop":"0.25em",
+            "marginBottom": "0.55em",
+        },
+        "layout_segments": {
+            "symbol": {"width": "30%", "align": "left"},
+            "instrument": {"width": "20%", "align": "center"},
+            "cart": {"width": "10%", "align": "center"},
+        },
+    }
+
+    return (
         rx.card(
-            rx.flex(
-                # Header
-                rx.flex(
-                    # Ticker and organ_name
-                    rx.box(
-                        rx.text("Symbol", weight="medium", color="white", size="5"),
-                        align="center",
-                        justify="start",
-                        width="40%",
-                    ),
-                    rx.flex(
-                        rx.foreach(
-                            # Current price
-                            # Percentage change
-                            # Accumulated volume
-                            ["Price", "%", "Volume"],
-                            lambda label: rx.stack(
-                                rx.text(
-                                    label, weight="medium", color="white", size="5"
-                                ),
-                                width="30%",
-                                justify="end",
-                                align="center",
-                            ),
-                        ),
-                        direction="row",
-                        justify="between",
-                        align="center",
-                        width="70%",
-                        spacing="2",
-                    ),
-                    direction="row",
-                    width="80%",
-                ),
-                # Placeholder for cart
-                rx.stack(
-                    width="20%",
-                    variant="ghost",
-                ),
-                direction="row",
-                width="100%",
-                padding="1em",
-            ),
+            # Header
+            ticker_basic_info_header(**card_layout),
             # Ticker
-            rx.foreach(
-                State.paged_tickers,
-                lambda value: ticker_card(
-                    ticker=value.ticker,
-                    organ_name=value.organ_name,
-                    current_price=value.current_price,
-                    accumulated_volume=value.accumulated_volume,
-                    pct_price_change=value.pct_price_change,
+            rx.scroll_area(
+                rx.foreach(
+                    State.get_all_tickers,
+                    lambda value: ticker_card(
+                        ticker=value.ticker,
+                        organ_name=value.organ_name,
+                        current_price=value.current_price,
+                        accumulated_volume=value.accumulated_volume,
+                        pct_price_change=value.pct_price_change,
+                        **card_layout,
+                    ),
                 ),
+                paddingRight="0.5em",
+                type="hover",
+                scrollbars="vertical",
+                width="61em",
+                height="30em",
             ),
+            background_color=rx.color("gray", 1),
+            border_radius=6,
+            width="100%",
         ),
-        background_color=rx.color("gray", 1),
-        border_radius=6,
-        width="100%",
     )
 
 
@@ -655,22 +621,23 @@ def ticker_filter():
                 value=State.search_query,
                 on_change=State.set_search_query,
             ),
-            width="40%",
+            width="20%",
             height="100%",
             align="center",
+            marginRight="0.5em",
         ),
         # Selected filter option
         rx.scroll_area(
             display_selected_filter(),
             scrollbars="horizontal",
             type="hover",
-            width="40vw",
-            height="2.7vw",
-            align="center",
+            width="45vw",
+            height="5vh",
+            align="end",
         ),
         rx.spacer(),  # Push filter button far right
         # Sort
-        display_sort_options(),        
+        display_sort_options(),
         # Filter
         rx.menu.root(
             rx.menu.trigger(
