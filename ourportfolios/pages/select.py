@@ -632,7 +632,7 @@ def ticker_filter():
             scrollbars="horizontal",
             paddingTop="0.1em",
             type="hover",
-            width="50em",
+            width="48em",
             height="2.6em",
         ),
         rx.spacer(),  # Push filter button far right
