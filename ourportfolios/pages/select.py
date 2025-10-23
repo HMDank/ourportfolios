@@ -630,10 +630,10 @@ def ticker_filter():
         rx.scroll_area(
             display_selected_filter(),
             scrollbars="horizontal",
+            paddingTop="0.1em",
             type="hover",
-            width="45vw",
-            height="5vh",
-            align="end",
+            width="50em",
+            height="2.6em",
         ),
         rx.spacer(),  # Push filter button far right
         # Sort
@@ -702,10 +702,9 @@ def ticker_filter():
         paddingTop="0.75em",
         paddingBottom="0.5em",
         width="100%",
-        align="start",
         direction="row",
         spacing="2",
-        height="3vw",
+        height="3em",
     )
 
 
