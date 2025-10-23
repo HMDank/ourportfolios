@@ -612,7 +612,7 @@ def ticker_filter():
         rx.box(
             rx.input(
                 rx.input.slot(rx.icon(tag="search", size=16)),
-                placeholder="Search for a ticker here!",
+                placeholder="Search for a ticker",
                 type="search",
                 size="2",
                 width="100%",
