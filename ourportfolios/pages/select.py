@@ -682,7 +682,7 @@ def filter_tabs() -> rx.Component:
         rx.tabs.root(
             rx.tabs.list(
                 rx.tabs.trigger("Fundamental", value="fundamental"),
-                rx.tabs.trigger("Categorical", value="category"),
+                rx.tabs.trigger("Categorical", value="categorical"),
                 rx.tabs.trigger("Technical", value="technical"),
                 rx.spacer(),
                 rx.flex(
