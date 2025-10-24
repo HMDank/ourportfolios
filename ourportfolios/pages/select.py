@@ -848,21 +848,19 @@ def metric_slider(metric_tag: str, option: str):
     )
 
 
-def display_sort_options():
+def display_sort_options() -> rx.Component:
+    asc_icon: rx.Component = rx.icon("arrow-down-a-z", size=13)
+    desc_icon: rx.Component = rx.icon("arrow-down-z-a", size=13)
+
     return rx.fragment(
         rx.menu.root(
             rx.menu.trigger(
                 rx.button(
                     rx.hstack(
-                        rx.text("Sort"),
-                        rx.icon(
-                            rx.cond(
-                                State.selected_sort_order == "ASC",
-                                "arrow-down-a-z",
-                                "arrow-down-z-a",
-                            ),
-                            size=12,
+                        rx.cond(
+                            State.selected_sort_order == "ASC", asc_icon, desc_icon
                         ),
+                        rx.text("Sort"),
                         align="center",
                     ),
                     variant="outline",
@@ -878,13 +876,10 @@ def display_sort_options():
                                 State.sort_orders,
                                 lambda order: rx.menu.item(
                                     rx.hstack(
-                                        rx.icon(
-                                            rx.cond(
-                                                order.to(str) == "ASC",
-                                                "arrow-down-a-z",
-                                                "arrow-down-z-a",
-                                            ),
-                                            size=13,
+                                        rx.cond(
+                                            State.selected_sort_order == "ASC",
+                                            asc_icon,
+                                            desc_icon,
                                         ),
                                         rx.text(order),
                                         align="center",
