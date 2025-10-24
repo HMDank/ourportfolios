@@ -41,7 +41,7 @@ def pct_change_badge(diff: float):
                     rx.icon(tag="minus", size=12),
                 ),
             ),
-            rx.text(f"{diff:.2f}%", size="2", weight="medium"),
+            rx.text(f"{diff:.2f}%", size="1", weight="medium"),
             spacing="1",
             align="center",
             justify="center",

@@ -475,11 +475,7 @@ def ticker_card(
         rx.color("green", 11),
         rx.cond(pct_price_change.to(int) < 0, rx.color("red", 9), rx.color("gray", 7)),
     )
-    instrument_text_props = {
-        "weight": "regular",
-        "size":"5",
-        "color": color
-    }
+    instrument_text_props = {"weight": "regular", "size": "3", "color": color}
     return rx.card(
         rx.flex(
             # Ticker and organ_name
@@ -492,18 +488,21 @@ def ticker_card(
                 rx.text(organ_name, color=rx.color("gray", 7), size="2"),
                 **kwargs["layout_segments"]["symbol"],
             ),
+            # Price
             rx.text(
                 current_price,
                 **instrument_text_props,
                 **kwargs["layout_segments"]["instrument"],
             ),
+            # Volume
             rx.text(
-                pct_change_badge(diff=pct_price_change),
+                f"{accumulated_volume:,.3f}",
                 **instrument_text_props,
                 **kwargs["layout_segments"]["instrument"],
             ),
+            # Change
             rx.text(
-                f"{accumulated_volume:,.3f}",
+                pct_change_badge(diff=pct_price_change),
                 **instrument_text_props,
                 **kwargs["layout_segments"]["instrument"],
             ),
@@ -537,18 +536,21 @@ def ticker_basic_info_header(**kwargs) -> rx.Component:
                 **heading_text_props,
                 **kwargs["layout_segments"]["symbol"],
             ),
+            # Price
             rx.heading(
                 "Price",
                 **heading_text_props,
                 **kwargs["layout_segments"]["instrument"],
             ),
+            # Volume
             rx.heading(
-                "% Change",
+                "Volume",
                 **heading_text_props,
                 **kwargs["layout_segments"]["instrument"],
             ),
+            # % Change
             rx.heading(
-                "Volume",
+                "% Change",
                 **heading_text_props,
                 **kwargs["layout_segments"]["instrument"],
             ),
@@ -564,15 +566,15 @@ def ticker_basic_info():
     # Predefine card layout, use for both ticker info card's header and content
     card_layout = {
         "layout_spacing": {
-            "paddingRight": "2em",
+            "paddingRight": "3em",
             "paddingLeft": "2em",
-            "marginTop":"0.25em",
-            "marginBottom": "0.55em",
+            "marginTop": "0.25em",
+            "marginBottom": "0.5em",
         },
         "layout_segments": {
-            "symbol": {"width": "30%", "align": "left"},
-            "instrument": {"width": "20%", "align": "center"},
-            "cart": {"width": "10%", "align": "center"},
+            "symbol": {"width": "52%", "align": "left"},
+            "instrument": {"width": "12%", "align": "center"},
+            "cart": {"width": "12%", "align": "center"},
         },
     }
 
@@ -593,7 +595,7 @@ def ticker_basic_info():
                         **card_layout,
                     ),
                 ),
-                paddingRight="0.5em",
+                paddingRight="0.6em",
                 type="hover",
                 scrollbars="vertical",
                 width="61em",
@@ -852,20 +854,19 @@ def display_sort_options():
             rx.menu.trigger(
                 rx.button(
                     rx.hstack(
+                        rx.text("Sort"),
                         rx.icon(
                             rx.cond(
                                 State.selected_sort_order == "ASC",
                                 "arrow-down-a-z",
                                 "arrow-down-z-a",
                             ),
-                            size=18,
+                            size=12,
                         ),
-                        rx.text(State.selected_sort_option),
                         align="center",
-                        justify="between",
                     ),
                     variant="outline",
-                )
+                ),
             ),
             rx.menu.content(
                 rx.foreach(
