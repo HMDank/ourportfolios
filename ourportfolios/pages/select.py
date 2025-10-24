@@ -739,7 +739,7 @@ def categorical_filter():
         "justify": "between",
         "wrap": "wrap",
     }
-    
+
     return rx.vstack(
         # Exchange
         rx.vstack(
@@ -800,26 +800,31 @@ def metrics_filter(option: str = "F") -> rx.Component:
     option(str): {"F": for Fundamental-metrics,
                    "T" for Technical-metrics}
     """
-    return rx.fragment(
-        rx.scroll_area(
-            rx.flex(
-                rx.foreach(
-                    rx.cond(
-                        option == "F",
-                        State.fundamental_metrics,
-                        State.technical_metrics,
-                    ),
-                    lambda metric_tag: metric_slider(metric_tag, option),
+    return rx.scroll_area(
+        rx.grid(
+            rx.foreach(
+                rx.cond(
+                    option == "F",
+                    State.fundamental_metrics,
+                    State.technical_metrics,
                 ),
-                direction="row",
-                wrap="wrap",
-                align="center",
+                lambda metric_tag: metric_slider(metric_tag, option),
             ),
-            paddingTop="0.5em",
-            height="23vw",
-            scrollbars="vertical",
-            type="always",
+            columns=rx.breakpoints(
+                xs="1",
+                sm="2",
+                md="2",
+                lg="3",
+            ),
+            flow="row",
+            wrap="wrap",
+            align="center",
         ),
+        paddingTop="0.5em",
+        paddingRight="0.5em",
+        height="23em",
+        scrollbars="vertical",
+        type="always",
     )
 
 
@@ -870,9 +875,9 @@ def metric_slider(metric_tag: str, option: str):
             width="100%",
             align="center",
         ),
-        width="33%",
+        width="100%",
         align="start",
-        padding="2.5em",
+        padding="2em",
     )
 
 
