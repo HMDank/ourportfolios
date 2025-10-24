@@ -2,6 +2,68 @@
 
 <!-- version list -->
 
+## v0.3.2 (2025-10-24)
+
+### Bug Fixes
+
+- **metrics-slider**: Expand full width
+  ([`cee9ebc`](https://github.com/HMDank/ourportfolios/commit/cee9ebc67c22b5d248c1e78d11b92524d4ebefaa))
+
+
+## v0.3.1 (2025-10-24)
+
+### Bug Fixes
+
+- Correct route
+  ([`fd8c77e`](https://github.com/HMDank/ourportfolios/commit/fd8c77eaa1ed40fff3bdb57999ddabd44a868c57))
+
+### Chores
+
+- Adjust search bar's width
+  ([`61f021d`](https://github.com/HMDank/ourportfolios/commit/61f021d9a2da7b41434fb738a3aac78559250175))
+
+- Adjust search bar's width
+  ([`409aba1`](https://github.com/HMDank/ourportfolios/commit/409aba1670e9065385e9eb6c6c572fd0de641525))
+
+- Adjust sort & ticker info ui
+  ([`8be388f`](https://github.com/HMDank/ourportfolios/commit/8be388f42f78f86f874791493ff70835acab2577))
+
+- Adjust sort button position
+  ([`14253a6`](https://github.com/HMDank/ourportfolios/commit/14253a6570f3175b3e1bf34a38e9611f43b22076))
+
+- Adjust ticker filter bar position
+  ([`6207842`](https://github.com/HMDank/ourportfolios/commit/6207842f5130d0f304a20063519a7eb48ccd1b5b))
+
+- Change filter box color
+  ([`5c62a3a`](https://github.com/HMDank/ourportfolios/commit/5c62a3afc1c3732dfc5b7ea9cf22236acbb5290a))
+
+- Modify filter chips bar
+  ([`f7c1118`](https://github.com/HMDank/ourportfolios/commit/f7c1118125aad769a87b17515f99a950a0d0475b))
+
+- Modify ticker info's ui
+  ([`b9fce16`](https://github.com/HMDank/ourportfolios/commit/b9fce164f251715dd7efb1dba1c64a69ad7ccda7))
+
+- Simplify filter ui
+  ([`21f4fae`](https://github.com/HMDank/ourportfolios/commit/21f4fae1e96001fb6428d74345ca31402d93dfbc))
+
+- Synchronize sort order icon & text display
+  ([`cd7fdbf`](https://github.com/HMDank/ourportfolios/commit/cd7fdbf137795a2a3c30504568614e364fea7c08))
+
+- **filter-button**: Refactor code & add responsiveness to categorical tab
+  ([`086407a`](https://github.com/HMDank/ourportfolios/commit/086407a179c725c69b8e67aa694a33007c39b1ac))
+
+- **metrics-filter-tab**: Add responsiveness
+  ([`b8fcec8`](https://github.com/HMDank/ourportfolios/commit/b8fcec84b595dcf66ecf499584fd36b7e1858eb6))
+
+### Code Style
+
+- Expand search box
+  ([`f79775b`](https://github.com/HMDank/ourportfolios/commit/f79775be56a7aff78c6147ad8268595de1a5a434))
+
+- Shorten scroll bars
+  ([`15b55cd`](https://github.com/HMDank/ourportfolios/commit/15b55cd8cb291b505dc0186e0763de79ffb9d61f))
+
+
 ## v0.3.0 (2025-10-14)
 
 ### Features

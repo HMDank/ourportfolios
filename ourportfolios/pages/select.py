@@ -684,7 +684,7 @@ def filter_tabs() -> rx.Component:
         rx.tabs.root(
             rx.tabs.list(
                 rx.tabs.trigger("Fundamental", value="fundamental"),
-                rx.tabs.trigger("Categorical", value="category"),
+                rx.tabs.trigger("Categorical", value="categorical"),
                 rx.tabs.trigger("Technical", value="technical"),
                 rx.spacer(),
                 rx.flex(
@@ -802,26 +802,31 @@ def metrics_filter(option: str = "F") -> rx.Component:
     option(str): {"F": for Fundamental-metrics,
                    "T" for Technical-metrics}
     """
-    return rx.fragment(
-        rx.scroll_area(
-            rx.flex(
-                rx.foreach(
-                    rx.cond(
-                        option == "F",
-                        State.fundamental_metrics,
-                        State.technical_metrics,
-                    ),
-                    lambda metric_tag: metric_slider(metric_tag, option),
+    return rx.scroll_area(
+        rx.grid(
+            rx.foreach(
+                rx.cond(
+                    option == "F",
+                    State.fundamental_metrics,
+                    State.technical_metrics,
                 ),
-                direction="row",
-                wrap="wrap",
-                align="center",
+                lambda metric_tag: metric_slider(metric_tag, option),
             ),
-            paddingTop="0.5em",
-            height="23vw",
-            scrollbars="vertical",
-            type="always",
+            columns=rx.breakpoints(
+                xs="1",
+                sm="2",
+                md="2",
+                lg="3",
+            ),
+            flow="row",
+            wrap="wrap",
+            align="center",
         ),
+        paddingTop="0.5em",
+        paddingRight="0.5em",
+        height="23em",
+        scrollbars="vertical",
+        type="always",
     )
 
 
@@ -866,7 +871,7 @@ def metric_slider(metric_tag: str, option: str):
             radius="full",
             orientation="horizontal",
         ),
-        width="25%",
+        width="100%",
         align="start",
         padding="1.8em",
     )
