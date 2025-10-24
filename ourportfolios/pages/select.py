@@ -641,66 +641,7 @@ def ticker_filter():
         # Sort
         display_sort_options(),
         # Filter
-        rx.menu.root(
-            rx.menu.trigger(
-                rx.button(
-                    rx.hstack(
-                        rx.icon("filter", size=12),
-                        rx.text("Filter"),
-                        align="center",
-                        justify="between",
-                    ),
-                    variant=rx.cond(State.has_filter, "solid", "outline"),
-                )
-            ),
-            rx.menu.content(
-                rx.tabs.root(
-                    rx.tabs.list(
-                        rx.tabs.trigger("Fundamental", value="fundamental"),
-                        rx.tabs.trigger("Category", value="category"),
-                        rx.tabs.trigger("Technical", value="technical"),
-                        rx.spacer(),
-                        rx.flex(
-                            # Clear filter
-                            rx.button(
-                                rx.hstack(
-                                    rx.icon("filter-x", size=12),
-                                    rx.text("Clear all"),
-                                    align="center",
-                                ),
-                                variant="outline",
-                                on_click=[
-                                    State.clear_category_filter,
-                                    State.clear_sort_option,
-                                    State.clear_fundamental_metric_filter,
-                                    State.clear_technical_metric_filter,
-                                ],
-                            ),
-                            align="center",
-                            direction="row",
-                            spacing="2",
-                        ),
-                    ),
-                    rx.tabs.content(
-                        metrics_filter(option="F"),
-                        value="fundamental",
-                    ),
-                    rx.tabs.content(
-                        category_filter(),
-                        value="category",
-                    ),
-                    rx.tabs.content(
-                        metrics_filter(option="T"),
-                        value="technical",
-                    ),
-                    default_value="fundamental",
-                ),
-                width="50vw",
-                height="28vw",
-                side="left",
-            ),
-            modal=False,
-        ),
+        filter_button(),
         paddingTop="0.75em",
         paddingBottom="0.5em",
         width="100%",
@@ -710,58 +651,145 @@ def ticker_filter():
     )
 
 
-def category_filter():
+def filter_button() -> rx.Component:
+    return (
+        rx.menu.root(
+            rx.menu.trigger(
+                rx.button(
+                    rx.hstack(
+                        rx.icon("filter", size=12),
+                        rx.text("Filter"),
+                        align="center",
+                    ),
+                    variant=rx.cond(State.has_filter, "solid", "outline"),
+                )
+            ),
+            rx.menu.content(
+                filter_tabs(),
+                width=rx.breakpoints(
+                    initial="27em", xs="30em", sm="40em", md="40em", lg="52em"
+                ),
+                height="28em",
+                side="left",
+            ),
+            modal=False,
+        ),
+    )
+
+
+def filter_tabs() -> rx.Component:
+    return (
+        rx.tabs.root(
+            rx.tabs.list(
+                rx.tabs.trigger("Fundamental", value="fundamental"),
+                rx.tabs.trigger("Category", value="category"),
+                rx.tabs.trigger("Technical", value="technical"),
+                rx.spacer(),
+                rx.flex(
+                    # Clear filter
+                    rx.button(
+                        rx.hstack(
+                            rx.icon("filter-x", size=12),
+                            rx.text("Clear all"),
+                            align="center",
+                        ),
+                        variant="outline",
+                        on_click=[
+                            State.clear_category_filter,
+                            State.clear_sort_option,
+                            State.clear_fundamental_metric_filter,
+                            State.clear_technical_metric_filter,
+                        ],
+                    ),
+                    align="center",
+                    direction="row",
+                    spacing="2",
+                ),
+            ),
+            rx.tabs.content(
+                metrics_filter(option="F"),
+                value="fundamental",
+            ),
+            rx.tabs.content(
+                categorical_filter(),
+                value="categorical",
+            ),
+            rx.tabs.content(
+                metrics_filter(option="T"),
+                value="technical",
+            ),
+            default_value="fundamental",
+        ),
+    )
+
+
+def categorical_filter():
+    grid_layout = {
+        "columns": rx.breakpoints(
+            initial="1",
+            xs="2",
+            sm="3",
+            md="3",
+            lg="4",
+        ),
+        "spacing": "4",
+        "flow": "row",
+        "align": "center",
+        "paddingLeft": "1em",
+        "justify": "between",
+        "wrap": "wrap",
+    }
+    
     return rx.vstack(
         # Exchange
         rx.vstack(
-            rx.heading("Exchange", size="6", paddingLeft="1em"),
-            rx.grid(
-                rx.foreach(
-                    State.exchange_filter.items(),
-                    lambda item: rx.checkbox(
-                        rx.badge(item[0]),
-                        checked=item[1],
-                        on_change=lambda value: State.set_exchange(
-                            exchange=item[0], value=value
+            rx.heading("Exchange", size="6"),
+            rx.center(
+                rx.grid(
+                    rx.foreach(
+                        State.exchange_filter.items(),
+                        lambda item: rx.checkbox(
+                            rx.badge(item[0]),
+                            checked=item[1],
+                            on_change=lambda value: State.set_exchange(
+                                exchange=item[0], value=value
+                            ),
                         ),
                     ),
+                    **grid_layout,
                 ),
-                rows=f"{State.exchange_filter.length() // 4}",
-                columns="4",
-                spacing="4",
-                flow="row",
-                align="center",
-                paddingLeft="1em",
-                justify="center",
+                width="100%",
             ),
+            spacing="2",
         ),
-        rx.spacer(),
         # Industry
         rx.vstack(
-            rx.heading("Industry", size="6", paddingLeft="1em"),
-            rx.grid(
-                rx.foreach(
-                    State.industry_filter.items(),
-                    lambda item: rx.checkbox(
-                        # item = {'<industry_tag>': bool=False}
-                        rx.badge(item[0]),
-                        checked=item[1],
-                        on_change=lambda value: State.set_industry(
-                            industry=item[0], value=value
+            rx.heading("Industry", size="6"),
+            rx.scroll_area(
+                rx.grid(
+                    rx.foreach(
+                        State.industry_filter.items(),
+                        lambda item: rx.checkbox(
+                            # item = {'<industry_tag>': bool=False}
+                            rx.badge(item[0]),
+                            checked=item[1],
+                            on_change=lambda value: State.set_industry(
+                                industry=item[0], value=value
+                            ),
+                            size="1",
                         ),
-                        size="2",
                     ),
+                    **grid_layout,
                 ),
-                rows=f"{State.industry_filter.length() // 4}",
-                columns="4",
-                spacing="4",
-                flow="row",
-                align="center",
-                paddingLeft="1em",
-                justify="between",
+                scrollbar="vertical",
+                type="hover",
+                width="100%",
+                height="12em",
             ),
+            spacing="2",
         ),
         paddingTop="2em",
+        paddingLeft="0.5em",
         spacing="5",
         width="100%",
     )
