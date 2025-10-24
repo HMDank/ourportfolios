@@ -489,6 +489,7 @@ def ticker_card(
                 **kwargs["layout_segments"]["symbol"],
             ),
             # Price
+            rx.spacer(),
             rx.text(
                 current_price,
                 **instrument_text_props,
@@ -537,6 +538,7 @@ def ticker_basic_info_header(**kwargs) -> rx.Component:
                 **kwargs["layout_segments"]["symbol"],
             ),
             # Price
+            rx.box(width='3.7em'), #TODO: Find a way to dynamically add this
             rx.heading(
                 "Price",
                 **heading_text_props,
@@ -566,14 +568,14 @@ def ticker_basic_info():
     # Predefine card layout, use for both ticker info card's header and content
     card_layout = {
         "layout_spacing": {
-            "paddingRight": "3em",
-            "paddingLeft": "2em",
+            "paddingRight": "2em",
+            "paddingLeft": "1.3em",
             "marginTop": "0.25em",
             "marginBottom": "0.5em",
         },
         "layout_segments": {
             "symbol": {"width": "52%", "align": "left"},
-            "instrument": {"width": "12%", "align": "center"},
+            "instrument": {"width": "10%", "align": "center"},
             "cart": {"width": "12%", "align": "center"},
         },
     }
@@ -599,7 +601,7 @@ def ticker_basic_info():
                 type="hover",
                 scrollbars="vertical",
                 width="61em",
-                height="30em",
+                height="80vh",
             ),
             background_color=rx.color("gray", 1),
             border_radius=6,
@@ -739,7 +741,7 @@ def categorical_filter():
         "justify": "between",
         "wrap": "wrap",
     }
-    
+
     return rx.vstack(
         # Exchange
         rx.vstack(
@@ -829,7 +831,10 @@ def metric_slider(metric_tag: str, option: str):
         rx.hstack(
             rx.badge(
                 rx.text(
-                    metric_tag.capitalize(), font_size="lg", font_weight="medium", size="2"
+                    metric_tag.capitalize(),
+                    font_size="lg",
+                    font_weight="medium",
+                    size="2",
                 ),
                 variant="soft",
                 radius="small",
