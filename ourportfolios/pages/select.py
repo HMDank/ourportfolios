@@ -623,7 +623,7 @@ def ticker_filter():
                 value=State.search_query,
                 on_change=State.set_search_query,
             ),
-            width="20%",
+            width="30%",
             height="100%",
             align="center",
             marginRight="0.5em",
