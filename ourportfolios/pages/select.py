@@ -623,7 +623,7 @@ def ticker_filter():
                 value=State.search_query,
                 on_change=State.set_search_query,
             ),
-            width="20%",
+            width="30%",
             height="100%",
             align="center",
             marginRight="0.5em",
@@ -682,7 +682,7 @@ def filter_tabs() -> rx.Component:
         rx.tabs.root(
             rx.tabs.list(
                 rx.tabs.trigger("Fundamental", value="fundamental"),
-                rx.tabs.trigger("Category", value="category"),
+                rx.tabs.trigger("Categorical", value="category"),
                 rx.tabs.trigger("Technical", value="technical"),
                 rx.spacer(),
                 rx.flex(
@@ -831,35 +831,14 @@ def metrics_filter(option: str = "F") -> rx.Component:
 def metric_slider(metric_tag: str, option: str):
     return rx.vstack(
         # Metric
-        rx.badge(
-            rx.text(
-                metric_tag.capitalize(), font_size="lg", font_weight="medium", size="2"
-            ),
-            variant="soft",
-            radius="small",
-            box_shadow="md",
-            color_scheme="violet",
-        ),
         rx.hstack(
-            # Slider
-            rx.slider(
-                default_value=[0.00, 0.00],
-                value=rx.cond(
-                    option == "F",
-                    State.fundamental_metric_filter[metric_tag],
-                    State.technical_metric_filter[metric_tag],
+            rx.badge(
+                rx.text(
+                    metric_tag.capitalize(), font_size="lg", font_weight="medium", size="2"
                 ),
-                min_=0,
-                max=100,
-                on_change=lambda val: rx.cond(
-                    option == "F",
-                    State.set_fundamental_metric(metric_tag, value=val).throttle(100),
-                    State.set_technical_metric(metric_tag, value=val).throttle(100),
-                ),
-                variant="surface",
-                size="1",
+                variant="soft",
                 radius="small",
-                orientation="horizontal",
+                color_scheme="violet",
             ),
             # Current value range
             rx.badge(
@@ -872,12 +851,24 @@ def metric_slider(metric_tag: str, option: str):
                 variant="solid",
                 color_scheme="violet",
             ),
-            width="100%",
-            align="center",
         ),
-        width="100%",
+        rx.slider(
+            default_value=[0.00, 0.00],
+            value=rx.cond(
+                option == "F",
+                State.fundamental_metric_filter[metric_tag],
+                State.technical_metric_filter[metric_tag],
+            ),
+            min_=0,
+            max=100,
+            variant="surface",
+            size="2",
+            radius="full",
+            orientation="horizontal",
+        ),
+        width="25%",
         align="start",
-        padding="2em",
+        padding="1.8em",
     )
 
 
