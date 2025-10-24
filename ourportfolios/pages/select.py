@@ -866,7 +866,7 @@ def metric_slider(metric_tag: str, option: str):
             radius="full",
             orientation="horizontal",
         ),
-        width="25%",
+        width="100%",
         align="start",
         padding="1.8em",
     )
