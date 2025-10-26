@@ -18,6 +18,8 @@ class State(rx.State):
     show_arrow: bool = True
     data: List[Dict] = []
 
+    tickers: List[Dict[str, Any]] = []
+
     # Search bar
     search_query = ""
 
@@ -73,78 +75,82 @@ class State(rx.State):
             return True
         return False
 
-    @rx.var(cache=True)
-    def get_all_tickers(self) -> List[Dict[str, Any]]:
-        query: List[str] = [
-            """SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change 
+    @rx.event(background=True)
+    async def get_all_tickers(self) -> List[Dict[str, Any]]:
+        async with self:
+            query: List[str] = [
+                """SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change 
             FROM comparison.comparison_df 
             WHERE """
-        ]
+            ]
 
-        if self.search_query != "":
-            match_query, params = get_suggest_ticker(
-                search_query=self.search_query, return_type="query"
-            )
-            query.append(match_query)
-        else:
-            query.append("1=1")
-            params = None
-
-        query: List[str] = [" ".join(query)]
-
-        # Order and filter
-
-        # Filter by industry
-        if self.selected_industry:
-            query.append(
-                f"AND industry IN ({', '.join(f"'{industry}'" for industry in self.selected_industry)})"
-            )
-
-        # Filter by exchange
-        if self.selected_exchange:
-            query.append(
-                f"AND exchange IN ({', '.join(f"'{exchange}'" for exchange in self.selected_exchange)})"
-            )
-
-        # Filter by metrics
-        if self.selected_fundamental_metric:  # Fundamental
-            query.append(
-                " ".join(
-                    [
-                        f"AND {metric} BETWEEN {self.fundamental_metric_filter.get(metric, [0.00, 0.00])[0]} AND {self.fundamental_metric_filter.get(metric, [0.00, 0.00])[1]}"
-                        for metric in self.selected_fundamental_metric
-                    ]
+            if self.search_query != "":
+                match_query, params = get_suggest_ticker(
+                    search_query=self.search_query, return_type="query"
                 )
-            )
+                query.append(match_query)
+            else:
+                query.append("1=1")
+                params = None
 
-        if self.selected_technical_metric:  # Technical
-            query.append(
-                " ".join(
-                    [
-                        f"AND {metric} BETWEEN {self.technical_metric_filter.get(metric, [0.00, 0.00])[0]} AND {self.technical_metric_filter.get(metric, [0.00, 0.00])[1]}"
-                        for metric in self.selected_technical_metric
-                    ]
+            query: List[str] = [" ".join(query)]
+
+            # Order and filter
+
+            # Filter by industry
+            if self.selected_industry:
+                query.append(
+                    f"AND industry IN ({', '.join(f"'{industry}'" for industry in self.selected_industry)})"
                 )
-            )
 
-        # Order by condition
-        if self.selected_sort_option:
-            query.append(
-                f"ORDER BY {self.sort_options[self.selected_sort_option]} {self.selected_sort_order}"
-            )
+            # Filter by exchange
+            if self.selected_exchange:
+                query.append(
+                    f"AND exchange IN ({', '.join(f"'{exchange}'" for exchange in self.selected_exchange)})"
+                )
 
-        full_query: TextClause = text(" ".join(query))
-        with db_settings.conn.connect() as connection:
-            try:
-                df: pd.DataFrame = pd.read_sql(full_query, connection, params=params)
-                return df.to_dict("records")
+            # Filter by metrics
+            if self.selected_fundamental_metric:  # Fundamental
+                query.append(
+                    " ".join(
+                        [
+                            f"AND {metric} BETWEEN {self.fundamental_metric_filter.get(metric, [0.00, 0.00])[0]} AND {self.fundamental_metric_filter.get(metric, [0.00, 0.00])[1]}"
+                            for metric in self.selected_fundamental_metric
+                        ]
+                    )
+                )
 
-            except Exception:
-                return []
+            if self.selected_technical_metric:  # Technical
+                query.append(
+                    " ".join(
+                        [
+                            f"AND {metric} BETWEEN {self.technical_metric_filter.get(metric, [0.00, 0.00])[0]} AND {self.technical_metric_filter.get(metric, [0.00, 0.00])[1]}"
+                            for metric in self.selected_technical_metric
+                        ]
+                    )
+                )
 
-    @rx.var(cache=True)
+            # Order by condition
+            if self.selected_sort_option:
+                query.append(
+                    f"ORDER BY {self.sort_options[self.selected_sort_option]} {self.selected_sort_order}"
+                )
+
+            full_query: TextClause = text(" ".join(query))
+
+            with db_settings.conn.connect() as connection:
+                try:
+                    df: pd.DataFrame = pd.read_sql(
+                        full_query, connection, params=params
+                    )
+                    self.tickers = df.to_dict("records")
+
+                except Exception:
+                    return []
+
+    @rx.var
     def get_all_tickers_length(self) -> int:
-        return len(self.get_all_tickers)
+        return len(self.tickers)
 
     # Set all metrics/options to their default setting
     @rx.event
@@ -271,6 +277,7 @@ class State(rx.State):
         State.get_fundamental_metrics,
         State.get_technical_metrics,
         State.set_search_query(""),
+        State.get_all_tickers,
     ],
 )
 def index():
@@ -585,7 +592,7 @@ def ticker_basic_info():
             # Ticker
             rx.scroll_area(
                 rx.foreach(
-                    State.get_all_tickers,
+                    State.tickers,
                     lambda value: ticker_card(
                         ticker=value.ticker,
                         organ_name=value.organ_name,
@@ -666,6 +673,12 @@ def filter_button() -> rx.Component:
             ),
             rx.menu.content(
                 filter_tabs(),
+                rx.flex(
+                    rx.spacer(),
+                    apply_filter_button(),
+                    direction="row",
+                    width="100%",
+                ),
                 width=rx.breakpoints(
                     initial="27em", xs="30em", sm="40em", md="40em", lg="52em"
                 ),
@@ -676,6 +689,12 @@ def filter_button() -> rx.Component:
         ),
     )
 
+def apply_filter_button() -> rx.Component:
+    return rx.button(
+        rx.text("Apply", weight="medium", color="white", size="2"),
+        variant="solid",
+        on_click=State.get_all_tickers
+    )
 
 def filter_tabs() -> rx.Component:
     return (
@@ -822,7 +841,7 @@ def metrics_filter(option: str = "F") -> rx.Component:
         ),
         paddingTop="0.5em",
         paddingRight="0.5em",
-        height="23em",
+        height="22em",
         scrollbars="vertical",
         type="always",
     )
@@ -834,7 +853,10 @@ def metric_slider(metric_tag: str, option: str):
         rx.hstack(
             rx.badge(
                 rx.text(
-                    metric_tag.capitalize(), font_size="lg", font_weight="medium", size="2"
+                    metric_tag.capitalize(),
+                    font_size="lg",
+                    font_weight="medium",
+                    size="2",
                 ),
                 variant="soft",
                 radius="small",
@@ -853,11 +875,19 @@ def metric_slider(metric_tag: str, option: str):
             ),
         ),
         rx.slider(
-            default_value=[0.00, 0.00],
-            value=rx.cond(
+            default_value=rx.cond(
                 option == "F",
                 State.fundamental_metric_filter[metric_tag],
                 State.technical_metric_filter[metric_tag],
+            ),
+            on_value_commit=lambda value_range: rx.cond(
+                option == "F",
+                State.set_fundamental_metric(
+                    metric=metric_tag, value=value_range
+                ).throttle(100),
+                State.set_technical_metric(
+                    metric=metric_tag, value=value_range
+                ).throttle(100),
             ),
             min_=0,
             max=100,
