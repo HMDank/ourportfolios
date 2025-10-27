@@ -91,7 +91,7 @@ def load_price_board(tickers: list[str]) -> pd.DataFrame:
     df["price_change"] = round(df["price_change"] * 1e-3, 2)
     df["pct_price_change"] = round(df["pct_price_change"], 2)
 
-    return df
+    return df[["symbol", "current_price", "price_change", "pct_price_change"]]
 
 
 def load_historical_data(
