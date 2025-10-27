@@ -55,7 +55,7 @@ class State(rx.State):
         try:
             with db_settings.conn.connect() as connection:
                 industries = pd.read_sql(
-                    "SELECT DISTINCT industry FROM overview.overview_df;",
+                    "SELECT DISTINCT industry FROM tickers.overview_df;",
                     connection,
                 )
                 self.industries = industries["industry"].tolist()
@@ -142,7 +142,6 @@ def card_with_scrollable_area():
 
 
 def industry_roller():
-    State.get_all_industries()
     return rx.box(
         rx.box(
             rx.scroll_area(
@@ -248,7 +247,7 @@ def ticker_card(df: str):
     )
 
 
-@rx.page(route="/select", on_load=[State.get_graph([]), State.get_all_industries])
+@rx.page(route="/select", on_load=[State.get_all_industries])
 def index():
     return rx.vstack(
         navbar(),

@@ -73,7 +73,7 @@ class SearchBarState(rx.State):
     ) -> pd.DataFrame:
         query: str = """
                         SELECT ticker, pct_price_change, industry
-                        FROM overview.overview_df
+                        FROM tickers.overview_df
                     """
         if match_conditions != "all":
             query += f"WHERE {match_conditions}\n"
