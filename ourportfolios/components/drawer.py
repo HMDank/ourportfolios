@@ -14,7 +14,7 @@ def get_industry(ticker: str) -> str:
                 query = text("""
                     SELECT industry
                     FROM overview.overview_df
-                    WHERE ticker = :pattern
+                    WHERE symbol = :pattern
                 """)
                 df = pd.read_sql(query, connection, params={"pattern": ticker})
                 return df["industry"].iloc[0]

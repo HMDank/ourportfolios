@@ -25,8 +25,8 @@ class State(rx.State):
         try:
             # Create a new connection for this operation
             with db_settings.conn.connect() as connection:
-                df = pd.read_sql("SELECT * FROM overview.overview_df", connection)
-                return df[["ticker", "industry"]].to_dict("records")
+                df = pd.read_sql("SELECT symbol, industry FROM overview.overview_df", connection)
+                return df.to_dict("records")
         except Exception as e:
             print(f"Database error: {e}")
             return []
@@ -209,7 +209,7 @@ def industry_roller():
 
 
 def ticker_card(df: str):
-    ticker = df["ticker"]
+    ticker = df["symbol"]
     industry = df["industry"]
     return rx.card(
         rx.hstack(

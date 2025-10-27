@@ -103,14 +103,14 @@ class StockComparisonState(rx.State):
                         (
                             s
                             for s in self.stocks
-                            if s.get("ticker") == stock.get("ticker")
+                            if s.get("symbol") == stock.get("symbol")
                         ),
                         None,
                     )
                     if original_stock:
                         val = original_stock.get(metric)
                         if val is not None and isinstance(val, (int, float)):
-                            values.append((val, stock.get("ticker")))
+                            values.append((val, stock.get("symbol")))
 
                 if values:
                     if metric in higher_better:
@@ -170,7 +170,7 @@ class StockComparisonState(rx.State):
     @rx.event
     def remove_stock_from_compare(self, ticker: str):
         self.compare_list = [t for t in self.compare_list if t != ticker]
-        self.stocks = [s for s in self.stocks if s.get("ticker") != ticker]
+        self.stocks = [s for s in self.stocks if s.get("symbol") != ticker]
 
     @rx.event
     async def import_cart_to_compare(self):
@@ -291,7 +291,7 @@ def metric_selector_popover() -> rx.Component:
 def stock_column_card(stock: Dict[str, Any], industry: str) -> rx.Component:
     """Create a column with separate header card and metrics card for each stock"""
     market_cap = stock.get("market_cap", "")
-    ticker = stock.get("ticker", "")
+    ticker = stock.get("symbol", "")
 
     return rx.vstack(
         # Header card - separate from metrics
