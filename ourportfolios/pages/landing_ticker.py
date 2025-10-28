@@ -1,6 +1,5 @@
 import pandas as pd
 import reflex as rx
-from sqlalchemy import text
 from typing import Any, List, Dict
 from vnstock import Finance
 
