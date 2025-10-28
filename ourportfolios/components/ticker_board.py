@@ -113,20 +113,22 @@ class TickerBoardState(rx.State):
                 return []
 
 
-def ticker_board() -> rx.Component:
+def ticker_board():
+    # Predefine card layout, use for both ticker info card's header and content
     card_layout = {
         "layout_spacing": {
-            "paddingRight": "3em",
-            "paddingLeft": "2em",
+            "paddingRight": "2em",
+            "paddingLeft": "1.3em",
             "marginTop": "0.25em",
             "marginBottom": "0.5em",
         },
         "layout_segments": {
             "symbol": {"width": "52%", "align": "left"},
-            "instrument": {"width": "12%", "align": "center"},
+            "instrument": {"width": "10%", "align": "center"},
             "cart": {"width": "12%", "align": "center"},
         },
     }
+
     return (
         rx.card(
             # Header
@@ -148,7 +150,7 @@ def ticker_board() -> rx.Component:
                 type="hover",
                 scrollbars="vertical",
                 width="61em",
-                height="30em",
+                height="80vh",
             ),
             background_color=rx.color("gray", 1),
             border_radius=6,
@@ -184,6 +186,7 @@ def ticker_card(
                 **kwargs["layout_segments"]["symbol"],
             ),
             # Price
+            rx.spacer(),
             rx.text(
                 current_price,
                 **instrument_text_props,
@@ -232,6 +235,7 @@ def ticker_basic_info_header(**kwargs) -> rx.Component:
                 **kwargs["layout_segments"]["symbol"],
             ),
             # Price
+            rx.box(width="3.7em"),  # TODO: Find a way to dynamically add this
             rx.heading(
                 "Price",
                 **heading_text_props,
