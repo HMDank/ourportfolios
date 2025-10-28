@@ -6,6 +6,8 @@ import pandas as pd
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button, CartState
 from ..components.page_roller import card_roller, card_link
+from ..components.graph import mini_price_graph
+from ..utils.load_data import fetch_data_for_symbols
 from ..utils.scheduler import db_settings
 
 
@@ -24,10 +26,9 @@ class State(rx.State):
     def get_all_tickers(self) -> list[dict]:
         connection = None
         try:
-            # Create a new connection for this operation
-            with db_settings.conn.connect() as connection:
-                df = pd.read_sql("SELECT symbol, industry FROM overview.overview_df", connection)
-                return df.to_dict("records")
+            connection = db_settings.conn.connect()
+            df = pd.read_sql("SELECT * FROM comparison.comparison_df", connection)
+            return df[["ticker", "industry"]].to_dict("records")
         except Exception as e:
             print(f"Database error: {e}")
             if connection is not None:
@@ -57,15 +58,19 @@ class State(rx.State):
             self.offset -= self.limit
 
     @rx.event
+    def get_graph(self, ticker_list):
+        self.data = fetch_data_for_symbols(ticker_list)
+
+    @rx.event
     def get_all_industries(self):
         connection = None
         try:
-            with db_settings.conn.connect() as connection:
-                industries = pd.read_sql(
-                    "SELECT DISTINCT industry FROM tickers.overview_df;",
-                    connection,
-                )
-                self.industries = industries["industry"].tolist()
+            connection = db_settings.conn.connect()
+            industries = pd.read_sql(
+                "SELECT DISTINCT industry FROM comparison.comparison_df;",
+                connection,
+            )
+            self.industries = industries["industry"].tolist()
         except Exception as e:
             print(f"Database error: {e}")
             if connection is not None:
@@ -146,6 +151,25 @@ def card_with_scrollable_area():
             size="1",
             style={"height": "2em"},
         ),
+        rx.scroll_area(
+            rx.vstack(
+                rx.foreach(
+                    State.data,
+                    lambda data: mini_price_graph(
+                        label=data["label"],
+                        data=data["data"],
+                        diff=data["percent_diff"],
+                        size=(120, 80),
+                    ),
+                ),
+                spacing="2",
+                height="100%",
+                width="100%",
+                align_items="flex-start",
+            ),
+            scrollbars="vertical",
+            type="auto",
+        ),
         style={
             "boxShadow": "0 2px 8px rgba(0,0,0,0.1)",
             "display": "flex",
@@ -157,6 +181,7 @@ def card_with_scrollable_area():
 
 
 def industry_roller():
+    State.get_all_industries()
     return rx.box(
         rx.box(
             rx.scroll_area(
@@ -224,7 +249,7 @@ def industry_roller():
 
 
 def ticker_card(df: str):
-    ticker = df["symbol"]
+    ticker = df["ticker"]
     industry = df["industry"]
     return rx.card(
         rx.hstack(
@@ -262,7 +287,7 @@ def ticker_card(df: str):
     )
 
 
-@rx.page(route="/select", on_load=[State.get_all_industries])
+@rx.page(route="/select", on_load=[State.get_graph([]), State.get_all_industries])
 def index():
     return rx.vstack(
         navbar(),

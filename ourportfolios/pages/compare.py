@@ -18,6 +18,8 @@ class StockComparisonState(rx.State):
         "pe",
         "pb",
         "dividend_yield",
+        "revenue_growth_1y",
+        "eps_growth_1y",
         "gross_margin",
         "net_margin",
         "rsi14",
@@ -28,19 +30,15 @@ class StockComparisonState(rx.State):
         """All available metrics that can be selected"""
         return [
             "roe",
-            "roa",
             "pe",
             "pb",
-            "ps",
-            "ev_ebitda",
             "dividend_yield",
+            "revenue_growth_1y",
+            "eps_growth_1y",
             "gross_margin",
             "net_margin",
-            "doe",
-            "alpha",
-            "beta",
-            "eps",
             "rsi14",
+            "tcbs_recommend",
         ]
 
     @rx.var
@@ -48,19 +46,15 @@ class StockComparisonState(rx.State):
         """Get human-readable labels for metrics"""
         return {
             "roe": "ROE",
-            "roa": "ROA",
             "pe": "P/E Ratio",
             "pb": "P/B Ratio",
-            "ps": "P/S Ratio",
-            "ev_ebitda": "EV/EBITDA",
             "dividend_yield": "Dividend Yield",
+            "revenue_growth_1y": "Revenue Growth (1Y)",
+            "eps_growth_1y": "EPS Growth (1Y)",
             "gross_margin": "Gross Margin",
             "net_margin": "Net Margin",
-            "doe": "DOE",
-            "alpha": "Alpha",
-            "beta": "Beta",
-            "eps": "EPS",
             "rsi14": "RSI (14)",
+            "tcbs_recommend": "Recommendation",
         }
 
     @rx.var
@@ -91,14 +85,13 @@ class StockComparisonState(rx.State):
         industry_best = {}
         higher_better = [
             "roe",
-            "roa",
             "dividend_yield",
+            "revenue_growth_1y",
+            "eps_growth_1y",
             "gross_margin",
             "net_margin",
-            "alpha",
-            "eps",
         ]
-        lower_better = ["pe", "pb", "ps", "ev_ebitda", "beta", "doe"]
+        lower_better = ["pe", "pb"]
 
         for industry, stocks in self.grouped_stocks.items():
             industry_best[industry] = {}
@@ -110,14 +103,14 @@ class StockComparisonState(rx.State):
                         (
                             s
                             for s in self.stocks
-                            if s.get("symbol") == stock.get("symbol")
+                            if s.get("ticker") == stock.get("ticker")
                         ),
                         None,
                     )
                     if original_stock:
                         val = original_stock.get(metric)
                         if val is not None and isinstance(val, (int, float)):
-                            values.append((val, stock.get("symbol")))
+                            values.append((val, stock.get("ticker")))
 
                 if values:
                     if metric in higher_better:
@@ -142,15 +135,15 @@ class StockComparisonState(rx.State):
             return f"{value}B VND"
         elif key in [
             "roe",
-            "roa",
             "dividend_yield",
+            "revenue_growth_1y",
+            "eps_growth_1y",
             "gross_margin",
             "net_margin",
-            "doe",
         ]:
-            return f"{value:.1f}%"
-        elif key in ["pe", "pb", "ps", "ev_ebitda", "alpha", "beta", "eps"]:
-            return f"{value:.2f}"
+            return f"{value * 100:.1f}%"
+        elif key in ["pe", "pb"]:
+            return f"{value:.1f}"
         elif key == "rsi14":
             return f"{value:.0f}"
         else:
@@ -177,7 +170,7 @@ class StockComparisonState(rx.State):
     @rx.event
     def remove_stock_from_compare(self, ticker: str):
         self.compare_list = [t for t in self.compare_list if t != ticker]
-        self.stocks = [s for s in self.stocks if s.get("symbol") != ticker]
+        self.stocks = [s for s in self.stocks if s.get("ticker") != ticker]
 
     @rx.event
     async def import_cart_to_compare(self):
@@ -188,59 +181,23 @@ class StockComparisonState(rx.State):
     @rx.event
     async def fetch_stocks_from_compare(self):
         """
-        Fetch stock data for tickers in compare_list from the new tickers schema.
-        Combines data from overview_df, stats_df, and price_df.
+        Fetch stock data for tickers in compare_list and store in self.stocks.
         """
         tickers = self.compare_list
         stocks = []
         if not tickers:
             self.stocks = []
             return
-
         for ticker in tickers:
-            try:
-                # Fetch from overview_df for industry and market_cap
-                overview_query = text(
-                    "SELECT symbol, industry, market_cap "
-                    "FROM tickers.overview_df WHERE symbol = :symbol"
-                )
-                overview_df = pd.read_sql(
-                    overview_query, db_settings.conn, params={"symbol": ticker}
-                )
-
-                stats_query = text(
-                    "SELECT symbol, roe, roa, ev_ebitda, dividend_yield, "
-                    "gross_margin, net_margin, doe, alpha, beta, pe, pb, eps, ps, rsi14 "
-                    "FROM tickers.stats_df WHERE symbol = :symbol"
-                )
-                stats_df = pd.read_sql(
-                    stats_query, db_settings.conn, params={"symbol": ticker}
-                )
-
-                if not overview_df.empty and not stats_df.empty:
-                    stock_data = {
-                        "symbol": ticker,
-                        "industry": overview_df.iloc[0]["industry"],
-                        "market_cap": overview_df.iloc[0]["market_cap"],
-                        "roe": stats_df.iloc[0]["roe"],
-                        "roa": stats_df.iloc[0]["roa"],
-                        "ev_ebitda": stats_df.iloc[0]["ev_ebitda"],
-                        "dividend_yield": stats_df.iloc[0]["dividend_yield"],
-                        "gross_margin": stats_df.iloc[0]["gross_margin"],
-                        "net_margin": stats_df.iloc[0]["net_margin"],
-                        "doe": stats_df.iloc[0]["doe"],
-                        "alpha": stats_df.iloc[0]["alpha"],
-                        "beta": stats_df.iloc[0]["beta"],
-                        "pe": stats_df.iloc[0]["pe"],
-                        "pb": stats_df.iloc[0]["pb"],
-                        "eps": stats_df.iloc[0]["eps"],
-                        "ps": stats_df.iloc[0]["ps"],
-                        "rsi14": stats_df.iloc[0]["rsi14"],
-                    }
-                    stocks.append(stock_data)
-            except Exception as e:
-                print(f"Error fetching data for {ticker}: {e}")
-                continue
+            query = text(
+                "SELECT ticker, market_cap, roe, pe, pb, dividend_yield, "
+                "revenue_growth_1y, eps_growth_1y, gross_margin, net_margin, "
+                "rsi14, industry, tcbs_recommend "
+                "FROM comparison.comparison_df WHERE ticker = :pattern"
+            )
+            df = pd.read_sql(query, db_settings.conn, params={"pattern": ticker})
+            if not df.empty:
+                stocks.append(df.iloc[0].to_dict())
 
         self.stocks = stocks
 
@@ -334,7 +291,7 @@ def metric_selector_popover() -> rx.Component:
 def stock_column_card(stock: Dict[str, Any], industry: str) -> rx.Component:
     """Create a column with separate header card and metrics card for each stock"""
     market_cap = stock.get("market_cap", "")
-    ticker = stock.get("symbol", "")
+    ticker = stock.get("ticker", "")
 
     return rx.vstack(
         # Header card - separate from metrics
@@ -553,8 +510,7 @@ def comparison_section() -> rx.Component:
                                     rx.foreach(
                                         StockComparisonState.grouped_stocks.items(),
                                         lambda item: industry_group_section(
-                                            item[0],
-                                            item[1],
+                                            item[0], item[1]
                                         ),
                                     ),
                                     spacing="7",  # Space between industry groups

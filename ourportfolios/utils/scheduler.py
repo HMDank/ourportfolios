@@ -14,7 +14,7 @@ class Settings:
     connection_string = os.getenv("DATABASE_URI")
     conn = create_engine(url=connection_string)
 
-    interval: int = 60 * 60 * 24
+    interval: int = 60 * 60 * 5
 
 
 db_settings = Settings()

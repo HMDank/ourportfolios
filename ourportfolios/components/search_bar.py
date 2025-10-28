@@ -33,11 +33,10 @@ class SearchBarState(rx.State):
             return []
         if self.search_query == "":
             return self.ticker_list
-        #TODO: Fix All the hard-coded pb.symbol by changing the overall SQL query method.
-        # (Mayebe use SQLAlchemy here)
+
         # At first, try to fetch exact ticker
         result: pd.DataFrame = self.fetch_ticker(
-            match_conditions="pb.symbol LIKE :pattern",
+            match_conditions="ticker LIKE :pattern",
             params={"pattern": f"{self.search_query}%"},
         )
 
@@ -55,7 +54,7 @@ class SearchBarState(rx.State):
 
             result: pd.DataFrame = self.fetch_ticker(
                 match_conditions=" OR ".join(
-                    [f"pb.symbol LIKE :pattern_{i}" for i in range(len(all_combination))]
+                    [f"ticker LIKE :pattern_{i}" for i in range(len(all_combination))]
                 ),
                 params=all_combination,
             )
@@ -63,7 +62,7 @@ class SearchBarState(rx.State):
         # Suggest base of the first letter if still no ticker matched
         if result.empty:
             result: pd.DataFrame = self.fetch_ticker(
-                match_conditions="pb.symbol LIKE :pattern",
+                match_conditions="ticker LIKE :pattern",
                 params={"pattern": f"{self.search_query[0]}%"},
             )
 
@@ -73,18 +72,13 @@ class SearchBarState(rx.State):
         self, match_conditions: str = "all", params: Any = None
     ) -> pd.DataFrame:
         query: str = """
-                    SELECT
-                        pb.symbol,
-                        pb.pct_price_change,
-                        od.industry
-                    FROM tickers.price_df AS pb
-                    JOIN tickers.overview_df AS od
-                        ON pb.symbol = od.symbol
+                        SELECT ticker, pct_price_change, industry
+                        FROM comparison.comparison_df
                     """
         if match_conditions != "all":
             query += f"WHERE {match_conditions}\n"
 
-        query += "ORDER BY accumulated_volume DESC"
+        query += "ORDER BY accumulated_volume DESC, market_cap DESC"
         with db_settings.conn.connect() as connection:
             if connection.in_transaction():
                 try:
@@ -108,7 +102,7 @@ class SearchBarState(rx.State):
 
                 # Fetch and store the top 3 trending tickers in memory
                 self.outstanding_tickers: Dict[str, Any] = {
-                    item["symbol"]: 1 for item in self.ticker_list[:3]
+                    item["ticker"]: 1 for item in self.ticker_list[:3]
                 }
 
             await asyncio.sleep(db_settings.interval)
@@ -166,7 +160,7 @@ def search_bar():
 
 
 def suggestion_card(value: Dict[str, Any]) -> rx.Component:
-    ticker = value["symbol"].to(str)
+    ticker = value["ticker"].to(str)
     industry = value["industry"].to(str)
     pct_price_change: float = value["pct_price_change"].to(float)
 
