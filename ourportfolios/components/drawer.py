@@ -13,7 +13,7 @@ def get_industry(ticker: str) -> str:
             with db_settings.conn.connect() as connection:
                 query = text("""
                     SELECT industry
-                    FROM overview.overview_df
+                    FROM tickers.overview_df
                     WHERE symbol = :pattern
                 """)
                 df = pd.read_sql(query, connection, params={"pattern": ticker})
