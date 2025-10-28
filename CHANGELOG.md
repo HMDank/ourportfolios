@@ -2,6 +2,27 @@
 
 <!-- version list -->
 
+## v0.2.5 (2025-10-09)
+
+### Bug Fixes
+
+- Handle none types ([#52](https://github.com/HMDank/ourportfolios/pull/52),
+  [`8f84d17`](https://github.com/HMDank/ourportfolios/commit/8f84d174f03d873348ed39105e8efd14ce481e25))
+
+### Chores
+
+- Remove placeholder cards ([#52](https://github.com/HMDank/ourportfolios/pull/52),
+  [`8f84d17`](https://github.com/HMDank/ourportfolios/commit/8f84d174f03d873348ed39105e8efd14ce481e25))
+
+### Performance Improvements
+
+- **financial-statements**: Load seperately ([#52](https://github.com/HMDank/ourportfolios/pull/52),
+  [`8f84d17`](https://github.com/HMDank/ourportfolios/commit/8f84d174f03d873348ed39105e8efd14ce481e25))
+
+- **landing-ticker**: Improve parallelism ([#52](https://github.com/HMDank/ourportfolios/pull/52),
+  [`8f84d17`](https://github.com/HMDank/ourportfolios/commit/8f84d174f03d873348ed39105e8efd14ce481e25))
+
+
 ## v0.2.4 (2025-09-25)
 
 ### Bug Fixes
