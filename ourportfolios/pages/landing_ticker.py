@@ -11,33 +11,23 @@ from ..components.drawer import drawer_button, CartState
 from ..components.financial_statement import financial_statements
 from ..components.loading import loading_screen
 
-from ..utils.scheduler import db_settings
-from ..utils.load_data import load_company_data_async
+from ..utils.load_data import fetch_company_data
 from ..utils.preprocessing.financial_statements import get_transformed_dataframes
-
-
-def fetch_technical_metrics(ticker: str) -> dict:
-    df = pd.read_sql(
-        text("SELECT * FROM overview.overview_df WHERE ticker = :pattern"),
-        db_settings.conn,
-        params={"pattern": ticker},
-    )
-
-    return df.iloc[0].to_dict() if not df.empty else {}
 
 
 class State(rx.State):
     switch_value: str = "year"
 
     company_control: str = "shares"
-    technical_metrics: dict = {}
-    company_info: dict = {}
-    overview: dict = {}
-    profile: dict = {}
-    officers: list[dict[str, Any]] = []
-    shareholders: list[dict] = []
-    events: list[dict] = []
-    news: list[dict] = []
+
+    # Change to DataFrames
+    overview_df: pd.DataFrame = pd.DataFrame()
+    profile_df: pd.DataFrame = pd.DataFrame()
+    shareholders_df: pd.DataFrame = pd.DataFrame()
+    events_df: pd.DataFrame = pd.DataFrame()
+    news_df: pd.DataFrame = pd.DataFrame()
+    officers_df: pd.DataFrame = pd.DataFrame()
+
     price_data: pd.DataFrame = pd.DataFrame()
     income_statement: list[dict] = []
     balance_sheet: list[dict] = []
@@ -67,26 +57,63 @@ class State(rx.State):
         await self.load_transformed_dataframes()
 
     @rx.event
-    def load_technical_metrics(self):
-        ticker = self.ticker
-        self.technical_metrics = fetch_technical_metrics(ticker)
-
-    @rx.event
     async def load_company_data(self):
         ticker = self.ticker
 
-        data = await load_company_data_async(ticker)
-        self.overview = data["overview"]
-        self.shareholders = data["shareholders"]
-        self.events = data["events"]
-        self.news = data["news"]
-        self.profile = data["profile"]
-        self.officers = data["officers"]
-        self.price_data = data["price_data"]
+        company_data = fetch_company_data(ticker)
+
+        self.overview_df = company_data["overview"]
+        self.shareholders_df = company_data["shareholders"]
+        self.events_df = company_data["events"]
+        self.news_df = company_data["news"]
+        self.profile_df = company_data["profile"]
+        self.officers_df = company_data["officers"]
+
+    @rx.var(cache=True)
+    def overview(self) -> dict:
+        """Get overview as dict."""
+        if self.overview_df.empty:
+            return {}
+        return self.overview_df.iloc[0].to_dict()
+
+    @rx.var(cache=True)
+    def profile(self) -> dict:
+        """Get profile as dict."""
+        if self.profile_df.empty:
+            return {}
+        return self.profile_df.iloc[0].to_dict()
+
+    @rx.var(cache=True)
+    def shareholders(self) -> list[dict]:
+        """Get shareholders as list of dicts."""
+        if self.shareholders_df.empty:
+            return []
+        return self.shareholders_df.to_dict("records")
+
+    @rx.var(cache=True)
+    def events(self) -> list[dict]:
+        """Get events as list of dicts."""
+        if self.events_df.empty:
+            return []
+        return self.events_df.to_dict("records")
+
+    @rx.var(cache=True)
+    def news(self) -> list[dict]:
+        """Get news as list of dicts."""
+        if self.news_df.empty:
+            return []
+        return self.news_df.to_dict("records")
+
+    @rx.var(cache=True)
+    def officers(self) -> list[dict]:
+        """Get officers as list of dicts."""
+        if self.officers_df.empty:
+            return []
+        return self.officers_df.to_dict("records")
 
     @rx.event
     def load_financial_ratios(self):
-        """Load financial ratios data dynamically"""
+        """Load financial ratios data dynamically."""
         ticker = self.ticker
 
         report_range = self.switch_value
@@ -115,10 +142,14 @@ class State(rx.State):
         self.available_metrics_by_category = {}
         self.selected_metrics = {}
 
-        for category, data in categorized_ratios.items():
-            if data:
+        for category, financial_data in categorized_ratios.items():
+            if financial_data:
                 excluded_columns = {"Year", "Quarter", "Date", "Period"}
-                metrics = [col for col in data[0].keys() if col not in excluded_columns]
+                metrics = [
+                    col
+                    for col in financial_data[0]
+                    if col not in excluded_columns
+                ]
                 self.available_metrics_by_category[category] = metrics
                 if metrics:
                     self.selected_metrics[category] = metrics[0]
@@ -155,16 +186,17 @@ class State(rx.State):
         colors = [
             rx.color(palette, idx, True) for palette in palettes for idx in indices
         ]
-        data = [
+
+        pie_data = [
             {
                 "name": shareholder["share_holder"],
                 "value": shareholder["share_own_percent"],
             }
             for shareholder in self.shareholders
         ]
-        for idx, d in enumerate(data):
+        for idx, d in enumerate(pie_data):
             d["fill"] = colors[idx % len(colors)]
-        return data
+        return pie_data
 
 
 def create_dynamic_chart(category: str):
@@ -293,26 +325,24 @@ def performance_cards():
 
 
 def name_card():
-    technical_metrics = State.technical_metrics
+    overview = State.overview
     return (
         card_wrapper(
             rx.vstack(
                 rx.hstack(
-                    rx.heading(technical_metrics["ticker"], size="9"),
+                    rx.heading(overview["symbol"], size="9"),
                     rx.button(
                         rx.icon("plus", size=16),
                         size="2",
                         variant="soft",
-                        on_click=lambda: CartState.add_item(
-                            technical_metrics["ticker"]
-                        ),
+                        on_click=lambda: CartState.add_item(overview["symbol"]),
                     ),
                     justify="center",
                     align="center",
                 ),
                 rx.hstack(
-                    rx.badge(f"{technical_metrics['exchange']}", variant="surface"),
-                    rx.badge(f"{technical_metrics['industry']}"),
+                    rx.badge(f"{overview['exchange']}", variant="surface"),
+                    rx.badge(f"{overview['industry']}"),
                 ),
             ),
             style={"width": "100%", "padding": "1em"},
@@ -320,19 +350,18 @@ def name_card():
     )
 
 
-def general_info_card():
-    technical_metrics = State.technical_metrics
-    info = State.overview
-    website = info.get("website", "")
+def general_info_card():  # TODO: ALL DATA SHOULD COME FROM OVERVIEW_DF
+    overview = State.overview
+    website = overview["website"]
     return rx.vstack(
         card_wrapper(
-            rx.text(f"{info['short_name']} (Est. {info['established_year']})"),
+            rx.text(f"{overview['short_name']} (Est. {overview['established_year']})"),
             rx.link(website, href=f"https://{website}", is_external=True),
-            rx.text(f"Market cap: {technical_metrics['market_cap']}"),
-            rx.text(f"Issue Shares: {info['issue_share']}"),
-            rx.text(f"Outstanding Shares: {info['outstanding_share']}"),
+            rx.text(f"Market cap: {overview['market_cap']} B. VND"),
+            rx.text(f"Issue Shares: {overview['issue_share']}"),
+            rx.text(f"Outstanding Shares: {overview['outstanding_share']}"),
             rx.text(
-                f"{info['no_shareholders']} shareholders ({info['foreign_percent']}% foreign)"
+                f"{overview['no_shareholders']} shareholders ({overview['foreign_percent']}% foreign)"
             ),
             style={"width": "100%", "padding": "1em"},
         ),
@@ -729,7 +758,6 @@ def company_profile_card():
 @rx.page(
     route="/analyze/[ticker]",
     on_load=[
-        State.load_technical_metrics,
         State.load_company_data,
         PriceChartState.load_state,
     ],
