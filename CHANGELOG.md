@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.3.2 (2025-10-24)
+
+### Bug Fixes
+
+- **metrics-slider**: Expand full width
+  ([`cee9ebc`](https://github.com/HMDank/ourportfolios/commit/cee9ebc67c22b5d248c1e78d11b92524d4ebefaa))
+
+
 ## v0.3.1 (2025-10-24)
 
 ### Bug Fixes
