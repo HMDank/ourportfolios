@@ -27,15 +27,21 @@ class State(rx.State):
         "pe",
         "pb",
         "roe",
-        "alpha",
-        "beta",
+        "roa",
+        "doe",
         "eps",
+        "ps",
         "gross_margin",
         "net_margin",
+        "ev",
         "ev_ebitda",
         "dividend_yield",
     ]
-    technical_metrics: List[str] = ["rsi14"]
+    technical_metrics: List[str] = [
+        "rsi14",
+        "alpha",
+        "beta",
+    ]
 
     # Sorts
     selected_sort_order: str = "ASC"
