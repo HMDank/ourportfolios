@@ -165,6 +165,11 @@ class State(rx.State):
                 self.selected_exchange.add(exchange)
             else:
                 self.selected_exchange.discard(exchange)
+                yield TickerBoardState.apply_filters(
+                    filters={
+                        "exchange": self.selected_exchange,
+                    }
+                )
 
     @rx.event(background=True)
     async def set_industry(self, industry: str, value: bool):
@@ -176,6 +181,11 @@ class State(rx.State):
                 self.selected_industry.add(industry)
             else:
                 self.selected_industry.discard(industry)
+                yield TickerBoardState.apply_filters(
+                    filters={
+                        "industry": self.selected_industry,
+                    }
+                )
 
     @rx.event(background=True)
     async def set_fundamental_metric(self, metric: str, value: List[float]):
@@ -188,6 +198,14 @@ class State(rx.State):
                 self.selected_fundamental_metric.add(metric)
             else:
                 self.selected_fundamental_metric.discard(metric)
+                yield TickerBoardState.apply_filters(
+                    filters={
+                        "fundamental": {
+                            metric: self.fundamental_metric_filter[metric]
+                            for metric in self.selected_fundamental_metric
+                        }
+                    }
+                )
 
     @rx.event(background=True)
     async def set_technical_metric(self, metric: str, value: List[float]):
@@ -200,6 +218,14 @@ class State(rx.State):
                 self.selected_technical_metric.add(metric)
             else:
                 self.selected_technical_metric.discard(metric)
+                yield TickerBoardState.apply_filters(
+                    filters={
+                        "technical": {
+                            metric: self.technical_metric_filter[metric]
+                            for metric in self.selected_technical_metric
+                        },
+                    }
+                )
 
     # Clear filters
 

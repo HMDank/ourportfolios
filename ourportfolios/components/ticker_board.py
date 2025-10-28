@@ -25,10 +25,14 @@ class TickerBoardState(rx.State):
 
     @rx.event
     def apply_filters(self, filters: Dict[str, Any]):
-        self.selected_exchange = filters.pop("exchange", [])
-        self.selected_industry = filters.pop("industry", [])
-        self.selected_technical_metric = filters.pop("technical", {})
-        self.selected_fundamental_metric = filters.pop("fundamental", {})
+        if "exchange" in filters.keys():
+            self.selected_exchange = filters["exchange"]
+        if "industry" in filters.keys():
+            self.selected_industry = filters["industry"]
+        if "fundamental" in filters.keys():
+            self.selected_fundamental_metric = filters["fundamental"]
+        if "technical" in filters.keys():
+            self.selected_technical_metric = filters["technical"]
 
     @rx.event
     def clear_filters(self):
