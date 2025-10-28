@@ -486,6 +486,7 @@ def filter_button() -> rx.Component:
                     apply_filter_button(),
                     direction="row",
                     width="100%",
+                    paddingRight="1em",
                 ),
                 width=rx.breakpoints(
                     initial="27em", xs="30em", sm="40em", md="40em", lg="52em"
@@ -559,7 +560,8 @@ def categorical_filter():
         "spacing": "4",
         "flow": "row",
         "align": "center",
-        "paddingLeft": "1em",
+        "paddingLeft": "0.5em",
+        "paddingRight": "1em",
         "justify": "between",
         "wrap": "wrap",
     }
@@ -614,7 +616,7 @@ def categorical_filter():
         ),
         paddingTop="2em",
         paddingLeft="0.5em",
-        spacing="5",
+        spacing="4",
         width="100%",
     )
 
