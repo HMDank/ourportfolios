@@ -1,15 +1,14 @@
 import reflex as rx
 import pandas as pd
 
-from typing import List, Dict, Any
-from sqlalchemy import text, TextClause
+from typing import List, Dict, Any, Set
 
 from ..components.navbar import navbar
-from ..components.drawer import drawer_button, CartState
+from ..components.drawer import drawer_button
 from ..components.page_roller import card_roller, card_link
-from ..components.graph import mini_price_graph, pct_change_badge
+from ..components.graph import mini_price_graph
+from ..components.ticker_board import TickerBoardState, ticker_board
 from ..utils.load_data import fetch_data_for_symbols
-from ..utils.generate_query import get_suggest_ticker
 from ..utils.scheduler import db_settings
 
 
@@ -51,10 +50,10 @@ class State(rx.State):
     }
 
     # Filters
-    selected_exchange: List[str] = []
-    selected_industry: List[str] = []
-    selected_technical_metric: List[str] = []
-    selected_fundamental_metric: List[str] = []
+    selected_exchange: Set[str] = set()
+    selected_industry: Set[str] = set()
+    selected_technical_metric: Set[str] = set()
+    selected_fundamental_metric: Set[str] = set()
 
     exchange_filter: Dict[str, bool] = {}
     industry_filter: Dict[str, bool] = {}
@@ -67,90 +66,31 @@ class State(rx.State):
     @rx.var
     def has_filter(self) -> bool:
         if (
-            self.selected_industry
-            or self.selected_exchange
-            or self.selected_fundamental_metric
-            or self.selected_technical_metric
+            len(self.selected_industry) > 0
+            or len(self.selected_exchange) > 0
+            or len(self.selected_fundamental_metric) > 0
+            or len(self.selected_technical_metric) > 0
         ):
             return True
         return False
 
     @rx.event(background=True)
-    async def get_all_tickers(self) -> List[Dict[str, Any]]:
+    async def apply_filters(self):
         async with self:
-            query: List[str] = [
-                """SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change 
-            FROM comparison.comparison_df 
-            WHERE """
-            ]
-
-            if self.search_query != "":
-                match_query, params = get_suggest_ticker(
-                    search_query=self.search_query, return_type="query"
-                )
-                query.append(match_query)
-            else:
-                query.append("1=1")
-                params = None
-
-            query: List[str] = [" ".join(query)]
-
-            # Order and filter
-
-            # Filter by industry
-            if self.selected_industry:
-                query.append(
-                    f"AND industry IN ({', '.join(f"'{industry}'" for industry in self.selected_industry)})"
-                )
-
-            # Filter by exchange
-            if self.selected_exchange:
-                query.append(
-                    f"AND exchange IN ({', '.join(f"'{exchange}'" for exchange in self.selected_exchange)})"
-                )
-
-            # Filter by metrics
-            if self.selected_fundamental_metric:  # Fundamental
-                query.append(
-                    " ".join(
-                        [
-                            f"AND {metric} BETWEEN {self.fundamental_metric_filter.get(metric, [0.00, 0.00])[0]} AND {self.fundamental_metric_filter.get(metric, [0.00, 0.00])[1]}"
-                            for metric in self.selected_fundamental_metric
-                        ]
-                    )
-                )
-
-            if self.selected_technical_metric:  # Technical
-                query.append(
-                    " ".join(
-                        [
-                            f"AND {metric} BETWEEN {self.technical_metric_filter.get(metric, [0.00, 0.00])[0]} AND {self.technical_metric_filter.get(metric, [0.00, 0.00])[1]}"
-                            for metric in self.selected_technical_metric
-                        ]
-                    )
-                )
-
-            # Order by condition
-            if self.selected_sort_option:
-                query.append(
-                    f"ORDER BY {self.sort_options[self.selected_sort_option]} {self.selected_sort_order}"
-                )
-
-            full_query: TextClause = text(" ".join(query))
-
-            with db_settings.conn.connect() as connection:
-                try:
-                    df: pd.DataFrame = pd.read_sql(
-                        full_query, connection, params=params
-                    )
-                    self.tickers = df.to_dict("records")
-
-                except Exception:
-                    return []
-
-    @rx.var
-    def get_all_tickers_length(self) -> int:
-        return len(self.tickers)
+            yield TickerBoardState.apply_filters(
+                filters={
+                    "industry": self.selected_industry,
+                    "exchange": self.selected_exchange,
+                    "fundamental": {
+                        metric: self.fundamental_metric_filter[metric]
+                        for metric in self.selected_fundamental_metric
+                    },
+                    "technical": {
+                        metric: self.technical_metric_filter[metric]
+                        for metric in self.selected_technical_metric
+                    },
+                }
+            )
 
     # Set all metrics/options to their default setting
     @rx.event
@@ -191,78 +131,87 @@ class State(rx.State):
     def get_graph(self, ticker_list):
         self.data = fetch_data_for_symbols(ticker_list)
 
+    # Search bar
+    @rx.event
+    def set_search_query(self, value: str):
+        self.search_query = value.upper()
+        yield TickerBoardState.set_search_query(self.search_query)
+
     # Filter event handlers
 
     @rx.event
     def set_sort_option(self, option: str):
         self.selected_sort_option = option
+        yield TickerBoardState.set_sort_option(self.sort_options[option])
 
     @rx.event
     def set_sort_order(self, order: str):
         self.selected_sort_order = order
+        yield TickerBoardState.set_sort_order(order)
 
-    @rx.event
-    def set_exchange(self, exchange: str, value: bool):
-        self.exchange_filter[exchange] = value
-        self.selected_exchange = [
-            item[0] for item in self.exchange_filter.items() if item[1]
-        ]
+    @rx.event(background=True)
+    async def set_exchange(self, exchange: str, value: bool):
+        async with self:
+            self.exchange_filter[exchange] = value
 
-    @rx.event
-    def set_industry(self, industry: str, value: bool):
-        self.industry_filter[industry] = value
-        self.selected_industry = [
-            item[0] for item in self.industry_filter.items() if item[1]
-        ]
+        async with self:
+            if value is True:
+                self.selected_exchange.add(exchange)
+            else:
+                self.selected_exchange.discard(exchange)
 
-    @rx.event
-    def set_fundamental_metric(self, metric: str, value: List[float]):
-        self.fundamental_metric_filter[metric] = value
-        self.selected_fundamental_metric = [
-            metric
-            for metric, value_range in self.fundamental_metric_filter.items()
-            if sum(value_range) > 0.00
-        ]
+    @rx.event(background=True)
+    async def set_industry(self, industry: str, value: bool):
+        async with self:
+            self.industry_filter[industry] = value
 
-    @rx.event
-    def set_technical_metric(self, metric: str, value: List[float]):
-        self.technical_metric_filter[metric] = value
-        self.selected_technical_metric = [
-            metric
-            for metric, value_range in self.technical_metric_filter.items()
-            if sum(value_range) > 0.00
-        ]
+        async with self:
+            if value is True:
+                self.selected_industry.add(industry)
+            else:
+                self.selected_industry.discard(industry)
+
+    @rx.event(background=True)
+    async def set_fundamental_metric(self, metric: str, value: List[float]):
+        async with self:
+            self.fundamental_metric_filter[metric] = value
+
+        async with self:
+            is_selected: bool = sum(value) > 0
+            if is_selected:
+                self.selected_fundamental_metric.add(metric)
+            else:
+                self.selected_fundamental_metric.discard(metric)
+
+    @rx.event(background=True)
+    async def set_technical_metric(self, metric: str, value: List[float]):
+        async with self:
+            self.technical_metric_filter[metric] = value
+
+        async with self:
+            is_selected: bool = sum(value) > 0
+            if is_selected:
+                self.selected_technical_metric.add(metric)
+            else:
+                self.selected_technical_metric.discard(metric)
 
     # Clear filters
 
-    @rx.event
-    def clear_technical_metric_filter(self):
-        self.get_technical_metrics()
-        self.selected_technical_metric = []
+    @rx.event(background=True)
+    async def clear_filter(self):
+        async with self:
+            self.selected_technical_metric = set()
+            self.selected_fundamental_metric = set()
+            self.selected_industry = set()  # Default
+            self.selected_exchange = set()  # Default
 
-    @rx.event
-    def clear_fundamental_metric_filter(self):
-        self.get_fundamental_metrics()
-        self.selected_fundamental_metric = []
+        async with self:
+            self.get_technical_metrics()
+            self.get_fundamental_metrics()
+            self.get_all_industries()
+            self.get_all_exchanges()
 
-    @rx.event
-    def clear_sort_option(self):
-        self.selected_sort_order = "ASC"  # Default
-        self.selected_sort_option = "A-Z"  # Default
-
-    @rx.event
-    def clear_category_filter(self):
-        self.get_all_industries()
-        self.selected_industry = []  # Default
-
-        self.get_all_exchanges()
-        self.selected_exchange = []  # Default
-
-    # Search bar
-
-    @rx.event
-    def set_search_query(self, value: str):
-        self.search_query = value.upper()
+        yield TickerBoardState.clear_filters()
 
 
 # Filter section
@@ -277,7 +226,6 @@ class State(rx.State):
         State.get_fundamental_metrics,
         State.get_technical_metrics,
         State.set_search_query(""),
-        State.get_all_tickers,
     ],
 )
 def index():
@@ -291,7 +239,7 @@ def index():
                 # Filters
                 ticker_filter(),
                 # Tickers info
-                ticker_basic_info(),
+                ticker_board(),
                 spacing="1",
                 width="62em",
             ),
@@ -469,152 +417,6 @@ def industry_roller():
     )
 
 
-def ticker_card(
-    ticker: str,
-    organ_name: str,
-    current_price: float,
-    accumulated_volume: int,
-    pct_price_change: float,
-    **kwargs,
-):
-    color = rx.cond(
-        pct_price_change.to(int) > 0,
-        rx.color("green", 11),
-        rx.cond(pct_price_change.to(int) < 0, rx.color("red", 9), rx.color("gray", 7)),
-    )
-    instrument_text_props = {"weight": "regular", "size": "3", "color": color}
-    return rx.card(
-        rx.flex(
-            # Ticker and organ_name
-            rx.box(
-                rx.link(
-                    rx.text(ticker, weight="medium", size="7"),
-                    href=f"/analyze/{ticker}",
-                    style={"textDecoration": "none", "color": "inherit"},
-                ),
-                rx.text(organ_name, color=rx.color("gray", 7), size="2"),
-                **kwargs["layout_segments"]["symbol"],
-            ),
-            # Price
-            rx.text(
-                current_price,
-                **instrument_text_props,
-                **kwargs["layout_segments"]["instrument"],
-            ),
-            # Volume
-            rx.text(
-                f"{accumulated_volume:,.3f}",
-                **instrument_text_props,
-                **kwargs["layout_segments"]["instrument"],
-            ),
-            # Change
-            rx.text(
-                pct_change_badge(diff=pct_price_change),
-                **instrument_text_props,
-                **kwargs["layout_segments"]["instrument"],
-            ),
-            # Cart button
-            rx.spacer(),
-            rx.button(
-                rx.icon("shopping-cart", size=16),
-                size="2",
-                variant="soft",
-                on_click=lambda: CartState.add_item(ticker),
-            ),
-            align="center",
-            direction="row",
-            width="100%",
-        ),
-        width="100%",
-        **kwargs["layout_spacing"],
-    )
-
-
-def ticker_basic_info_header(**kwargs) -> rx.Component:
-    heading_text_props = {
-        "weight": "medium",
-        "color": "white",
-        "size": "3",
-    }
-    return rx.card(
-        rx.flex(
-            rx.heading(
-                "Symbol",
-                **heading_text_props,
-                **kwargs["layout_segments"]["symbol"],
-            ),
-            # Price
-            rx.heading(
-                "Price",
-                **heading_text_props,
-                **kwargs["layout_segments"]["instrument"],
-            ),
-            # Volume
-            rx.heading(
-                "Volume",
-                **heading_text_props,
-                **kwargs["layout_segments"]["instrument"],
-            ),
-            # % Change
-            rx.heading(
-                "% Change",
-                **heading_text_props,
-                **kwargs["layout_segments"]["instrument"],
-            ),
-            direction="row",
-            width="100%",
-            **kwargs["layout_spacing"],
-        ),
-        variant="ghost",
-    )
-
-
-def ticker_basic_info():
-    # Predefine card layout, use for both ticker info card's header and content
-    card_layout = {
-        "layout_spacing": {
-            "paddingRight": "3em",
-            "paddingLeft": "2em",
-            "marginTop": "0.25em",
-            "marginBottom": "0.5em",
-        },
-        "layout_segments": {
-            "symbol": {"width": "52%", "align": "left"},
-            "instrument": {"width": "12%", "align": "center"},
-            "cart": {"width": "12%", "align": "center"},
-        },
-    }
-
-    return (
-        rx.card(
-            # Header
-            ticker_basic_info_header(**card_layout),
-            # Ticker
-            rx.scroll_area(
-                rx.foreach(
-                    State.tickers,
-                    lambda value: ticker_card(
-                        ticker=value.ticker,
-                        organ_name=value.organ_name,
-                        current_price=value.current_price,
-                        accumulated_volume=value.accumulated_volume,
-                        pct_price_change=value.pct_price_change,
-                        **card_layout,
-                    ),
-                ),
-                paddingRight="0.6em",
-                type="hover",
-                scrollbars="vertical",
-                width="61em",
-                height="30em",
-            ),
-            background_color=rx.color("gray", 1),
-            border_radius=6,
-            width="100%",
-        ),
-    )
-
-
 def ticker_filter():
     return rx.flex(
         # Search box
@@ -689,12 +491,14 @@ def filter_button() -> rx.Component:
         ),
     )
 
+
 def apply_filter_button() -> rx.Component:
     return rx.button(
         rx.text("Apply", weight="medium", color="white", size="2"),
         variant="solid",
-        on_click=State.get_all_tickers
+        on_click=State.apply_filters,
     )
+
 
 def filter_tabs() -> rx.Component:
     return (
@@ -713,12 +517,7 @@ def filter_tabs() -> rx.Component:
                             align="center",
                         ),
                         variant="outline",
-                        on_click=[
-                            State.clear_category_filter,
-                            State.clear_sort_option,
-                            State.clear_fundamental_metric_filter,
-                            State.clear_technical_metric_filter,
-                        ],
+                        on_click=State.clear_filter,
                     ),
                     align="center",
                     direction="row",
@@ -875,19 +674,19 @@ def metric_slider(metric_tag: str, option: str):
             ),
         ),
         rx.slider(
-            default_value=rx.cond(
+            value=rx.cond(
                 option == "F",
                 State.fundamental_metric_filter[metric_tag],
                 State.technical_metric_filter[metric_tag],
             ),
-            on_value_commit=lambda value_range: rx.cond(
+            on_change=lambda value_range: rx.cond(
                 option == "F",
                 State.set_fundamental_metric(
                     metric=metric_tag, value=value_range
-                ).throttle(100),
+                ).throttle(50),
                 State.set_technical_metric(
                     metric=metric_tag, value=value_range
-                ).throttle(100),
+                ).throttle(50),
             ),
             min_=0,
             max=100,
