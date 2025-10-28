@@ -249,7 +249,6 @@ def fetch_stats_df() -> list:
         "marketCap": (2000, 99999999999),
     }
     df = screener.stock(default_params, limit=1700, lang="en")
-    df = df.drop([x for x in df.columns if x.startswith("price_vs")], axis=1)
     return df[
         [
             "ticker",
