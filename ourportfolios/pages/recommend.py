@@ -33,6 +33,14 @@ class FrameworkState(rx.State):
     loading_frameworks: bool = False
     selected_framework: Dict = {}
     show_dialog: bool = False
+    show_add_dialog: bool = False
+
+    # Form fields
+    form_title: str = ""
+    form_description: str = ""
+    form_author: str = ""
+    form_complexity: str = "beginner-friendly"
+    form_scope: str = ""
 
     async def on_load(self):
         await self.load_scopes()
@@ -42,14 +50,10 @@ class FrameworkState(rx.State):
     async def load_scopes(self):
         self.loading_scopes = True
         try:
-            query = "SELECT DISTINCT scope FROM frameworks.frameworks WHERE scope IS NOT NULL ORDER BY scope"
-            scopes = execute_query(query)
+            # Always show all available scopes, regardless of whether they have frameworks
             self.scopes = [
-                {
-                    "value": scope["scope"],
-                    "title": scope["scope"].replace("_", " ").title(),
-                }
-                for scope in scopes
+                {"value": "fundamental", "title": "Fundamental"},
+                {"value": "technical", "title": "Technical"},
             ]
 
             if self.scopes and not self.active_scope:
@@ -72,7 +76,7 @@ class FrameworkState(rx.State):
         self.loading_frameworks = True
         try:
             query = """
-                SELECT * FROM frameworks.frameworks 
+                SELECT * FROM frameworks.frameworks_df
                 WHERE scope = %s
                 ORDER BY title
             """
@@ -97,6 +101,52 @@ class FrameworkState(rx.State):
     def handle_dialog_open(self, value: bool):
         if not value:
             self.close_dialog()
+
+    @rx.event
+    def open_add_dialog(self):
+        self.form_scope = self.active_scope
+        self.form_title = ""
+        self.form_description = ""
+        self.form_author = ""
+        self.form_complexity = "beginner-friendly"
+        self.show_add_dialog = True
+
+    @rx.event
+    def close_add_dialog(self):
+        self.show_add_dialog = False
+
+    @rx.event
+    def handle_add_dialog_open(self, value: bool):
+        if not value:
+            self.close_add_dialog()
+
+    async def submit_framework(self):
+        if not self.form_title or not self.form_author:
+            return
+
+        try:
+            query = """
+                INSERT INTO frameworks.frameworks_df (title, description, author, complexity, scope)
+                VALUES (%s, %s, %s, %s, %s)
+            """
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        query,
+                        (
+                            self.form_title,
+                            self.form_description,
+                            self.form_author,
+                            self.form_complexity,
+                            self.form_scope,
+                        ),
+                    )
+                    conn.commit()
+
+            self.close_add_dialog()
+            await self.load_frameworks()
+        except Exception as e:
+            print(f"Error adding framework: {e}")
 
 
 def scope_button(scope: Dict):
@@ -277,6 +327,132 @@ def framework_dialog():
     )
 
 
+def add_framework_dialog():
+    return rx.cond(
+        FrameworkState.show_add_dialog,
+        rx.dialog.root(
+            rx.dialog.trigger(rx.button("hidden", style={"display": "none"})),
+            rx.dialog.content(
+                rx.vstack(
+                    rx.hstack(
+                        rx.heading("Add New Framework", size="6", weight="bold"),
+                        rx.spacer(),
+                        rx.dialog.close(
+                            rx.icon(
+                                "x",
+                                on_click=FrameworkState.close_add_dialog,
+                                style={
+                                    "cursor": "pointer",
+                                    "color": rx.color("accent", 10),
+                                    "_hover": {"color": rx.color("accent", 7)},
+                                },
+                            ),
+                        ),
+                        width="100%",
+                        align="center",
+                    ),
+                    rx.vstack(
+                        rx.vstack(
+                            rx.text("Title *", size="2", weight="medium"),
+                            rx.input(
+                                placeholder="Framework title",
+                                value=FrameworkState.form_title,
+                                on_change=FrameworkState.set_form_title,
+                                width="100%",
+                            ),
+                            spacing="1",
+                            width="100%",
+                        ),
+                        rx.vstack(
+                            rx.text("Author *", size="2", weight="medium"),
+                            rx.input(
+                                placeholder="Author name",
+                                value=FrameworkState.form_author,
+                                on_change=FrameworkState.set_form_author,
+                                width="100%",
+                            ),
+                            spacing="1",
+                            width="100%",
+                        ),
+                        rx.vstack(
+                            rx.text("Description", size="2", weight="medium"),
+                            rx.text_area(
+                                placeholder="Framework description...",
+                                value=FrameworkState.form_description,
+                                on_change=FrameworkState.set_form_description,
+                                width="100%",
+                                rows="4",
+                            ),
+                            spacing="1",
+                            width="100%",
+                        ),
+                        rx.hstack(
+                            rx.vstack(
+                                rx.text("Scope *", size="2", weight="medium"),
+                                rx.select(
+                                    ["fundamental", "technical"],
+                                    value=FrameworkState.form_scope,
+                                    on_change=FrameworkState.set_form_scope,
+                                    width="100%",
+                                ),
+                                spacing="1",
+                                width="100%",
+                            ),
+                            rx.vstack(
+                                rx.text("Complexity *", size="2", weight="medium"),
+                                rx.select(
+                                    ["beginner-friendly", "complex"],
+                                    value=FrameworkState.form_complexity,
+                                    on_change=FrameworkState.set_form_complexity,
+                                    width="100%",
+                                ),
+                                spacing="1",
+                                width="100%",
+                            ),
+                            spacing="3",
+                            width="100%",
+                        ),
+                        spacing="3",
+                        width="100%",
+                    ),
+                    rx.hstack(
+                        rx.spacer(),
+                        rx.button(
+                            "Cancel",
+                            on_click=FrameworkState.close_add_dialog,
+                            variant="soft",
+                            color_scheme="gray",
+                        ),
+                        rx.button(
+                            "Add Framework",
+                            on_click=FrameworkState.submit_framework,
+                            disabled=rx.cond(
+                                (FrameworkState.form_title == "")
+                                | (FrameworkState.form_author == ""),
+                                True,
+                                False,
+                            ),
+                        ),
+                        spacing="2",
+                        width="100%",
+                        justify="end",
+                    ),
+                    spacing="4",
+                    width="100%",
+                ),
+                style={
+                    "width": "50vw",
+                    "maxWidth": "600px",
+                    "padding": "2rem",
+                },
+            ),
+            open=True,
+            on_open_change=FrameworkState.handle_add_dialog_open,
+        ),
+        None,
+    )
+
+
 def categories_sidebar():
     return rx.card(
         rx.vstack(
@@ -307,7 +483,19 @@ def frameworks_content():
     return rx.fragment(
         rx.card(
             rx.vstack(
-                rx.text("Frameworks", size="4"),
+                rx.hstack(
+                    rx.text("Frameworks", size="4"),
+                    rx.spacer(),
+                    rx.button(
+                        rx.icon("plus", size=18),
+                        "Add Framework",
+                        on_click=FrameworkState.open_add_dialog,
+                        size="2",
+                        variant="soft",
+                    ),
+                    width="100%",
+                    align="center",
+                ),
                 rx.cond(
                     FrameworkState.loading_frameworks,
                     rx.center(rx.spinner(size="3"), height="12em"),
@@ -339,6 +527,7 @@ def frameworks_content():
             style={"padding": "0.75em", "minWidth": 0, "overflow": "hidden"},
         ),
         framework_dialog(),
+        add_framework_dialog(),
     )
 
 
