@@ -145,9 +145,7 @@ class State(rx.State):
             if financial_data:
                 excluded_columns = {"Year", "Quarter", "Date", "Period"}
                 metrics = [
-                    col
-                    for col in financial_data[0]
-                    if col not in excluded_columns
+                    col for col in financial_data[0] if col not in excluded_columns
                 ]
                 self.available_metrics_by_category[category] = metrics
                 if metrics:

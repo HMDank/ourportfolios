@@ -22,6 +22,7 @@ class State(rx.State):
 
     @rx.var(cache=True)
     def get_all_tickers(self) -> list[dict]:
+        connection = None
         try:
             # Create a new connection for this operation
             with db_settings.conn.connect() as connection:
@@ -29,7 +30,12 @@ class State(rx.State):
                 return df.to_dict("records")
         except Exception as e:
             print(f"Database error: {e}")
+            if connection is not None:
+                connection.rollback()
             return []
+        finally:
+            if connection is not None:
+                connection.close()
 
     @rx.var(cache=True)
     def paged_tickers(self) -> list[dict]:
@@ -52,6 +58,7 @@ class State(rx.State):
 
     @rx.event
     def get_all_industries(self):
+        connection = None
         try:
             with db_settings.conn.connect() as connection:
                 industries = pd.read_sql(
@@ -61,7 +68,15 @@ class State(rx.State):
                 self.industries = industries["industry"].tolist()
         except Exception as e:
             print(f"Database error: {e}")
+            if connection is not None:
+                try:
+                    connection.rollback()
+                except Exception:
+                    pass
             self.industries = []
+        finally:
+            if connection is not None:
+                connection.close()
 
 
 def page_selection():
