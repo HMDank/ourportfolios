@@ -2,6 +2,95 @@
 
 <!-- version list -->
 
+## v0.4.0 (2025-10-29)
+
+### Bug Fixes
+
+- Handle none types ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- **chips**: Add filter remove
+  ([`69bd351`](https://github.com/HMDank/ourportfolios/commit/69bd35183028c17231167e1f19f8de750650263a))
+
+- **sort-icon**: Resolve wrong condition check
+  ([`e8bf30f`](https://github.com/HMDank/ourportfolios/commit/e8bf30f239b9697246726ed21aad74aa469672fd))
+
+### Chores
+
+- Adjust interval to 24 hours ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- Change schema ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- Define used columns for price board dataframe
+  ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- Migrate to new database structure ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- Prune code ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- Prune redundant functions ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- Prune unused functions ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- Remove placeholder cards ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- Remove ruff ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- Remove scheduler ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- Rename column ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- Rename table ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- Resolve merge conflict
+  ([`47069ee`](https://github.com/HMDank/ourportfolios/commit/47069eed231e335ed883d0784b93b6d595e259e8))
+
+- Update lockfile
+  ([`aac3398`](https://github.com/HMDank/ourportfolios/commit/aac3398b26585a43d39d4fc250d503750cf9581a))
+
+- Update schema name ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- **compare**: Migrate to new database structure
+  ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- **filter**: Adjust tab width
+  ([`b58b5d1`](https://github.com/HMDank/ourportfolios/commit/b58b5d14fd84f4b2245ad1a962fd93c41c58d37d))
+
+- **formatter**: Add ruff to auto format ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+### Features
+
+- **comparison_df**: Add new database structure
+  ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- **db**: Add new fetch method ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+### Performance Improvements
+
+- **db**: Reduce api calls ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+- **financial-statements**: Load seperately ([#55](https://github.com/HMDank/ourportfolios/pull/55),
+  [`180465f`](https://github.com/HMDank/ourportfolios/commit/180465f017e5323c6ccb7e80706ba4888507b7d6))
+
+
 ## v0.3.2 (2025-10-24)
 
 ### Bug Fixes
