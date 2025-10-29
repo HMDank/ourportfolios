@@ -1,5 +1,6 @@
 import reflex as rx
 import pandas as pd
+import asyncio
 
 from typing import List, Dict, Any, Set
 
@@ -168,11 +169,6 @@ class State(rx.State):
                 self.selected_exchange.add(exchange)
             else:
                 self.selected_exchange.discard(exchange)
-                yield TickerBoardState.apply_filters(
-                    filters={
-                        "exchange": self.selected_exchange,
-                    }
-                )
 
     @rx.event(background=True)
     async def set_industry(self, industry: str, value: bool):
@@ -184,11 +180,6 @@ class State(rx.State):
                 self.selected_industry.add(industry)
             else:
                 self.selected_industry.discard(industry)
-                yield TickerBoardState.apply_filters(
-                    filters={
-                        "industry": self.selected_industry,
-                    }
-                )
 
     @rx.event(background=True)
     async def set_fundamental_metric(self, metric: str, value: List[float]):
@@ -201,14 +192,6 @@ class State(rx.State):
                 self.selected_fundamental_metric.add(metric)
             else:
                 self.selected_fundamental_metric.discard(metric)
-                yield TickerBoardState.apply_filters(
-                    filters={
-                        "fundamental": {
-                            metric: self.fundamental_metric_filter[metric]
-                            for metric in self.selected_fundamental_metric
-                        }
-                    }
-                )
 
     @rx.event(background=True)
     async def set_technical_metric(self, metric: str, value: List[float]):
@@ -221,14 +204,6 @@ class State(rx.State):
                 self.selected_technical_metric.add(metric)
             else:
                 self.selected_technical_metric.discard(metric)
-                yield TickerBoardState.apply_filters(
-                    filters={
-                        "technical": {
-                            metric: self.technical_metric_filter[metric]
-                            for metric in self.selected_technical_metric
-                        },
-                    }
-                )
 
     # Clear filters
 
@@ -239,14 +214,17 @@ class State(rx.State):
             self.selected_fundamental_metric = set()
             self.selected_industry = set()  # Default
             self.selected_exchange = set()  # Default
-        
-        yield TickerBoardState.clear_filters()
+
+        yield TickerBoardState.clear_filters
 
         async with self:
-            self.get_technical_metrics()
-            self.get_fundamental_metrics()
-            self.get_all_industries()
-            self.get_all_exchanges()
+            tasks = [
+                rx.run_in_thread(self.get_technical_metrics),
+                rx.run_in_thread(self.get_fundamental_metrics),
+                rx.run_in_thread(self.get_all_industries),
+                rx.run_in_thread(self.get_all_exchanges),
+            ]
+            await asyncio.gather(*tasks)
 
 
 # Filter section
@@ -787,19 +765,22 @@ def selected_filter_chip(item: str, filter: str) -> rx.Component:
         rx.button(
             rx.icon("circle-x", size=11),
             variant="ghost",
-            on_click=rx.cond(
-                filter == "industry",
-                State.set_industry(item, False),
+            on_click=[
                 rx.cond(
-                    filter == "exchange",
-                    State.set_exchange(item, False),
+                    filter == "industry",
+                    State.set_industry(item, False),
                     rx.cond(
-                        filter == "fundamental",
-                        State.set_fundamental_metric(item, [0.00, 0.00]),
-                        State.set_technical_metric(item, [0.00, 0.00]),
+                        filter == "exchange",
+                        State.set_exchange(item, False),
+                        rx.cond(
+                            filter == "fundamental",
+                            State.set_fundamental_metric(item, [0.00, 0.00]),
+                            State.set_technical_metric(item, [0.00, 0.00]),
+                        ),
                     ),
                 ),
-            ),
+                State.apply_filters,
+            ],
         ),
         color_scheme="violet",
         radius="large",
