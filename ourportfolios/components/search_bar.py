@@ -16,7 +16,7 @@ class SearchBarState(rx.State):
 
     @rx.event
     def set_query(self, text: str = ""):
-        self.search_query = text.upper() if text != "" else text
+        self.search_query = text if text != "" else text
 
     @rx.event
     def set_display_suggestions(self, state: bool):
@@ -31,7 +31,7 @@ class SearchBarState(rx.State):
         if self.search_query == "":
             return self.ticker_list
 
-        return get_suggest_ticker(search_query=self.search_query, return_type="df")
+        return get_suggest_ticker(search_query=self.search_query.upper(), return_type="df")
 
     @rx.event(background=True)
     async def load_state(self):
@@ -43,7 +43,7 @@ class SearchBarState(rx.State):
 
                 # Fetch and store the top 3 trending tickers in memory
                 self.outstanding_tickers: Dict[str, Any] = {
-                    item["ticker"]: 1 for item in self.ticker_list[:3]
+                    item["symbol"]: 1 for item in self.ticker_list[:3]
                 }
 
             await asyncio.sleep(db_settings.interval)
@@ -101,7 +101,7 @@ def search_bar():
 
 
 def suggestion_card(value: Dict[str, Any]) -> rx.Component:
-    ticker = value["ticker"].to(str)
+    ticker = value["symbol"].to(str)
     industry = value["industry"].to(str)
     pct_price_change: float = value["pct_price_change"].to(float)
 

@@ -6,9 +6,7 @@ from typing import List, Dict, Any, Set
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button
 from ..components.page_roller import card_roller, card_link
-from ..components.graph import mini_price_graph
 from ..components.ticker_board import TickerBoardState, ticker_board
-from ..utils.load_data import fetch_data_for_symbols
 from ..utils.scheduler import db_settings
 
 
@@ -49,7 +47,7 @@ class State(rx.State):
 
     sort_orders: List[str] = ["ASC", "DESC"]
     sort_options: Dict[str, str] = {
-        "A-Z": "ticker",
+        "A-Z": "symbol",
         "Market Cap": "market_cap",
         "% Change": "pct_price_change",
         "Volume": "accumulated_volume",
@@ -101,25 +99,34 @@ class State(rx.State):
     # Set all metrics/options to their default setting
     @rx.event
     def get_all_industries(self):
-        industries: pd.DataFrame = pd.read_sql(
-            "SELECT DISTINCT industry FROM comparison.comparison_df",
-            con=db_settings.conn,
-        )
-
-        self.industry_filter: Dict[str, bool] = {
-            item: False for item in industries["industry"].tolist()
-        }
+        try:
+            with db_settings.conn.connect() as connection:
+                industries = pd.read_sql(
+                    "SELECT DISTINCT industry FROM tickers.overview_df;",
+                    connection,
+                )
+                self.industry_filter: Dict[str, bool] = {
+                    item: False for item in industries["industry"].tolist()
+                }
+        except Exception as e:
+            print(f"Database error: {e}")
+            self.industry_filter: Dict[str, bool] = {}
 
     @rx.event
     def get_all_exchanges(self):
-        exchanges: pd.DataFrame = pd.read_sql(
-            "SELECT DISTINCT exchange FROM comparison.comparison_df",
-            con=db_settings.conn,
-        )
+        try:
+            with db_settings.conn.connect() as connection:
+                exchanges: pd.DataFrame = pd.read_sql(
+                    "SELECT DISTINCT exchange FROM tickers.overview_df;",
+                    connection,
+                )
 
-        self.exchange_filter: Dict[str, bool] = {
-            item: False for item in exchanges["exchange"].tolist()
-        }
+                self.exchange_filter: Dict[str, bool] = {
+                    item: False for item in exchanges["exchange"].tolist()
+                }
+        except Exception as e:
+            print(f"Database error: {e}")
+            self.exchange_filter: Dict[str, bool] = {}
 
     @rx.event
     def get_fundamental_metrics(self):
@@ -133,14 +140,10 @@ class State(rx.State):
             item: [0.00, 0.00] for item in self.technical_metrics
         }
 
-    @rx.event
-    def get_graph(self, ticker_list):
-        self.data = fetch_data_for_symbols(ticker_list)
-
     # Search bar
     @rx.event
     def set_search_query(self, value: str):
-        self.search_query = value.upper()
+        self.search_query = value
         yield TickerBoardState.set_search_query(self.search_query)
 
     # Filter event handlers
@@ -236,14 +239,14 @@ class State(rx.State):
             self.selected_fundamental_metric = set()
             self.selected_industry = set()  # Default
             self.selected_exchange = set()  # Default
+        
+        yield TickerBoardState.clear_filters()
 
         async with self:
             self.get_technical_metrics()
             self.get_fundamental_metrics()
             self.get_all_industries()
             self.get_all_exchanges()
-
-        yield TickerBoardState.clear_filters()
 
 
 # Filter section
@@ -252,7 +255,6 @@ class State(rx.State):
 @rx.page(
     route="/select",
     on_load=[
-        State.get_graph(["VNINDEX", "UPCOMINDEX", "HNXINDEX"]),
         State.get_all_industries,
         State.get_all_exchanges,
         State.get_fundamental_metrics,
@@ -352,25 +354,6 @@ def card_with_scrollable_area():
             value=State.control,
             size="1",
             style={"height": "2em"},
-        ),
-        rx.scroll_area(
-            rx.vstack(
-                rx.foreach(
-                    State.data,
-                    lambda data: mini_price_graph(
-                        label=data["label"],
-                        data=data["data"],
-                        diff=data["percent_diff"],
-                        size=(120, 80),
-                    ),
-                ),
-                spacing="2",
-                height="100%",
-                width="100%",
-                align_items="flex-start",
-            ),
-            scrollbars="vertical",
-            type="auto",
         ),
         style={
             "boxShadow": "0 2px 8px rgba(0,0,0,0.1)",

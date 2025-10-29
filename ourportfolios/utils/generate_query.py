@@ -21,7 +21,7 @@ def get_suggest_ticker(
         Tuple[str, Any] | pd.DataFrame: Can either returns search params or a full dataframe
     """
     # Fetch exact ticker
-    match_query = "ticker LIKE :pattern"
+    match_query = "pb.symbol LIKE :pattern"
     match_params = {"pattern": f"{search_query}%"}
     result: pd.DataFrame = fetch_ticker(
         match_query=match_query, params=match_params, return_type=return_type
@@ -36,7 +36,7 @@ def get_suggest_ticker(
             f"pattern_{idx}": f"{''.join(combo)}%" for idx, combo in enumerate(combos)
         }
         match_query = " OR ".join(
-            [f"ticker LIKE :pattern_{i}" for i in range(len(match_params))]
+            [f"pb.symbol LIKE :pattern_{i}" for i in range(len(match_params))]
         )
 
         result: pd.DataFrame = fetch_ticker(
@@ -45,7 +45,7 @@ def get_suggest_ticker(
 
     # Matches first letter if still no ticker retrieved
     if result.empty:
-        match_query = "ticker LIKE :pattern"
+        match_query = "pb.symbol LIKE :pattern"
         match_params = {"pattern": f"{search_query[0]}%"}  # First letter
         result: bool = fetch_ticker(
             match_query=match_query, params=match_params, return_type=return_type
@@ -74,16 +74,20 @@ def fetch_ticker(
     """
     completed_query: str = f"""
         SELECT {
-        "ticker, pct_price_change, industry" if return_type == "df" else "ticker"
+        "pb.symbol, pb.pct_price_change, od.industry"
+        if return_type == "df"
+        else "pb.symbol"
     }
-        FROM comparison.comparison_df
+        FROM tickers.price_df AS pb
+        JOIN tickers.overview_df AS od
+        ON pb.symbol = od.symbol
     """
 
     if match_query != "all":
         completed_query += f"WHERE {match_query}\n"
 
     if return_type == "df":
-        completed_query += "ORDER BY accumulated_volume DESC, market_cap DESC"
+        completed_query += "ORDER BY accumulated_volume DESC"
 
     with db_settings.conn.connect() as connection:
         try:

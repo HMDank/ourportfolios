@@ -21,7 +21,7 @@ class TickerBoardState(rx.State):
 
     # Sorts
     selected_sort_order: str = "ASC"
-    selected_sort_option: str = "ticker"
+    selected_sort_option: str = "symbol"
 
     @rx.event
     def apply_filters(self, filters: Dict[str, Any]):
@@ -42,6 +42,10 @@ class TickerBoardState(rx.State):
         self.selected_fundamental_metric = {}
 
     @rx.event
+    def set_search_query(self, value: str):
+        self.search_query = value.upper()
+
+    @rx.event
     def set_sort_option(self, option: str):
         self.selected_sort_option = option
 
@@ -52,9 +56,13 @@ class TickerBoardState(rx.State):
     @rx.var
     def get_all_tickers(self) -> List[Dict[str, Any]]:
         query: List[str] = [
-            """SELECT ticker, organ_name, current_price, accumulated_volume, pct_price_change 
-            FROM comparison.comparison_df 
-            WHERE"""
+            """SELECT 
+                pb.symbol, pb.current_price, pb.accumulated_volume, pb.pct_price_change, pd.company_name, od.market_cap
+                FROM tickers.price_df AS pb 
+                JOIN tickers.profile_df AS pd ON pb.symbol = pd.symbol 
+                JOIN tickers.overview_df AS od ON pd.symbol = od.symbol
+                WHERE
+            """
         ]
 
         if self.search_query != "":
@@ -113,7 +121,8 @@ class TickerBoardState(rx.State):
                     "records"
                 )
 
-            except Exception:
+            except Exception as e:
+                print(e)
                 return []
 
 
@@ -142,8 +151,8 @@ def ticker_board():
                 rx.foreach(
                     TickerBoardState.get_all_tickers,
                     lambda value: ticker_card(
-                        ticker=value.ticker,
-                        organ_name=value.organ_name,
+                        ticker=value.symbol,
+                        organ_name=value.company_name,
                         current_price=value.current_price,
                         accumulated_volume=value.accumulated_volume,
                         pct_price_change=value.pct_price_change,
