@@ -1,7 +1,7 @@
 import reflex as rx
 import pandas as pd
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Set
 from sqlalchemy import TextClause, text
 
 from ..utils.scheduler import db_settings
@@ -14,8 +14,8 @@ class TickerBoardState(rx.State):
     search_query: str = ""
 
     # Filters
-    selected_exchange: List[str] = []
-    selected_industry: List[str] = []
+    selected_exchange: Set[str] = set()
+    selected_industry: Set[str] = set()
     selected_technical_metric: Dict[str, List[float]] = {}
     selected_fundamental_metric: Dict[str, List[float]] = {}
 
@@ -35,15 +35,15 @@ class TickerBoardState(rx.State):
             self.selected_technical_metric = filters["technical"]
 
     @rx.event
-    def clear_filters(self):
-        self.selected_exchange = []
-        self.selected_industry = []
+    def clear_all_filters(self):
+        self.selected_exchange = set()
+        self.selected_industry = set()
         self.selected_technical_metric = {}
         self.selected_fundamental_metric = {}
 
     @rx.event
     def set_search_query(self, value: str):
-        self.search_query = value.upper()
+        self.search_query = value
 
     @rx.event
     def set_sort_option(self, option: str):
@@ -68,7 +68,7 @@ class TickerBoardState(rx.State):
 
         if self.search_query != "":
             match_query, params = get_suggest_ticker(
-                search_query=self.search_query, return_type="query"
+                search_query=self.search_query.upper(), return_type="query"
             )
             query.append(match_query)
         else:

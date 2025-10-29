@@ -16,31 +16,29 @@ class State(rx.State):
     show_arrow: bool = True
     data: List[Dict] = []
 
-    tickers: List[Dict[str, Any]] = []
-
     # Search bar
     search_query = ""
 
     # Metrics
-    fundamental_metrics: List[str] = [
-        "pe",
-        "pb",
-        "roe",
-        "roa",
-        "doe",
-        "eps",
-        "ps",
-        "gross_margin",
-        "net_margin",
-        "ev",
-        "ev_ebitda",
-        "dividend_yield",
-    ]
-    technical_metrics: List[str] = [
-        "rsi14",
-        "alpha",
-        "beta",
-    ]
+    fundamentals_default_value: Dict[str, List[float]] = {
+        "pe": [0.00, 100.00],
+        "pb": [0.00, 10.00],
+        "roe": [0.00, 100.00],
+        "roa": [0.00, 100.00],
+        "doe": [0.00, 10.00],
+        "eps": [100.00, 10000.00],
+        "ps": [0.00, 100.00],
+        "gross_margin": [0.00, 200.00],
+        "net_margin": [0.00, 200.00],
+        "ev": [0.00, 100.00],
+        "ev_ebitda": [0.00, 200.00],
+        "dividend_yield": [0.00, 100.00],
+    }
+    technicals_default_value: Dict[str, List[float]] = {
+        "rsi14": [0.00, 100.00],
+        "alpha": [0.00, 5.00],
+        "beta": [0.00, 5.00],
+    }
 
     # Sorts
     selected_sort_order: str = "ASC"
@@ -62,8 +60,8 @@ class State(rx.State):
 
     exchange_filter: Dict[str, bool] = {}
     industry_filter: Dict[str, bool] = {}
-    technical_metric_filter: Dict[str, List[float]] = {}
-    fundamental_metric_filter: Dict[str, List[float]] = {}
+    technicals_current_value: Dict[str, List[float]] = {}
+    fundamentals_current_value: Dict[str, List[float]] = {}
 
     def update_arrow(self, scroll_position: int, max_scroll: int):
         self.show_arrow = scroll_position < max_scroll - 10
@@ -82,16 +80,17 @@ class State(rx.State):
     @rx.event(background=True)
     async def apply_filters(self):
         async with self:
-            yield TickerBoardState.apply_filters(
+            ticker_board_state = await self.get_state(TickerBoardState)
+            ticker_board_state.apply_filters(
                 filters={
                     "industry": self.selected_industry,
                     "exchange": self.selected_exchange,
                     "fundamental": {
-                        metric: self.fundamental_metric_filter[metric]
+                        metric: self.fundamentals_current_value[metric]
                         for metric in self.selected_fundamental_metric
                     },
                     "technical": {
-                        metric: self.technical_metric_filter[metric]
+                        metric: self.technicals_current_value[metric]
                         for metric in self.selected_technical_metric
                     },
                 }
@@ -130,39 +129,58 @@ class State(rx.State):
             self.exchange_filter: Dict[str, bool] = {}
 
     @rx.event
-    def get_fundamental_metrics(self):
-        self.fundamental_metric_filter: Dict[str, List[float]] = {
-            item: [0.00, 0.00] for item in self.fundamental_metrics
-        }
+    def get_fundamentals_default_value(self):
+        self.fundamentals_current_value: Dict[str, List[float]] = dict.fromkeys(
+            self.fundamentals_default_value, [0.00, 0.00]
+        )
 
     @rx.event
-    def get_technical_metrics(self):
-        self.technical_metric_filter: Dict[str, List[float]] = {
-            item: [0.00, 0.00] for item in self.technical_metrics
-        }
+    def get_technicals_default_value(self):
+        self.technicals_current_value: Dict[str, List[float]] = dict.fromkeys(
+            self.technicals_default_value, [0.00, 0.00]
+        )
 
     # Search bar
-    @rx.event
-    def set_search_query(self, value: str):
-        self.search_query = value
-        yield TickerBoardState.set_search_query(self.search_query)
+    @rx.event(background=True)
+    async def set_search_query(self, value: str):
+        async with self:
+            self.search_query = value
+
+        yield
+
+        async with self:
+            ticker_board_state = await self.get_state(TickerBoardState)
+            ticker_board_state.set_search_query(self.search_query)
 
     # Filter event handlers
 
-    @rx.event
-    def set_sort_option(self, option: str):
-        self.selected_sort_option = option
-        yield TickerBoardState.set_sort_option(self.sort_options[option])
+    @rx.event(background=True)
+    async def set_sort_option(self, option: str):
+        async with self:
+            self.selected_sort_option = option
 
-    @rx.event
-    def set_sort_order(self, order: str):
-        self.selected_sort_order = order
-        yield TickerBoardState.set_sort_order(order)
+        yield
+
+        async with self:
+            ticker_board_state = await self.get_state(TickerBoardState)
+            ticker_board_state.set_sort_option(self.sort_options[option])
+
+    @rx.event(background=True)
+    async def set_sort_order(self, order: str):
+        async with self:
+            self.selected_sort_order = order
+        yield
+
+        async with self:
+            ticker_board_state = await self.get_state(TickerBoardState)
+            ticker_board_state.set_sort_order(order)
 
     @rx.event(background=True)
     async def set_exchange(self, exchange: str, value: bool):
         async with self:
             self.exchange_filter[exchange] = value
+
+        yield
 
         async with self:
             if value is True:
@@ -175,6 +193,8 @@ class State(rx.State):
         async with self:
             self.industry_filter[industry] = value
 
+        yield
+
         async with self:
             if value is True:
                 self.selected_industry.add(industry)
@@ -184,11 +204,15 @@ class State(rx.State):
     @rx.event(background=True)
     async def set_fundamental_metric(self, metric: str, value: List[float]):
         async with self:
-            self.fundamental_metric_filter[metric] = value
+            self.fundamentals_current_value[metric] = value
+
+        yield
 
         async with self:
-            is_selected: bool = sum(value) > 0
-            if is_selected:
+            if (
+                sum(value) > 0
+                and sum(value) < self.fundamentals_default_value[metric][1]
+            ):
                 self.selected_fundamental_metric.add(metric)
             else:
                 self.selected_fundamental_metric.discard(metric)
@@ -196,11 +220,12 @@ class State(rx.State):
     @rx.event(background=True)
     async def set_technical_metric(self, metric: str, value: List[float]):
         async with self:
-            self.technical_metric_filter[metric] = value
+            self.technicals_current_value[metric] = value
+
+        yield
 
         async with self:
-            is_selected: bool = sum(value) > 0
-            if is_selected:
+            if sum(value) > 0 and sum(value) < self.technicals_default_value[metric][1]:
                 self.selected_technical_metric.add(metric)
             else:
                 self.selected_technical_metric.discard(metric)
@@ -208,19 +233,21 @@ class State(rx.State):
     # Clear filters
 
     @rx.event(background=True)
-    async def clear_filter(self):
+    async def clear_all_filters(self):
         async with self:
             self.selected_technical_metric = set()
             self.selected_fundamental_metric = set()
             self.selected_industry = set()  # Default
             self.selected_exchange = set()  # Default
 
-        yield TickerBoardState.clear_filters
+        yield
 
         async with self:
+            ticker_board_state = await self.get_state(TickerBoardState)
             tasks = [
-                rx.run_in_thread(self.get_technical_metrics),
-                rx.run_in_thread(self.get_fundamental_metrics),
+                rx.run_in_thread(ticker_board_state.clear_all_filters),
+                rx.run_in_thread(self.get_technicals_default_value),
+                rx.run_in_thread(self.get_fundamentals_default_value),
                 rx.run_in_thread(self.get_all_industries),
                 rx.run_in_thread(self.get_all_exchanges),
             ]
@@ -235,8 +262,8 @@ class State(rx.State):
     on_load=[
         State.get_all_industries,
         State.get_all_exchanges,
-        State.get_fundamental_metrics,
-        State.get_technical_metrics,
+        State.get_fundamentals_default_value,
+        State.get_technicals_default_value,
         State.set_search_query(""),
     ],
 )
@@ -511,7 +538,7 @@ def filter_tabs() -> rx.Component:
                             align="center",
                         ),
                         variant="outline",
-                        on_click=State.clear_filter,
+                        on_click=State.clear_all_filters,
                     ),
                     align="center",
                     direction="row",
@@ -618,8 +645,8 @@ def metrics_filter(option: str = "F") -> rx.Component:
             rx.foreach(
                 rx.cond(
                     option == "F",
-                    State.fundamental_metrics,
-                    State.technical_metrics,
+                    State.fundamentals_default_value.keys(),
+                    State.technicals_default_value.keys(),
                 ),
                 lambda metric_tag: metric_slider(metric_tag, option),
             ),
@@ -660,8 +687,8 @@ def metric_slider(metric_tag: str, option: str):
             rx.badge(
                 rx.cond(
                     option == "F",
-                    f"{State.fundamental_metric_filter.get(metric_tag, [0.00, 0.00])[0]} - {State.fundamental_metric_filter.get(metric_tag, [0.00, 0.00])[1]}",
-                    f"{State.technical_metric_filter.get(metric_tag, [0.00, 0.00])[0]} - {State.technical_metric_filter.get(metric_tag, [0.00, 0.00])[1]}",
+                    f"{State.fundamentals_current_value[metric_tag][0]} - {State.fundamentals_current_value[metric_tag][1]}",
+                    f"{State.technicals_current_value[metric_tag][0]} - {State.technicals_current_value[metric_tag][1]}",
                 ),
                 radius="small",
                 variant="solid",
@@ -671,8 +698,8 @@ def metric_slider(metric_tag: str, option: str):
         rx.slider(
             value=rx.cond(
                 option == "F",
-                State.fundamental_metric_filter[metric_tag],
-                State.technical_metric_filter[metric_tag],
+                State.fundamentals_current_value[metric_tag],
+                State.technicals_current_value[metric_tag],
             ),
             on_change=lambda value_range: rx.cond(
                 option == "F",
@@ -683,8 +710,17 @@ def metric_slider(metric_tag: str, option: str):
                     metric=metric_tag, value=value_range
                 ).throttle(50),
             ),
-            min_=0,
-            max=100,
+            min_=0.00,
+            max=rx.cond(
+                option == "F",
+                State.fundamentals_default_value[metric_tag][1],
+                State.technicals_default_value[metric_tag][1],
+            ),
+            step=rx.cond(
+                option == "F",
+                State.fundamentals_default_value[metric_tag][1] / 100,
+                State.technicals_default_value[metric_tag][1] / 100,
+            ),
             variant="surface",
             size="2",
             radius="full",
@@ -752,10 +788,10 @@ def selected_filter_chip(item: str, filter: str) -> rx.Component:
         rx.text(
             rx.cond(
                 filter == "fundamental",
-                f"{item}: {State.fundamental_metric_filter.get(item, [0.00, 0.00])[0]}-{State.fundamental_metric_filter.get(item, [0.00, 0.00])[1]}",
+                f"{item}: {State.fundamentals_current_value.get(item, [0.00, 0.00])[0]}-{State.fundamentals_current_value.get(item, [0.00, 0.00])[1]}",
                 rx.cond(
                     filter == "technical",
-                    f"{item}: {State.technical_metric_filter.get(item, [0.00, 0.00])[0]}-{State.technical_metric_filter.get(item, [0.00, 0.00])[1]}",
+                    f"{item}: {State.technicals_current_value.get(item, [0.00, 0.00])[0]}-{State.technicals_current_value.get(item, [0.00, 0.00])[1]}",
                     item,
                 ),
             ),
