@@ -1,6 +1,5 @@
 import pandas as pd
 import reflex as rx
-from sqlalchemy import text
 from typing import Any, List, Dict
 from vnstock import Finance
 
@@ -12,33 +11,23 @@ from ..components.financial_statement import financial_statements
 from ..components.loading import loading_screen
 from ..components.metric_cards import performance_cards  # Updated import
 
-from ..utils.scheduler import db_settings
-from ..utils.load_data import load_company_data_async
+from ..utils.load_data import fetch_company_data
 from ..utils.preprocessing.financial_statements import get_transformed_dataframes
-
-
-def fetch_technical_metrics(ticker: str) -> dict:
-    df = pd.read_sql(
-        text("SELECT * FROM comparison.comparison_df WHERE ticker = :pattern"),
-        db_settings.conn,
-        params={"pattern": ticker},
-    )
-
-    return df.iloc[0].to_dict() if not df.empty else {}
 
 
 class State(rx.State):
     switch_value: str = "year"
 
     company_control: str = "shares"
-    technical_metrics: dict = {}
-    company_info: dict = {}
-    overview: dict = {}
-    profile: dict = {}
-    officers: list[dict[str, Any]] = []
-    shareholders: list[dict] = []
-    events: list[dict] = []
-    news: list[dict] = []
+
+    # Change to DataFrames
+    overview_df: pd.DataFrame = pd.DataFrame()
+    profile_df: pd.DataFrame = pd.DataFrame()
+    shareholders_df: pd.DataFrame = pd.DataFrame()
+    events_df: pd.DataFrame = pd.DataFrame()
+    news_df: pd.DataFrame = pd.DataFrame()
+    officers_df: pd.DataFrame = pd.DataFrame()
+
     price_data: pd.DataFrame = pd.DataFrame()
     income_statement: list[dict] = []
     balance_sheet: list[dict] = []
@@ -68,26 +57,63 @@ class State(rx.State):
         await self.load_transformed_dataframes()
 
     @rx.event
-    def load_technical_metrics(self):
-        ticker = self.ticker
-        self.technical_metrics = fetch_technical_metrics(ticker)
-
-    @rx.event
     async def load_company_data(self):
         ticker = self.ticker
 
-        data = await load_company_data_async(ticker)
-        self.overview = data["overview"]
-        self.shareholders = data["shareholders"]
-        self.events = data["events"]
-        self.news = data["news"]
-        self.profile = data["profile"]
-        self.officers = data["officers"]
-        self.price_data = data["price_data"]
+        company_data = fetch_company_data(ticker)
+
+        self.overview_df = company_data["overview"]
+        self.shareholders_df = company_data["shareholders"]
+        self.events_df = company_data["events"]
+        self.news_df = company_data["news"]
+        self.profile_df = company_data["profile"]
+        self.officers_df = company_data["officers"]
+
+    @rx.var(cache=True)
+    def overview(self) -> dict:
+        """Get overview as dict."""
+        if self.overview_df.empty:
+            return {}
+        return self.overview_df.iloc[0].to_dict()
+
+    @rx.var(cache=True)
+    def profile(self) -> dict:
+        """Get profile as dict."""
+        if self.profile_df.empty:
+            return {}
+        return self.profile_df.iloc[0].to_dict()
+
+    @rx.var(cache=True)
+    def shareholders(self) -> list[dict]:
+        """Get shareholders as list of dicts."""
+        if self.shareholders_df.empty:
+            return []
+        return self.shareholders_df.to_dict("records")
+
+    @rx.var(cache=True)
+    def events(self) -> list[dict]:
+        """Get events as list of dicts."""
+        if self.events_df.empty:
+            return []
+        return self.events_df.to_dict("records")
+
+    @rx.var(cache=True)
+    def news(self) -> list[dict]:
+        """Get news as list of dicts."""
+        if self.news_df.empty:
+            return []
+        return self.news_df.to_dict("records")
+
+    @rx.var(cache=True)
+    def officers(self) -> list[dict]:
+        """Get officers as list of dicts."""
+        if self.officers_df.empty:
+            return []
+        return self.officers_df.to_dict("records")
 
     @rx.event
     def load_financial_ratios(self):
-        """Load financial ratios data dynamically"""
+        """Load financial ratios data dynamically."""
         ticker = self.ticker
 
         report_range = self.switch_value
@@ -100,6 +126,9 @@ class State(rx.State):
 
     @rx.event
     async def load_transformed_dataframes(self):
+        if self.transformed_dataframes:
+            return
+
         ticker = self.ticker
 
         result = await get_transformed_dataframes(ticker, period=self.switch_value)
@@ -113,10 +142,14 @@ class State(rx.State):
         self.available_metrics_by_category = {}
         self.selected_metrics = {}
 
-        for category, data in categorized_ratios.items():
-            if data:
+        for category, financial_data in categorized_ratios.items():
+            if financial_data:
                 excluded_columns = {"Year", "Quarter", "Date", "Period"}
-                metrics = [col for col in data[0].keys() if col not in excluded_columns]
+                metrics = [
+                    col
+                    for col in financial_data[0]
+                    if col not in excluded_columns
+                ]
                 self.available_metrics_by_category[category] = metrics
                 if metrics:
                     self.selected_metrics[category] = metrics[0]
@@ -154,43 +187,163 @@ class State(rx.State):
         colors = [
             rx.color(palette, idx, True) for palette in palettes for idx in indices
         ]
-        data = [
+
+        pie_data = [
             {
                 "name": shareholder["share_holder"],
                 "value": shareholder["share_own_percent"],
             }
             for shareholder in self.shareholders
         ]
-        for idx, d in enumerate(data):
+        for idx, d in enumerate(pie_data):
             d["fill"] = colors[idx % len(colors)]
-        return data
+        return pie_data
 
-    def create_metric_change_handler(self, category: str, value: str):
-        """Create a metric change handler for a specific category"""
-        return self.set_metric_for_category(category, value)
+
+def create_dynamic_chart(category: str):
+    """Create a dynamic chart for a specific category"""
+    return rx.card(
+        rx.vstack(
+            rx.hstack(
+                rx.heading(category, size="4", weight="medium"),
+                rx.spacer(),
+                rx.select(
+                    State.available_metrics_by_category[category],
+                    value=State.selected_metrics[category],
+                    on_change=lambda value: State.set_metric_for_category(
+                        category, value
+                    ),
+                    size="1",
+                ),
+                align="center",
+                justify="between",
+                width="100%",
+            ),
+            rx.box(
+                rx.recharts.line_chart(
+                    rx.recharts.line(
+                        data_key="value",
+                        stroke_width=3,
+                        type_="monotone",
+                        dot=False,
+                    ),
+                    rx.recharts.x_axis(
+                        data_key="year",
+                        angle=-45,
+                        text_anchor="end",
+                        padding={"left": 20, "right": 20},
+                    ),
+                    rx.recharts.y_axis(),
+                    rx.recharts.tooltip(),
+                    data=State.get_chart_data_for_category[category],
+                    width="100%",
+                    height=280,
+                    margin={"top": 10, "right": 10, "left": 5, "bottom": 35},
+                ),
+                width="100%",
+                style={"overflow": "hidden"},
+            ),
+            spacing="3",
+            align="stretch",
+        ),
+        width="100%",
+        flex="1",
+        min_width="0",
+        max_width="100%",
+        style={"padding": "1em", "minWidth": 0, "overflow": "hidden"},
+    )
+
+
+def create_placeholder_chart(title: str, position: int):
+    """Create placeholder chart when no data is available"""
+    return rx.card(
+        rx.vstack(
+            rx.hstack(
+                rx.heading(title, size="4", weight="medium"),
+                rx.spacer(),
+                rx.select(
+                    [f"Metric {position + 1}.1", f"Metric {position + 1}.2"],
+                    value=f"Metric {position + 1}.1",
+                    size="1",
+                ),
+                align="center",
+                justify="between",
+                width="100%",
+            ),
+            rx.box(
+                rx.center(
+                    rx.text(f"Placeholder for {title}", size="3", color="gray"),
+                    height="280px",
+                ),
+                width="100%",
+                style={
+                    "overflow": "hidden",
+                    "border": "2px dashed #ccc",
+                    "borderRadius": "8px",
+                },
+            ),
+            spacing="3",
+            align="stretch",
+        ),
+        width="100%",
+        flex="1",
+        min_width="0",
+        max_width="100%",
+        style={"padding": "1em", "minWidth": 0, "overflow": "hidden"},
+    )
+
+
+def performance_cards():
+    """Create performance cards with dynamic charts"""
+    categories = State.get_categories_list
+
+    return rx.cond(
+        categories.length() > 0,
+        rx.vstack(
+            rx.hstack(
+                rx.foreach(
+                    categories[:3],
+                    lambda category: create_dynamic_chart(category),
+                ),
+                spacing="4",
+                width="100%",
+            ),
+            rx.hstack(
+                rx.foreach(
+                    categories[3:6],
+                    lambda category: create_dynamic_chart(category),
+                ),
+                spacing="4",
+                width="100%",
+            ),
+            spacing="3",
+            width="100%",
+        ),
+        rx.center(
+            rx.spinner(size="3"),
+        ),
+    )
 
 
 def name_card():
-    technical_metrics = State.technical_metrics
+    overview = State.overview
     return (
         card_wrapper(
             rx.vstack(
                 rx.hstack(
-                    rx.heading(technical_metrics["ticker"], size="9"),
+                    rx.heading(overview["symbol"], size="9"),
                     rx.button(
                         rx.icon("plus", size=16),
                         size="2",
                         variant="soft",
-                        on_click=lambda: CartState.add_item(
-                            technical_metrics["ticker"]
-                        ),
+                        on_click=lambda: CartState.add_item(overview["symbol"]),
                     ),
                     justify="center",
                     align="center",
                 ),
                 rx.hstack(
-                    rx.badge(f"{technical_metrics['exchange']}", variant="surface"),
-                    rx.badge(f"{technical_metrics['industry']}"),
+                    rx.badge(f"{overview['exchange']}", variant="surface"),
+                    rx.badge(f"{overview['industry']}"),
                 ),
             ),
             style={"width": "100%", "padding": "1em"},
@@ -198,19 +351,18 @@ def name_card():
     )
 
 
-def general_info_card():
-    technical_metrics = State.technical_metrics
-    info = State.overview
-    website = info.get("website", "")
+def general_info_card():  # TODO: ALL DATA SHOULD COME FROM OVERVIEW_DF
+    overview = State.overview
+    website = overview["website"]
     return rx.vstack(
         card_wrapper(
-            rx.text(f"{info['short_name']} (Est. {info['established_year']})"),
+            rx.text(f"{overview['short_name']} (Est. {overview['established_year']})"),
             rx.link(website, href=f"https://{website}", is_external=True),
-            rx.text(f"Market cap: {technical_metrics['market_cap']}"),
-            rx.text(f"Issue Shares: {info['issue_share']}"),
-            rx.text(f"Outstanding Shares: {info['outstanding_share']}"),
+            rx.text(f"Market cap: {overview['market_cap']} B. VND"),
+            rx.text(f"Issue Shares: {overview['issue_share']}"),
+            rx.text(f"Outstanding Shares: {overview['outstanding_share']}"),
             rx.text(
-                f"{info['no_shareholders']} shareholders ({info['foreign_percent']}% foreign)"
+                f"{overview['no_shareholders']} shareholders ({overview['foreign_percent']}% foreign)"
             ),
             style={"width": "100%", "padding": "1em"},
         ),
@@ -280,6 +432,10 @@ def key_metrics_card():
                     ),
                     value="statement",
                     padding_top="1em",
+                    on_mount=lambda: [
+                        State.load_financial_ratios(),
+                        State.load_transformed_dataframes(),
+                    ],
                 ),
                 default_value="performance",
                 width="100%",
@@ -609,10 +765,7 @@ def company_profile_card():
 @rx.page(
     route="/analyze/[ticker]",
     on_load=[
-        State.load_technical_metrics,
         State.load_company_data,
-        State.load_financial_ratios,
-        State.load_transformed_dataframes,
         PriceChartState.load_state,
     ],
 )

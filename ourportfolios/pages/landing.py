@@ -4,7 +4,6 @@ from ..components.navbar import navbar
 from ..components.cards import portfolio_card
 from ..components.graph import mini_price_graph
 from ..components.loading import loading_screen
-from ..utils.load_data import fetch_data_for_symbols
 
 cards = [
     {"title": "Recommend", "details": "Card 1 details", "link": "/recommend"},
@@ -17,10 +16,6 @@ cards = [
 class State(rx.State):
     show_cards: bool = False
     data: list[dict] = []
-
-    @rx.event
-    def initiate(self):
-        self.data = fetch_data_for_symbols(["VNINDEX"])
 
 
 @rx.page(route="/")
