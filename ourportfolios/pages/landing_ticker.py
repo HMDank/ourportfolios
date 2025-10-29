@@ -9,7 +9,6 @@ from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
 from ..components.financial_statement import financial_statements
 from ..components.loading import loading_screen
-from ..components.metric_cards import performance_cards  # Updated import
 
 from ..utils.load_data import fetch_company_data
 from ..utils.preprocessing.financial_statements import get_transformed_dataframes
@@ -146,9 +145,7 @@ class State(rx.State):
             if financial_data:
                 excluded_columns = {"Year", "Quarter", "Date", "Period"}
                 metrics = [
-                    col
-                    for col in financial_data[0]
-                    if col not in excluded_columns
+                    col for col in financial_data[0] if col not in excluded_columns
                 ]
                 self.available_metrics_by_category[category] = metrics
                 if metrics:
@@ -171,7 +168,6 @@ class State(rx.State):
                 {"year": row["Year"], "value": row.get(selected_metric, 0) or 0}
                 for row in reversed(data)
             ][-8:]
-
 
         return chart_data
 
@@ -403,13 +399,7 @@ def key_metrics_card():
                     align="center",
                 ),
                 rx.tabs.content(
-                    performance_cards(
-                        categories=State.get_categories_list,
-                        metrics_by_category=State.available_metrics_by_category,
-                        selected_metrics=State.selected_metrics,
-                        chart_data_by_category=State.get_chart_data_for_category,
-                        on_metric_change_factory=State.create_metric_change_handler,
-                    ),
+                    performance_cards(),
                     value="performance",
                     padding_top="1em",
                 ),
