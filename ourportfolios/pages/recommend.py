@@ -126,7 +126,7 @@ class FrameworkState(rx.State):
 
         try:
             query = """
-                INSERT INTO frameworks.frameworks_df (title, description, author, complexity, scope)
+                INSERT INTO frameworks.frameworks (title, description, author, complexity, scope)
                 VALUES (%s, %s, %s, %s, %s)
             """
             with get_db_connection() as conn:
