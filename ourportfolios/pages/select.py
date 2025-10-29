@@ -764,7 +764,7 @@ def display_sort_options() -> rx.Component:
                                 lambda order: rx.menu.item(
                                     rx.hstack(
                                         rx.cond(
-                                            State.selected_sort_order == "ASC",
+                                            order == "ASC",
                                             asc_icon,
                                             desc_icon,
                                         ),
