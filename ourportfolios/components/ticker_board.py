@@ -56,11 +56,12 @@ class TickerBoardState(rx.State):
     @rx.var
     def get_all_tickers(self) -> List[Dict[str, Any]]:
         query: List[str] = [
-            """SELECT 
+            f"""SELECT 
                 pb.symbol, pb.current_price, pb.accumulated_volume, pb.pct_price_change, pd.company_name, od.market_cap
                 FROM tickers.price_df AS pb 
                 JOIN tickers.profile_df AS pd ON pb.symbol = pd.symbol 
                 JOIN tickers.overview_df AS od ON pd.symbol = od.symbol
+                {"JOIN tickers.stats_df AS sd ON pd.symbol = sd.symbol" if len(self.selected_fundamental_metric) > 0 or len(self.selected_technical_metric) > 0 else ""}
                 WHERE
             """
         ]
@@ -75,19 +76,19 @@ class TickerBoardState(rx.State):
             params = None
 
         # Filter by industry
-        if self.selected_industry:
+        if len(self.selected_industry) > 0:
             query.append(
                 f"AND industry IN ({', '.join(f"'{industry}'" for industry in self.selected_industry)})"
             )
 
         # Filter by exchange
-        if self.selected_exchange:
+        if len(self.selected_exchange) > 0:
             query.append(
                 f"AND exchange IN ({', '.join(f"'{exchange}'" for exchange in self.selected_exchange)})"
             )
 
         # Filter by metrics
-        if self.selected_fundamental_metric:  # Fundamental
+        if len(self.selected_fundamental_metric) > 0:  # Fundamental
             query.append(
                 " ".join(
                     [
@@ -97,7 +98,7 @@ class TickerBoardState(rx.State):
                 )
             )
 
-        if self.selected_technical_metric:  # Technical
+        if len(self.selected_technical_metric) > 0:  # Technical
             query.append(
                 " ".join(
                     [
