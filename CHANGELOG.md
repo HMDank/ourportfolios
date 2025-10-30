@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.4.1 (2025-10-29)
+
+### Chores
+
+- Remove unuse type hint
+  ([`69627c8`](https://github.com/HMDank/ourportfolios/commit/69627c8e301dc1b6dd645fa59834892dbd72d389))
+
+
 ## v0.4.0 (2025-10-29)
 
 ### Bug Fixes

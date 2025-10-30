@@ -494,13 +494,24 @@ def filter_button() -> rx.Component:
                 )
             ),
             rx.menu.content(
-                filter_tabs(),
                 rx.flex(
-                    rx.spacer(),
-                    apply_filter_button(),
-                    direction="row",
+                    filter_tabs(),
+                    # Apply button - fixed at bottom right
+                    rx.flex(
+                        rx.spacer(),
+                        rx.button(
+                            rx.text("Apply", weight="medium", color="white", size="2"),
+                            variant="solid",
+                            on_click=State.apply_filters,
+                        ),
+                        direction="row",
+                        width="100%",
+                        padding_right="1em",
+                        padding_bottom="0.5em",
+                    ),
+                    direction="column",
+                    height="100%",
                     width="100%",
-                    paddingRight="1em",
                 ),
                 width=rx.breakpoints(
                     initial="27em", xs="30em", sm="40em", md="40em", lg="52em"
@@ -558,6 +569,7 @@ def filter_tabs() -> rx.Component:
                 value="technical",
             ),
             default_value="fundamental",
+            style={"flex": "1"},
         ),
     )
 
@@ -630,7 +642,7 @@ def categorical_filter():
         ),
         paddingTop="2em",
         paddingLeft="0.5em",
-        spacing="4",
+        spacing="6",
         width="100%",
     )
 
@@ -653,14 +665,15 @@ def metrics_filter(option: str = "F") -> rx.Component:
             columns=rx.breakpoints(
                 xs="1",
                 sm="2",
-                md="2",
-                lg="3",
+                md="3",
+                lg="4",
             ),
+            spacing="2",
             flow="row",
             wrap="wrap",
             align="center",
         ),
-        paddingTop="0.5em",
+        paddingTop="1.5em",
         paddingRight="0.5em",
         height="22em",
         scrollbars="vertical",
@@ -726,9 +739,9 @@ def metric_slider(metric_tag: str, option: str):
             radius="full",
             orientation="horizontal",
         ),
-        width="100%",
+        width="90%",
         align="start",
-        padding="1.8em",
+        padding="1em",
     )
 
 
