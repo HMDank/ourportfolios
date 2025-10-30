@@ -164,7 +164,8 @@ def ticker_board():
                 type="hover",
                 scrollbars="vertical",
                 width="61em",
-                height="80vh",
+                height="auto",
+                max_height="80vh"
             ),
             background_color=rx.color("gray", 1),
             border_radius=6,
