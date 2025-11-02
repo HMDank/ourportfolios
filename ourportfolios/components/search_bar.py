@@ -33,7 +33,7 @@ class SearchBarState(rx.State):
             return []
         if self.search_query == "":
             return self.ticker_list
-        #TODO: Fix All the hard-coded pb.symbol by changing the overall SQL query method.
+        # TODO: Fix All the hard-coded pb.symbol by changing the overall SQL query method.
         # (Mayebe use SQLAlchemy here)
         # At first, try to fetch exact ticker
         result: pd.DataFrame = self.fetch_ticker(
@@ -55,7 +55,10 @@ class SearchBarState(rx.State):
 
             result: pd.DataFrame = self.fetch_ticker(
                 match_conditions=" OR ".join(
-                    [f"pb.symbol LIKE :pattern_{i}" for i in range(len(all_combination))]
+                    [
+                        f"pb.symbol LIKE :pattern_{i}"
+                        for i in range(len(all_combination))
+                    ]
                 ),
                 params=all_combination,
             )
@@ -76,6 +79,7 @@ class SearchBarState(rx.State):
                     SELECT
                         pb.symbol,
                         pb.pct_price_change,
+                        pb.accumulated_volume,
                         od.industry
                     FROM tickers.price_df AS pb
                     JOIN tickers.overview_df AS od
@@ -84,17 +88,18 @@ class SearchBarState(rx.State):
         if match_conditions != "all":
             query += f"WHERE {match_conditions}\n"
 
-        query += "ORDER BY accumulated_volume DESC"
-        with db_settings.conn.connect() as connection:
-            if connection.in_transaction():
-                try:
-                    db_settings.conn.rollback()
-                except Exception:
-                    pass
+        query += "ORDER BY pb.accumulated_volume DESC"
 
-        result: pd.DataFrame = pd.read_sql(text(query), db_settings.conn, params=params)
-
-        return result
+        try:
+            with db_settings.conn.connect() as connection:
+                result: pd.DataFrame = pd.read_sql(
+                    text(query), connection, params=params
+                )
+                return result
+        except Exception as e:
+            print(f"Database error in fetch_ticker: {e}")
+            # Return empty DataFrame with expected columns on error
+            return pd.DataFrame(columns=["symbol", "pct_price_change", "industry"])
 
     @rx.event(background=True)
     async def load_state(self):
