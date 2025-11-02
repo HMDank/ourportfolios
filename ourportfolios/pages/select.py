@@ -26,7 +26,7 @@ class State(rx.State):
         try:
             # Create a new connection for this operation
             with db_settings.conn.connect() as connection:
-                df = pd.read_sql("SELECT symbol, industry FROM overview.overview_df", connection)
+                df = pd.read_sql("SELECT symbol, industry FROM tickers.overview_df", connection)
                 return df.to_dict("records")
         except Exception as e:
             print(f"Database error: {e}")
