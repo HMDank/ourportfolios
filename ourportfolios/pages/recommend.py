@@ -9,7 +9,6 @@ from ..components.page_roller import card_roller, card_link
 from ..components.loading import loading_screen
 from ..state.framework_state import GlobalFrameworkState
 
-
 DATABASE_URI = os.getenv("DATABASE_URI")
 
 
@@ -159,20 +158,34 @@ class FrameworkState(rx.State):
         except Exception as e:
             print(f"Error adding framework: {e}")
 
-    @rx.event
     def select_and_navigate_framework(self):
         """Select the current framework and navigate to ticker selection."""
-        if self.selected_framework and "id" in self.selected_framework:
-            # Set the global framework selection
-            from ..state.framework_state import GlobalFrameworkState
-            # Get the global state instance and call select_framework
-            yield GlobalFrameworkState.select_framework(self.selected_framework["id"])
-            
-            # Close dialog
-            self.close_dialog()
-            
-            # Navigate to select page
-            yield rx.redirect("/select")
+        if not self.selected_framework:
+            return
+
+        # Get framework id - try different possible key names
+        framework_id = None
+        for key in ["id", "framework_id", "pk"]:
+            if key in self.selected_framework:
+                framework_id = self.selected_framework[key]
+                break
+
+        if framework_id is None:
+            print(
+                f"Error: Could not find id in framework: {self.selected_framework.keys()}"
+            )
+            return
+
+        # Set the global framework selection
+
+
+        # Close dialog
+        self.close_dialog()
+
+        return [
+            GlobalFrameworkState.select_framework(framework_id),
+            rx.redirect("/select"),
+        ]
 
 
 def scope_button(scope: Dict):
@@ -301,13 +314,19 @@ def framework_dialog():
                                 rx.cond(
                                     FrameworkState.selected_framework.get("source_url"),
                                     rx.link(
-                                        FrameworkState.selected_framework["source_name"],
-                                        href=FrameworkState.selected_framework["source_url"],
+                                        FrameworkState.selected_framework[
+                                            "source_name"
+                                        ],
+                                        href=FrameworkState.selected_framework[
+                                            "source_url"
+                                        ],
                                         is_external=True,
                                         size="2",
                                     ),
                                     rx.text(
-                                        FrameworkState.selected_framework["source_name"],
+                                        FrameworkState.selected_framework[
+                                            "source_name"
+                                        ],
                                         size="2",
                                     ),
                                 ),

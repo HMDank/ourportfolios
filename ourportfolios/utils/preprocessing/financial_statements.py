@@ -564,8 +564,9 @@ async def get_transformed_dataframes(ticker_symbol, period="year"):
 
         # Efficiency
         efficiency["Asset Turnover"] = key_ratios["Asset Turnover"]
-        #TODO: Change for financial service industry
-        efficiency["Inventory Turnover"] = key_ratios["Inventory Turnover"]
+        # Inventory Turnover is optional (not available for all companies)
+        if "Inventory Turnover" in key_ratios.columns:
+            efficiency["Inventory Turnover"] = key_ratios["Inventory Turnover"]
         efficiency["ROA"] = key_ratios["ROA (%)"]
 
         # Dividend Payout %
