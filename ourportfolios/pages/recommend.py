@@ -7,6 +7,7 @@ from psycopg2.extras import RealDictCursor
 from ..components.navbar import navbar
 from ..components.page_roller import card_roller, card_link
 from ..components.loading import loading_screen
+from ..state.framework_state import GlobalFrameworkState
 
 
 DATABASE_URI = os.getenv("DATABASE_URI")
@@ -41,6 +42,9 @@ class FrameworkState(rx.State):
     form_author: str = ""
     form_complexity: str = "beginner-friendly"
     form_scope: str = ""
+    form_industry: str = "general"
+    form_source_name: str = ""
+    form_source_url: str = ""
 
     async def on_load(self):
         await self.load_scopes()
@@ -109,6 +113,9 @@ class FrameworkState(rx.State):
         self.form_description = ""
         self.form_author = ""
         self.form_complexity = "beginner-friendly"
+        self.form_industry = "general"
+        self.form_source_name = ""
+        self.form_source_url = ""
         self.show_add_dialog = True
 
     @rx.event
@@ -126,8 +133,9 @@ class FrameworkState(rx.State):
 
         try:
             query = """
-                INSERT INTO frameworks.frameworks (title, description, author, complexity, scope)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO frameworks.frameworks_df 
+                (title, description, author, complexity, scope, industry, source_name, source_url)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """
             with get_db_connection() as conn:
                 with conn.cursor() as cur:
@@ -139,6 +147,9 @@ class FrameworkState(rx.State):
                             self.form_author,
                             self.form_complexity,
                             self.form_scope,
+                            self.form_industry,
+                            self.form_source_name if self.form_source_name else None,
+                            self.form_source_url if self.form_source_url else None,
                         ),
                     )
                     conn.commit()
@@ -147,6 +158,21 @@ class FrameworkState(rx.State):
             await self.load_frameworks()
         except Exception as e:
             print(f"Error adding framework: {e}")
+
+    @rx.event
+    def select_and_navigate_framework(self):
+        """Select the current framework and navigate to ticker selection."""
+        if self.selected_framework and "id" in self.selected_framework:
+            # Set the global framework selection
+            from ..state.framework_state import GlobalFrameworkState
+            # Get the global state instance and call select_framework
+            yield GlobalFrameworkState.select_framework(self.selected_framework["id"])
+            
+            # Close dialog
+            self.close_dialog()
+            
+            # Navigate to select page
+            yield rx.redirect("/select")
 
 
 def scope_button(scope: Dict):
@@ -246,67 +272,105 @@ def framework_dialog():
                         ),
                         rx.spacer(),
                         rx.vstack(
-                            rx.vstack(
-                                rx.heading(
-                                    FrameworkState.selected_framework["title"],
-                                    size="7",
-                                    weight="bold",
-                                    text_align="right",
-                                ),
-                                rx.text(
-                                    FrameworkState.selected_framework["author"],
-                                    size="2",
-                                    color="gray",
-                                    text_align="right",
-                                ),
-                                align="end",
-                                spacing="1",
+                            rx.heading(
+                                FrameworkState.selected_framework["title"],
+                                size="7",
+                                weight="bold",
+                                text_align="right",
                             ),
-                            rx.hstack(
-                                rx.badge(
-                                    FrameworkState.selected_framework["scope"],
-                                    color_scheme="plum",
-                                    variant="soft",
-                                    size="2",
-                                ),
-                                rx.badge(
-                                    FrameworkState.selected_framework["complexity"],
-                                    color_scheme=rx.cond(
-                                        FrameworkState.selected_framework["complexity"]
-                                        == "complex",
-                                        "accent",
-                                        "jade",
-                                    ),
-                                    variant="soft",
-                                    size="2",
-                                ),
-                                spacing="2",
-                                justify="end",
+                            rx.text(
+                                FrameworkState.selected_framework["author"],
+                                size="2",
+                                color="gray",
+                                text_align="right",
                             ),
                             align="end",
-                            spacing="2",
+                            spacing="1",
                         ),
                         width="100%",
                         align="start",
                         justify="between",
                         padding_bottom="1rem",
                     ),
-                    rx.vstack(
-                        rx.scroll_area(
-                            rx.blockquote(
-                                FrameworkState.selected_framework["description"],
-                                size="3",
+                    rx.hstack(
+                        rx.cond(
+                            FrameworkState.selected_framework.get("source_name"),
+                            rx.hstack(
+                                rx.icon("book-open", size=16),
+                                rx.text("Source:", weight="bold", size="2"),
+                                rx.cond(
+                                    FrameworkState.selected_framework.get("source_url"),
+                                    rx.link(
+                                        FrameworkState.selected_framework["source_name"],
+                                        href=FrameworkState.selected_framework["source_url"],
+                                        is_external=True,
+                                        size="2",
+                                    ),
+                                    rx.text(
+                                        FrameworkState.selected_framework["source_name"],
+                                        size="2",
+                                    ),
+                                ),
+                                spacing="2",
+                                align="center",
                             ),
-                            style={
-                                "width": "100%",
-                                "height": "100%",
-                            },
-                            scrollbars="vertical",
+                            None,
+                        ),
+                        rx.spacer(),
+                        rx.hstack(
+                            rx.badge(
+                                FrameworkState.selected_framework["scope"],
+                                color_scheme="plum",
+                                variant="soft",
+                                size="2",
+                            ),
+                            rx.badge(
+                                FrameworkState.selected_framework["complexity"],
+                                color_scheme=rx.cond(
+                                    FrameworkState.selected_framework["complexity"]
+                                    == "complex",
+                                    "accent",
+                                    "jade",
+                                ),
+                                variant="soft",
+                                size="2",
+                            ),
+                            spacing="2",
+                        ),
+                        width="100%",
+                        align="center",
+                        padding_bottom="1rem",
+                    ),
+                    rx.scroll_area(
+                        rx.blockquote(
+                            FrameworkState.selected_framework["description"],
+                            size="3",
+                        ),
+                        style={
+                            "width": "100%",
+                            "height": "100%",
+                        },
+                        scrollbars="vertical",
+                    ),
+                    rx.hstack(
+                        rx.spacer(),
+                        rx.button(
+                            "Cancel",
+                            on_click=FrameworkState.close_dialog,
+                            variant="soft",
+                            color_scheme="gray",
+                            size="3",
+                        ),
+                        rx.button(
+                            "Select This Framework",
+                            on_click=lambda: FrameworkState.select_and_navigate_framework(),
+                            size="3",
+                            color_scheme="violet",
                         ),
                         spacing="2",
-                        align="start",
                         width="100%",
-                        height="100%",
+                        justify="end",
+                        padding_top="1rem",
                     ),
                     spacing="4",
                     align="start",
@@ -315,7 +379,7 @@ def framework_dialog():
                 ),
                 style={
                     "width": "60vw",
-                    "height": "52vh",
+                    "height": "58vh",
                     "maxWidth": "60vw",
                     "padding": "2rem",
                 },
@@ -335,11 +399,11 @@ def add_framework_dialog():
             rx.dialog.content(
                 rx.vstack(
                     rx.hstack(
-                        rx.heading("Add New Framework", size="6", weight="bold"),
                         rx.spacer(),
                         rx.dialog.close(
                             rx.icon(
                                 "x",
+                                size=24,
                                 on_click=FrameworkState.close_add_dialog,
                                 style={
                                     "cursor": "pointer",
@@ -350,70 +414,120 @@ def add_framework_dialog():
                         ),
                         width="100%",
                         align="center",
+                        padding_bottom="1em",
                     ),
-                    rx.vstack(
+                    rx.hstack(
                         rx.vstack(
-                            rx.text("Title *", size="2", weight="medium"),
-                            rx.input(
-                                placeholder="Framework title",
-                                value=FrameworkState.form_title,
-                                on_change=FrameworkState.set_form_title,
-                                width="100%",
-                            ),
-                            spacing="1",
-                            width="100%",
-                        ),
-                        rx.vstack(
-                            rx.text("Author *", size="2", weight="medium"),
-                            rx.input(
-                                placeholder="Author name",
-                                value=FrameworkState.form_author,
-                                on_change=FrameworkState.set_form_author,
-                                width="100%",
-                            ),
-                            spacing="1",
-                            width="100%",
-                        ),
-                        rx.vstack(
-                            rx.text("Description", size="2", weight="medium"),
-                            rx.text_area(
-                                placeholder="Framework description...",
-                                value=FrameworkState.form_description,
-                                on_change=FrameworkState.set_form_description,
-                                width="100%",
-                                rows="4",
-                            ),
-                            spacing="1",
-                            width="100%",
-                        ),
-                        rx.hstack(
                             rx.vstack(
-                                rx.text("Scope *", size="2", weight="medium"),
+                                rx.text("Title *", size="4", weight="medium"),
+                                rx.input(
+                                    placeholder="Framework title",
+                                    value=FrameworkState.form_title,
+                                    on_change=FrameworkState.set_form_title,
+                                    width="100%",
+                                    size="3",
+                                ),
+                                spacing="2",
+                                width="100%",
+                            ),
+                            rx.vstack(
+                                rx.text("Author *", size="4", weight="medium"),
+                                rx.input(
+                                    placeholder="Author name",
+                                    value=FrameworkState.form_author,
+                                    on_change=FrameworkState.set_form_author,
+                                    width="100%",
+                                    size="3",
+                                ),
+                                spacing="2",
+                                width="100%",
+                            ),
+                            rx.vstack(
+                                rx.text("Scope *", size="4", weight="medium"),
                                 rx.select(
                                     ["fundamental", "technical"],
                                     value=FrameworkState.form_scope,
                                     on_change=FrameworkState.set_form_scope,
                                     width="100%",
+                                    size="3",
                                 ),
-                                spacing="1",
+                                spacing="2",
                                 width="100%",
                             ),
                             rx.vstack(
-                                rx.text("Complexity *", size="2", weight="medium"),
+                                rx.text("Industry *", size="4", weight="medium"),
+                                rx.select(
+                                    ["general", "bank", "financial_services"],
+                                    value=FrameworkState.form_industry,
+                                    on_change=FrameworkState.set_form_industry,
+                                    width="100%",
+                                    size="3",
+                                ),
+                                spacing="2",
+                                width="100%",
+                            ),
+                            rx.vstack(
+                                rx.text("Complexity *", size="4", weight="medium"),
                                 rx.select(
                                     ["beginner-friendly", "complex"],
                                     value=FrameworkState.form_complexity,
                                     on_change=FrameworkState.set_form_complexity,
                                     width="100%",
+                                    size="3",
                                 ),
-                                spacing="1",
+                                spacing="2",
                                 width="100%",
                             ),
-                            spacing="3",
+                            rx.vstack(
+                                rx.text("Source Name", size="4", weight="medium"),
+                                rx.input(
+                                    placeholder="e.g., Book title, Research paper",
+                                    value=FrameworkState.form_source_name,
+                                    on_change=FrameworkState.set_form_source_name,
+                                    width="100%",
+                                    size="3",
+                                ),
+                                spacing="2",
+                                width="100%",
+                            ),
+                            rx.vstack(
+                                rx.text("Source URL", size="4", weight="medium"),
+                                rx.input(
+                                    placeholder="https://...",
+                                    value=FrameworkState.form_source_url,
+                                    on_change=FrameworkState.set_form_source_url,
+                                    width="100%",
+                                    size="3",
+                                ),
+                                spacing="2",
+                                width="100%",
+                            ),
+                            spacing="4",
                             width="100%",
+                            flex="1",
                         ),
-                        spacing="3",
+                        rx.vstack(
+                            rx.text("Description", size="4", weight="medium"),
+                            rx.text_area(
+                                placeholder="Framework description...",
+                                value=FrameworkState.form_description,
+                                on_change=FrameworkState.set_form_description,
+                                width="100%",
+                                height="100%",
+                                size="3",
+                                style={
+                                    "minHeight": "100%",
+                                    "resize": "none",
+                                },
+                            ),
+                            spacing="2",
+                            width="100%",
+                            height="100%",
+                            flex="2",
+                        ),
+                        spacing="5",
                         width="100%",
+                        align="start",
                     ),
                     rx.hstack(
                         rx.spacer(),
@@ -422,10 +536,12 @@ def add_framework_dialog():
                             on_click=FrameworkState.close_add_dialog,
                             variant="soft",
                             color_scheme="gray",
+                            size="3",
                         ),
                         rx.button(
                             "Add Framework",
                             on_click=FrameworkState.submit_framework,
+                            size="3",
                             disabled=rx.cond(
                                 (FrameworkState.form_title == "")
                                 | (FrameworkState.form_author == ""),
@@ -436,13 +552,16 @@ def add_framework_dialog():
                         spacing="2",
                         width="100%",
                         justify="end",
+                        padding_top="1rem",
                     ),
                     spacing="4",
                     width="100%",
+                    height="100%",
                 ),
                 style={
-                    "width": "50vw",
-                    "maxWidth": "600px",
+                    "width": "75vw",
+                    "height": "75vh",
+                    "maxWidth": "1000px",
                     "padding": "2rem",
                 },
             ),

@@ -9,6 +9,7 @@ from ..components.cards import card_wrapper
 from ..components.drawer import drawer_button, CartState
 from ..components.financial_statement import financial_statements
 from ..components.loading import loading_screen
+from ..state.framework_state import GlobalFrameworkState
 
 from ..utils.load_data import fetch_company_data
 from ..utils.preprocessing.financial_statements import get_transformed_dataframes
@@ -53,6 +54,8 @@ class State(rx.State):
     @rx.event
     async def toggle_switch(self, value: bool):
         self.switch_value = "year" if value else "quarter"
+        # Clear cached data to force reload with new period
+        self.transformed_dataframes = {}
         await self.load_transformed_dataframes()
 
     @rx.event
@@ -125,51 +128,125 @@ class State(rx.State):
 
     @rx.event
     async def load_transformed_dataframes(self):
-        if self.transformed_dataframes:
-            return
-
         ticker = self.ticker
 
-        result = await get_transformed_dataframes(ticker, period=self.switch_value)
+        if not self.transformed_dataframes:
+            result = await get_transformed_dataframes(ticker, period=self.switch_value)
 
-        self.transformed_dataframes = result
-        self.income_statement = result["transformed_income_statement"]
-        self.balance_sheet = result["transformed_balance_sheet"]
-        self.cash_flow = result["transformed_cash_flow"]
+            self.transformed_dataframes = result
+            self.income_statement = result["transformed_income_statement"]
+            self.balance_sheet = result["transformed_balance_sheet"]
+            self.cash_flow = result["transformed_cash_flow"]
+        else:
+            result = self.transformed_dataframes
 
         categorized_ratios = result.get("categorized_ratios", {})
-        self.available_metrics_by_category = {}
-        self.selected_metrics = {}
+        all_available_metrics = {}
 
         for category, financial_data in categorized_ratios.items():
-            if financial_data:
+            if financial_data and len(financial_data) > 0:
                 excluded_columns = {"Year", "Quarter", "Date", "Period"}
                 metrics = [
                     col for col in financial_data[0] if col not in excluded_columns
                 ]
-                self.available_metrics_by_category[category] = metrics
-                if metrics:
+                all_available_metrics[category] = metrics
+
+        global_state = await self.get_state(GlobalFrameworkState)
+
+        if global_state.has_selected_framework and global_state.framework_metrics:
+            self.available_metrics_by_category = {}
+            self.selected_metrics = {}
+
+            for (
+                category,
+                framework_metric_names,
+            ) in global_state.framework_metrics.items():
+                if category in all_available_metrics:
+                    self.available_metrics_by_category[category] = (
+                        all_available_metrics[category]
+                    )
+
+                    if (
+                        isinstance(framework_metric_names, list)
+                        and len(framework_metric_names) > 0
+                    ):
+                        first_metric = framework_metric_names[0]
+                        if first_metric in all_available_metrics[category]:
+                            self.selected_metrics[category] = first_metric
+                        else:
+                            self.selected_metrics[category] = all_available_metrics[
+                                category
+                            ][0]
+                    else:
+                        self.selected_metrics[category] = all_available_metrics[
+                            category
+                        ][0]
+
+            for category in all_available_metrics.keys():
+                if category not in self.available_metrics_by_category:
+                    self.available_metrics_by_category[category] = (
+                        all_available_metrics[category]
+                    )
+                    self.selected_metrics[category] = all_available_metrics[category][0]
+        else:
+            self.available_metrics_by_category = all_available_metrics
+            self.selected_metrics = {}
+
+            for category, metrics in all_available_metrics.items():
+                if metrics and len(metrics) > 0:
                     self.selected_metrics[category] = metrics[0]
 
     @rx.event
     def set_metric_for_category(self, category: str, metric: str):
-        """Set selected metric for a specific category"""
         self.selected_metrics[category] = metric
 
     @rx.var()
     def get_chart_data_for_category(self) -> Dict[str, List[Dict[str, Any]]]:
-        """Get chart data for all categories"""
         chart_data = {}
         categorized_ratios = self.transformed_dataframes.get("categorized_ratios", {})
 
-        for category, data in categorized_ratios.items():
-            selected_metric = self.selected_metrics[category]
-            chart_data[category] = [
-                {"year": row["Year"], "value": row.get(selected_metric, 0) or 0}
-                for row in reversed(data)
-            ][-8:]
+        for category in self.selected_metrics.keys():
+            if category not in categorized_ratios:
+                chart_data[category] = []
+                continue
+
+            data = categorized_ratios[category]
+            selected_metric = self.selected_metrics.get(category)
+
+            if not selected_metric or not data or len(data) == 0:
+                chart_data[category] = []
+                continue
+
+            if data and len(data) > 0 and selected_metric not in data[0]:
+                chart_data[category] = []
+                continue
+
+            chart_points = []
+            for row in reversed(data):
+                year = row.get("Year", "")
+                value = row.get(selected_metric)
+
+                try:
+                    if value is not None and str(value).lower() not in [
+                        "nan",
+                        "none",
+                        "",
+                    ]:
+                        value_float = float(value)
+                    else:
+                        value_float = 0
+                except (ValueError, TypeError):
+                    value_float = 0
+
+                chart_points.append({"year": year, "value": value_float})
+
+            chart_data[category] = chart_points[-8:]
 
         return chart_data
+
+    def get_chart_data(self, category: str) -> List[Dict[str, Any]]:
+        """Get chart data for a specific category"""
+        return self.get_chart_data_for_category.get(category, [])
 
     @rx.var
     def get_categories_list(self) -> List[str]:
@@ -203,38 +280,49 @@ def create_dynamic_chart(category: str):
             rx.hstack(
                 rx.heading(category, size="4", weight="medium"),
                 rx.spacer(),
-                rx.select(
-                    State.available_metrics_by_category[category],
-                    value=State.selected_metrics[category],
-                    on_change=lambda value: State.set_metric_for_category(
-                        category, value
+                rx.cond(
+                    State.available_metrics_by_category.contains(category),
+                    rx.select(
+                        State.available_metrics_by_category[category],
+                        value=State.selected_metrics.get(category, ""),
+                        on_change=lambda value: State.set_metric_for_category(
+                            category, value
+                        ),
+                        size="1",
                     ),
-                    size="1",
+                    rx.text("No metrics", size="1", color="gray"),
                 ),
                 align="center",
                 justify="between",
                 width="100%",
             ),
             rx.box(
-                rx.recharts.line_chart(
-                    rx.recharts.line(
-                        data_key="value",
-                        stroke_width=3,
-                        type_="monotone",
-                        dot=False,
+                rx.cond(
+                    State.get_chart_data_for_category.contains(category),
+                    rx.recharts.line_chart(
+                        rx.recharts.line(
+                            data_key="value",
+                            stroke_width=3,
+                            type_="monotone",
+                            dot=False,
+                        ),
+                        rx.recharts.x_axis(
+                            data_key="year",
+                            angle=-45,
+                            text_anchor="end",
+                            padding={"left": 20, "right": 20},
+                        ),
+                        rx.recharts.y_axis(),
+                        rx.recharts.tooltip(),
+                        data=State.get_chart_data_for_category[category],
+                        width="100%",
+                        height=280,
+                        margin={"top": 10, "right": 10, "left": 5, "bottom": 35},
                     ),
-                    rx.recharts.x_axis(
-                        data_key="year",
-                        angle=-45,
-                        text_anchor="end",
-                        padding={"left": 20, "right": 20},
+                    rx.center(
+                        rx.text("No data available", color="gray"),
+                        height="280px",
                     ),
-                    rx.recharts.y_axis(),
-                    rx.recharts.tooltip(),
-                    data=State.get_chart_data_for_category[category],
-                    width="100%",
-                    height=280,
-                    margin={"top": 10, "right": 10, "left": 5, "bottom": 35},
                 ),
                 width="100%",
                 style={"overflow": "hidden"},
@@ -365,11 +453,36 @@ def general_info_card():  # TODO: ALL DATA SHOULD COME FROM OVERVIEW_DF
     )
 
 
+def framework_indicator():
+    """Show which framework is currently selected."""
+    return rx.cond(
+        GlobalFrameworkState.has_selected_framework,
+        rx.hstack(
+            rx.icon("target", size=16),
+            rx.text(
+                f"Framework: {GlobalFrameworkState.framework_display_name}",
+                size="2",
+                weight="medium",
+            ),
+            spacing="2",
+            align="center",
+            padding="0.5em",
+            style={
+                "backgroundColor": rx.color("violet", 2),
+                "border": f"1px solid {rx.color('violet', 4)}",
+                "borderRadius": "6px",
+            },
+        ),
+        None,
+    )
+
+
 def key_metrics_card():
     return rx.card(
         rx.vstack(
             rx.tabs.root(
                 rx.hstack(
+                    framework_indicator(),
                     rx.tabs.list(
                         rx.tabs.trigger("Performance", value="performance"),
                         rx.tabs.trigger("Financial Statements", value="statement"),
@@ -397,11 +510,13 @@ def key_metrics_card():
                     ),
                     width="100%",
                     align="center",
+                    spacing="3",
                 ),
                 rx.tabs.content(
                     performance_cards(),
                     value="performance",
                     padding_top="1em",
+                    on_mount=State.load_transformed_dataframes,
                 ),
                 rx.tabs.content(
                     rx.box(
