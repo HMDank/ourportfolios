@@ -53,6 +53,39 @@ class FrameworkState(rx.State):
     form_source_name: str = ""
     form_source_url: str = ""
 
+    # Form field setters
+    @rx.event
+    def set_form_title(self, value: str):
+        self.form_title = value
+
+    @rx.event
+    def set_form_description(self, value: str):
+        self.form_description = value
+
+    @rx.event
+    def set_form_author(self, value: str):
+        self.form_author = value
+
+    @rx.event
+    def set_form_complexity(self, value: str):
+        self.form_complexity = value
+
+    @rx.event
+    def set_form_scope(self, value: str):
+        self.form_scope = value
+
+    @rx.event
+    def set_form_industry(self, value: str):
+        self.form_industry = value
+
+    @rx.event
+    def set_form_source_name(self, value: str):
+        self.form_source_name = value
+
+    @rx.event
+    def set_form_source_url(self, value: str):
+        self.form_source_url = value
+
     async def on_load(self):
         await self.load_scopes()
         if self.scopes:

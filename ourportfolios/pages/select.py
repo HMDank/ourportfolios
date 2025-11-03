@@ -19,6 +19,13 @@ class State(rx.State):
     # Search bar
     search_query = ""
 
+    @rx.event
+    def set_control(self, value: str | List[str]):
+        if isinstance(value, list):
+            self.control = value[0] if value else "home"
+        else:
+            self.control = value
+
     # Metrics
     fundamentals_default_value: Dict[str, List[float]] = {
         "pe": [0.00, 100.00],
@@ -65,42 +72,6 @@ class State(rx.State):
 
     def update_arrow(self, scroll_position: int, max_scroll: int):
         self.show_arrow = scroll_position < max_scroll - 10
-
-    @rx.var(cache=True)
-    def get_all_tickers(self) -> list[dict]:
-        connection = None
-        try:
-            # Create a new connection for this operation
-            with db_settings.conn.connect() as connection:
-                df = pd.read_sql("SELECT symbol, industry FROM tickers.overview_df", connection)
-                return df.to_dict("records")
-        except Exception as e:
-            print(f"Database error: {e}")
-            if connection is not None:
-                connection.rollback()
-            return []
-        finally:
-            if connection is not None:
-                connection.close()
-
-    @rx.var(cache=True)
-    def paged_tickers(self) -> list[dict]:
-        tickers = self.get_all_tickers
-        return tickers[self.offset : self.offset + self.limit]
-
-    @rx.var(cache=True)
-    def get_all_tickers_length(self) -> int:
-        return len(self.get_all_tickers)
-
-    @rx.event
-    def next_page(self):
-        if self.offset + self.limit < len(self.get_all_tickers):
-            self.offset += self.limit
-
-    @rx.event
-    def prev_page(self):
-        if self.offset - self.limit >= 0:
-            self.offset -= self.limit
 
     @rx.var
     def has_filter(self) -> bool:
@@ -333,9 +304,6 @@ def index():
         ),
         drawer_button(),
     )
-        finally:
-            if connection is not None:
-                connection.close()
 
 
 def page_selection():
@@ -400,7 +368,7 @@ def card_with_scrollable_area():
             rx.segmented_control.item("Markets", value="markets"),
             rx.segmented_control.item("Coin", value="coin"),
             rx.segmented_control.item("qqjdos", value="test"),
-            on_change=State.setvar("control"),
+            on_change=State.set_control,
             value=State.control,
             size="1",
             style={"height": "2em"},

@@ -20,6 +20,13 @@ class State(rx.State):
 
     company_control: str = "shares"
 
+    @rx.event
+    def set_company_control(self, value: str | List[str]):
+        if isinstance(value, list):
+            self.company_control = value[0] if value else "shares"
+        else:
+            self.company_control = value
+
     # Change to DataFrames
     overview_df: pd.DataFrame = pd.DataFrame()
     profile_df: pd.DataFrame = pd.DataFrame()
@@ -405,13 +412,16 @@ def create_dynamic_chart(category: str):
                             angle=-45,
                             text_anchor="end",
                             height=60,
+                            tick={"fontSize": 14},
                         ),
-                        rx.recharts.y_axis(),
+                        rx.recharts.y_axis(
+                            tick={"fontSize": 14},
+                        ),
                         rx.recharts.tooltip(),
                         data=State.get_chart_data_for_category[category],
                         width="100%",
                         height=250,
-                        margin={"top": 5, "right": 10, "left": 0, "bottom": 5},
+                        margin={"top": 15, "right": 30, "left": 10, "bottom": 5},
                     ),
                     rx.center(
                         rx.text("No data available", color="gray", size="2"),
@@ -810,7 +820,7 @@ def company_generic_info_card():
                     rx.segmented_control.item("Shares", value="shares"),
                     rx.segmented_control.item("Events", value="events"),
                     rx.segmented_control.item("News", value="news"),
-                    on_change=State.setvar("company_control"),
+                    on_change=State.set_company_control,
                     value=State.company_control,
                     size="3",
                 ),
