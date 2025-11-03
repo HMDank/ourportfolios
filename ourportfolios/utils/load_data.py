@@ -34,7 +34,7 @@ def populate_db() -> None:
         connection.commit()
 
     stats_df = fetch_stats_df()
-    ticker_list = stats_df['ticker'].to_list()
+    ticker_list = stats_df["ticker"].to_list()
 
     overview_list = []
     shareholders_list = []
@@ -56,7 +56,8 @@ def populate_db() -> None:
 
             if overview is not None and not overview.empty:
                 market_cap_value = stats_df.loc[
-                    stats_df["ticker"] == ticker, "market_cap",
+                    stats_df["ticker"] == ticker,
+                    "market_cap",
                 ].squeeze()
                 overview["market_cap"] = market_cap_value
                 overview_list.append(overview)

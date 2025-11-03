@@ -53,7 +53,7 @@ class State(rx.State):
 
     # Flag to track if the page is mounted - start as True for initial load
     _is_mounted: bool = True
-    
+
     # Track the last framework ID to detect changes
     _last_framework_id: Optional[int] = None
 
@@ -184,12 +184,14 @@ class State(rx.State):
         # Only fetch data if not already loaded
         if not self.transformed_dataframes:
             try:
-                result = await get_transformed_dataframes(ticker, period=self.switch_value)
-                
+                result = await get_transformed_dataframes(
+                    ticker, period=self.switch_value
+                )
+
                 # Check again after async operation
                 if not self._is_mounted:
                     return
-                
+
                 # Check if API call returned an error
                 if "error" in result:
                     print(f"API error loading financial data: {result['error']}")
@@ -224,7 +226,7 @@ class State(rx.State):
         # Get current framework state
         global_state = await self.get_state(GlobalFrameworkState)
         current_framework_id = global_state.selected_framework_id
-        
+
         # Update tracked framework ID
         self._last_framework_id = current_framework_id
 
@@ -268,7 +270,7 @@ class State(rx.State):
                         self.selected_metrics[category] = all_available_metrics[
                             category
                         ][0]
-            
+
             # DO NOT add categories that aren't in the framework
         else:
             self.available_metrics_by_category = all_available_metrics
@@ -277,7 +279,7 @@ class State(rx.State):
             for category, metrics in all_available_metrics.items():
                 if metrics and len(metrics) > 0:
                     self.selected_metrics[category] = metrics[0]
-    
+
     @rx.event
     async def reload_for_framework_change(self):
         """Force reload when framework changes - call this explicitly when needed"""

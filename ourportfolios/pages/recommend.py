@@ -189,7 +189,6 @@ class FrameworkState(rx.State):
 
         # Set the global framework selection
 
-
         # Close dialog
         self.close_dialog()
 
