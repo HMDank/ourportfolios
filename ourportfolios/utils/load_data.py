@@ -13,7 +13,6 @@ from datetime import date, datetime, timedelta
 import numpy as np
 import pandas as pd
 from sqlalchemy import text
-from tqdm import tqdm
 from vnstock import Screener, Trading, Vnstock
 
 from .preprocess_texts import process_events_for_display
@@ -43,7 +42,7 @@ def populate_db() -> None:
     profile_list = []
     officers_list = []
 
-    for ticker in tqdm(ticker_list, desc="Fetching company data"):
+    for ticker in ticker_list:
         try:
             company = Vnstock().stock(symbol=ticker, source="TCBS").company
 
