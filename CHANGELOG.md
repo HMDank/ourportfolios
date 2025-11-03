@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.5.0 (2025-11-03)
+
+### Chores
+
+- Remove needless library
+  ([`771ac93`](https://github.com/HMDank/ourportfolios/commit/771ac93ba40617b0896ec0b162c61d6179f77647))
+
+### Code Style
+
+- Adjust gaps between sliders
+  ([`01a9252`](https://github.com/HMDank/ourportfolios/commit/01a92524ea89101bda9e91954a9261644836a135))
+
+
 ## v0.4.1 (2025-10-29)
 
 ### Chores
