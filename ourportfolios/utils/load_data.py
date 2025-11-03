@@ -332,12 +332,22 @@ def fetch_company_data(symbol: str) -> dict[dict]:
 
     result = {}
 
-    for table in tables:
-        df = pd.read_sql(
-            text(f"SELECT * FROM tickers.{table}_df WHERE symbol = :symbol"),
-            db_settings.conn,
-            params={"symbol": symbol},
-        )
-        result[table] = df if not df.empty else pd.DataFrame()
+    try:
+        for table in tables:
+            try:
+                df = pd.read_sql(
+                    text(f"SELECT * FROM tickers.{table}_df WHERE symbol = :symbol"),
+                    db_settings.conn,
+                    params={"symbol": symbol},
+                )
+                result[table] = df if not df.empty else pd.DataFrame()
+            except Exception as e:
+                print(f"Error fetching {table} data for {symbol}: {e}")
+                result[table] = pd.DataFrame()
+    except Exception as e:
+        print(f"Error fetching company data for {symbol}: {e}")
+        # Return empty dataframes for all tables
+        for table in tables:
+            result[table] = pd.DataFrame()
 
     return result

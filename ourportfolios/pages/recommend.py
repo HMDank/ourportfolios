@@ -13,16 +13,24 @@ DATABASE_URI = os.getenv("DATABASE_URI")
 
 
 def get_db_connection():
-    return psycopg2.connect(DATABASE_URI, cursor_factory=RealDictCursor)
+    try:
+        return psycopg2.connect(DATABASE_URI, cursor_factory=RealDictCursor)
+    except Exception as e:
+        print(f"Error connecting to database: {e}")
+        raise
 
 
 def execute_query(query: str, params: tuple = None) -> List[Dict]:
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(query, params)
-            if cur.description:
-                return cur.fetchall()
-            return []
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, params)
+                if cur.description:
+                    return cur.fetchall()
+                return []
+    except Exception as e:
+        print(f"Error executing query: {e}")
+        return []
 
 
 class FrameworkState(rx.State):
@@ -87,6 +95,9 @@ class FrameworkState(rx.State):
             self.frameworks = frameworks
         except Exception as e:
             print(f"Error loading frameworks: {e}")
+            self.frameworks = []
+            # Don't use yield here since this is called from on_load
+            # Error will be logged and empty list shown gracefully
         finally:
             self.loading_frameworks = False
 
