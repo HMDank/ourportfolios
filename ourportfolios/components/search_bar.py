@@ -1,12 +1,9 @@
 import reflex as rx
-import pandas as pd
 import time
 import asyncio
-from sqlalchemy import text
-import itertools
 
+from ..utils.generate_query import get_suggest_ticker, fetch_ticker
 from typing import List, Dict, Any
-
 from .graph import pct_change_badge
 from ..utils.scheduler import db_settings
 
@@ -19,7 +16,7 @@ class SearchBarState(rx.State):
 
     @rx.event
     def set_query(self, text: str = ""):
-        self.search_query = text.upper() if text != "" else text
+        self.search_query = text if text != "" else text
 
     @rx.event
     def set_display_suggestions(self, state: bool):
@@ -33,68 +30,8 @@ class SearchBarState(rx.State):
             return []
         if self.search_query == "":
             return self.ticker_list
-        #TODO: Fix All the hard-coded pb.symbol by changing the overall SQL query method.
-        # (Mayebe use SQLAlchemy here)
-        # At first, try to fetch exact ticker
-        result: pd.DataFrame = self.fetch_ticker(
-            match_conditions="pb.symbol LIKE :pattern",
-            params={"pattern": f"{self.search_query}%"},
-        )
 
-        # In-case of mistype or no ticker returned, calculate all possible permutation of provided search_query with fixed length
-        if result.empty:
-            # All possible combination of ticker's letter
-            combos: List[tuple] = list(
-                itertools.permutations(list(self.search_query), len(self.search_query))
-            )
-
-            all_combination = {
-                f"pattern_{idx}": f"{''.join(combo)}%"
-                for idx, combo in enumerate(combos)
-            }
-
-            result: pd.DataFrame = self.fetch_ticker(
-                match_conditions=" OR ".join(
-                    [f"pb.symbol LIKE :pattern_{i}" for i in range(len(all_combination))]
-                ),
-                params=all_combination,
-            )
-
-        # Suggest base of the first letter if still no ticker matched
-        if result.empty:
-            result: pd.DataFrame = self.fetch_ticker(
-                match_conditions="pb.symbol LIKE :pattern",
-                params={"pattern": f"{self.search_query[0]}%"},
-            )
-
-        return result.to_dict("records")
-
-    def fetch_ticker(
-        self, match_conditions: str = "all", params: Any = None
-    ) -> pd.DataFrame:
-        query: str = """
-                    SELECT
-                        pb.symbol,
-                        pb.pct_price_change,
-                        od.industry
-                    FROM tickers.price_df AS pb
-                    JOIN tickers.overview_df AS od
-                        ON pb.symbol = od.symbol
-                    """
-        if match_conditions != "all":
-            query += f"WHERE {match_conditions}\n"
-
-        query += "ORDER BY accumulated_volume DESC"
-        with db_settings.conn.connect() as connection:
-            if connection.in_transaction():
-                try:
-                    db_settings.conn.rollback()
-                except Exception:
-                    pass
-
-        result: pd.DataFrame = pd.read_sql(text(query), db_settings.conn, params=params)
-
-        return result
+        return get_suggest_ticker(search_query=self.search_query.upper(), return_type="df")
 
     @rx.event(background=True)
     async def load_state(self):
@@ -102,9 +39,7 @@ class SearchBarState(rx.State):
         while True:
             async with self:
                 # Preload all tickers
-                self.ticker_list = self.fetch_ticker(match_conditions="all").to_dict(
-                    "records"
-                )
+                self.ticker_list = fetch_ticker(match_query="all").to_dict("records")
 
                 # Fetch and store the top 3 trending tickers in memory
                 self.outstanding_tickers: Dict[str, Any] = {
