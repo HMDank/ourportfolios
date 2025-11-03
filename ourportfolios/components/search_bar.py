@@ -1,8 +1,10 @@
 import reflex as rx
 import time
 import asyncio
+import pandas as pd
+import itertools
 
-from ..utils.generate_query import get_suggest_ticker, fetch_ticker
+from sqlalchemy import text
 from typing import List, Dict, Any
 from .graph import pct_change_badge
 from ..utils.scheduler import db_settings
@@ -104,7 +106,7 @@ class SearchBarState(rx.State):
         while True:
             async with self:
                 # Preload all tickers
-                self.ticker_list = fetch_ticker(match_query="all").to_dict("records")
+                self.ticker_list = self.fetch_ticker(match_conditions="all").to_dict("records")
 
                 # Fetch and store the top 3 trending tickers in memory
                 self.outstanding_tickers: Dict[str, Any] = {
