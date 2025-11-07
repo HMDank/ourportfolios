@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.13"
 
 [[package]]
@@ -634,7 +634,7 @@ wheels = [
 
 [[package]]
 name = "ourportfolios"
-version = "0.4.1"
+version = "0.5.0"
 source = { virtual = "." }
 dependencies = [
     { name = "apscheduler" },

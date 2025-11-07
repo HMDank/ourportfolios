@@ -191,7 +191,7 @@ class PriceChartState(rx.State):
                 "vertLines": {"color": "#FFFFFF09"},
             },
             "priceScale": {
-                "scaleMargins": {"top": 0.2, "bottom": 0.25},
+                "scaleMargins": {"top": 0.1, "bottom": 0.15},
                 "borderVisible": False,
             },
             "overlayPriceScales": {
