@@ -440,10 +440,7 @@ def scope_button(scope: Dict):
         width="100%",
         height="3em",
         justify="start",
-        style={
-            "minHeight": "3em",
-            "padding": "0.75em",
-        },
+        padding="0.75em",
     )
 
 
@@ -648,10 +645,6 @@ def metric_item(metric: Dict, index: int):
     """Component for a single metric in the list"""
     return rx.card(
         rx.hstack(
-            rx.checkbox(
-                checked=metric["enabled"],
-                on_change=lambda: FrameworkState.toggle_metric_enabled(metric["name"]),
-            ),
             rx.vstack(
                 rx.text(metric["name"], size="3", weight="medium"),
                 rx.badge(metric["category"], size="1", variant="soft"),
@@ -860,19 +853,19 @@ def add_framework_dialog():
                     ),
                     rx.hstack(
                         rx.vstack(
-                            rx.vstack(
-                                rx.text("Title *", size="4", weight="medium"),
-                                rx.input(
-                                    placeholder="Framework title",
-                                    value=FrameworkState.form_title,
-                                    on_change=FrameworkState.set_form_title,
-                                    width="100%",
-                                    size="3",
-                                ),
-                                spacing="2",
-                                width="100%",
-                            ),
                             rx.hstack(
+                                rx.vstack(
+                                    rx.text("Title *", size="4", weight="medium"),
+                                    rx.input(
+                                        placeholder="Framework title",
+                                        value=FrameworkState.form_title,
+                                        on_change=FrameworkState.set_form_title,
+                                        width="100%",
+                                        size="3",
+                                    ),
+                                    spacing="2",
+                                    width="66%",
+                                ),
                                 rx.vstack(
                                     rx.text("Author *", size="4", weight="medium"),
                                     rx.input(
@@ -883,8 +876,11 @@ def add_framework_dialog():
                                         size="3",
                                     ),
                                     spacing="2",
-                                    width="66%",
+                                    width="33%",
                                 ),
+                                width="100%",
+                            ),
+                            rx.hstack(
                                 rx.vstack(
                                     rx.text("Industry *", size="4", weight="medium"),
                                     rx.select(
@@ -895,12 +891,8 @@ def add_framework_dialog():
                                         size="3",
                                     ),
                                     spacing="2",
-                                    width="33%",
+                                    width="20%",
                                 ),
-                                spacing="4",
-                                width="100%",
-                            ),
-                            rx.hstack(
                                 rx.vstack(
                                     rx.text("Scope *", size="4", weight="medium"),
                                     rx.select(
@@ -911,7 +903,7 @@ def add_framework_dialog():
                                         size="3",
                                     ),
                                     spacing="2",
-                                    width="100%",
+                                    width="40%",
                                 ),
                                 rx.vstack(
                                     rx.text("Complexity *", size="4", weight="medium"),
@@ -923,50 +915,28 @@ def add_framework_dialog():
                                         size="3",
                                     ),
                                     spacing="2",
-                                    width="100%",
+                                    width="40%",
                                 ),
                                 spacing="4",
                                 width="100%",
                             ),
                             rx.vstack(
-                                rx.text("Source Name", size="4", weight="medium"),
-                                rx.input(
-                                    placeholder="e.g., Book title, Research paper",
-                                    value=FrameworkState.form_source_name,
-                                    on_change=FrameworkState.set_form_source_name,
+                                rx.text("Description", size="4", weight="medium"),
+                                rx.text_area(
+                                    placeholder="Framework description...",
+                                    value=FrameworkState.form_description,
+                                    on_change=FrameworkState.set_form_description,
                                     width="100%",
+                                    height="100%",
                                     size="3",
+                                    min_height="9em",
                                 ),
                                 spacing="2",
-                                width="100%",
-                            ),
-                            rx.vstack(
-                                rx.text("Source URL", size="4", weight="medium"),
-                                rx.input(
-                                    placeholder="https://...",
-                                    value=FrameworkState.form_source_url,
-                                    on_change=FrameworkState.set_form_source_url,
-                                    width="100%",
-                                    size="3",
-                                ),
-                                spacing="2",
-                                width="100%",
-                            ),
-                            spacing="3",
-                            width="100%",
-                            flex="2",
-                        ),
-                        rx.vstack(
-                            rx.text("Description", size="4", weight="medium"),
-                            rx.text_area(
-                                placeholder="Framework description...",
-                                value=FrameworkState.form_description,
-                                on_change=FrameworkState.set_form_description,
                                 width="100%",
                                 height="100%",
-                                size="3",
+                                flex="1",
                             ),
-                            spacing="2",
+                            spacing="3",
                             width="100%",
                             height="100%",
                             flex="2",
@@ -976,7 +946,7 @@ def add_framework_dialog():
                             spacing="2",
                             width="100%",
                             height="100%",
-                            flex="2",
+                            flex="1",
                         ),
                         spacing="5",
                         width="100%",
@@ -1051,7 +1021,8 @@ def categories_sidebar():
             align="stretch",
         ),
         flex=1,
-        style={"padding": "0.75em", "minWidth": "15em", "overflow": "hidden"},
+        padding="0.75em",
+        min_width="15em",
     )
 
 
@@ -1100,7 +1071,7 @@ def frameworks_content():
             flex=4,
             min_width=0,
             max_width="100%",
-            style={"padding": "0.75em", "minWidth": 0, "overflow": "hidden"},
+            padding="0.75em",
         ),
         framework_dialog(),
         add_framework_dialog(),
