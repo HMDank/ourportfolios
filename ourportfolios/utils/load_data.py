@@ -33,7 +33,7 @@ def populate_db() -> None:
         connection.commit()
 
     stats_df = fetch_stats_df()
-    ticker_list = stats_df['ticker'].to_list()
+    ticker_list = stats_df["ticker"].to_list()
 
     overview_list = []
     shareholders_list = []
@@ -55,7 +55,8 @@ def populate_db() -> None:
 
             if overview is not None and not overview.empty:
                 market_cap_value = stats_df.loc[
-                    stats_df["ticker"] == ticker, "market_cap",
+                    stats_df["ticker"] == ticker,
+                    "market_cap",
                 ].squeeze()
                 overview["market_cap"] = market_cap_value
                 overview_list.append(overview)
@@ -331,12 +332,22 @@ def fetch_company_data(symbol: str) -> dict[dict]:
 
     result = {}
 
-    for table in tables:
-        df = pd.read_sql(
-            text(f"SELECT * FROM tickers.{table}_df WHERE symbol = :symbol"),
-            db_settings.conn,
-            params={"symbol": symbol},
-        )
-        result[table] = df if not df.empty else pd.DataFrame()
+    try:
+        for table in tables:
+            try:
+                df = pd.read_sql(
+                    text(f"SELECT * FROM tickers.{table}_df WHERE symbol = :symbol"),
+                    db_settings.conn,
+                    params={"symbol": symbol},
+                )
+                result[table] = df if not df.empty else pd.DataFrame()
+            except Exception as e:
+                print(f"Error fetching {table} data for {symbol}: {e}")
+                result[table] = pd.DataFrame()
+    except Exception as e:
+        print(f"Error fetching company data for {symbol}: {e}")
+        # Return empty dataframes for all tables
+        for table in tables:
+            result[table] = pd.DataFrame()
 
     return result

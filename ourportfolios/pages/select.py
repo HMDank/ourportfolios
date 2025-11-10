@@ -19,6 +19,13 @@ class State(rx.State):
     # Search bar
     search_query = ""
 
+    @rx.event
+    def set_control(self, value: str | List[str]):
+        if isinstance(value, list):
+            self.control = value[0] if value else "home"
+        else:
+            self.control = value
+
     # Metrics
     fundamentals_default_value: Dict[str, List[float]] = {
         "pe": [0.00, 100.00],
@@ -99,6 +106,7 @@ class State(rx.State):
     # Set all metrics/options to their default setting
     @rx.event
     def get_all_industries(self):
+        connection = None
         try:
             with db_settings.conn.connect() as connection:
                 industries = pd.read_sql(
@@ -126,6 +134,11 @@ class State(rx.State):
                 }
         except Exception as e:
             print(f"Database error: {e}")
+            if connection is not None:
+                try:
+                    connection.rollback()
+                except Exception:
+                    pass
             self.exchange_filter: Dict[str, bool] = {}
 
     @rx.event
@@ -355,7 +368,7 @@ def card_with_scrollable_area():
             rx.segmented_control.item("Markets", value="markets"),
             rx.segmented_control.item("Coin", value="coin"),
             rx.segmented_control.item("qqjdos", value="test"),
-            on_change=State.setvar("control"),
+            on_change=State.set_control,
             value=State.control,
             size="1",
             style={"height": "2em"},

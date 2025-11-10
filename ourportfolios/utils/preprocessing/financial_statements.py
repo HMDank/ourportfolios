@@ -10,28 +10,46 @@ async def get_transformed_dataframes(ticker_symbol, period="year"):
         series_sorted = series.sort_index()
         return series_sorted.pct_change() * 100
 
-    income_statement, balance_sheet, cash_flow, key_ratios_raw = await asyncio.gather(
-        asyncio.to_thread(
-            lambda: Vnstock()
-            .stock(symbol=ticker_symbol, source="VCI")
-            .finance.income_statement(period=period, lang="en")
-        ),
-        asyncio.to_thread(
-            lambda: Vnstock()
-            .stock(symbol=ticker_symbol, source="VCI")
-            .finance.balance_sheet(period=period, lang="en")
-        ),
-        asyncio.to_thread(
-            lambda: Vnstock()
-            .stock(symbol=ticker_symbol, source="VCI")
-            .finance.cash_flow(period=period, lang="en")
-        ),
-        asyncio.to_thread(
-            lambda: Vnstock()
-            .stock(symbol=ticker_symbol, source="VCI")
-            .finance.ratio(period=period, lang="en")
-        ),
-    )
+    try:
+        income_statement, balance_sheet, cash_flow, key_ratios_raw = await asyncio.gather(
+            asyncio.to_thread(
+                lambda: Vnstock()
+                .stock(symbol=ticker_symbol, source="VCI")
+                .finance.income_statement(period=period, lang="en")
+            ),
+            asyncio.to_thread(
+                lambda: Vnstock()
+                .stock(symbol=ticker_symbol, source="VCI")
+                .finance.balance_sheet(period=period, lang="en")
+            ),
+            asyncio.to_thread(
+                lambda: Vnstock()
+                .stock(symbol=ticker_symbol, source="VCI")
+                .finance.cash_flow(period=period, lang="en")
+            ),
+            asyncio.to_thread(
+                lambda: Vnstock()
+                .stock(symbol=ticker_symbol, source="VCI")
+                .finance.ratio(period=period, lang="en")
+            ),
+        )
+    except Exception as e:
+        print(f"Error fetching financial data for {ticker_symbol}: {e}")
+        # Return empty data structure
+        return {
+            "transformed_income_statement": [],
+            "transformed_balance_sheet": [],
+            "transformed_cash_flow": [],
+            "categorized_ratios": {
+                "Per Share Value": [],
+                "Growth Rate": [],
+                "Profitability": [],
+                "Valuation": [],
+                "Leverage & Liquidity": [],
+                "Efficiency": [],
+            },
+            "error": str(e),
+        }
 
     if isinstance(key_ratios_raw.columns, pd.MultiIndex):
         key_ratios = key_ratios_raw.copy()
@@ -564,7 +582,9 @@ async def get_transformed_dataframes(ticker_symbol, period="year"):
 
         # Efficiency
         efficiency["Asset Turnover"] = key_ratios["Asset Turnover"]
-        efficiency["Inventory Turnover"] = key_ratios["Inventory Turnover"]
+        # Inventory Turnover is optional (not available for all companies)
+        if "Inventory Turnover" in key_ratios.columns:
+            efficiency["Inventory Turnover"] = key_ratios["Inventory Turnover"]
         efficiency["ROA"] = key_ratios["ROA (%)"]
 
         # Dividend Payout %
