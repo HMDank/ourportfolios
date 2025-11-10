@@ -2,7 +2,7 @@ import reflex as rx
 from typing import List, Dict, Any, cast
 import os
 import psycopg2
-from psycopg2.extras import RealDictCursor, RealDictRow
+from psycopg2.extras import RealDictCursor
 
 from ..components.navbar import navbar
 from ..components.page_roller import card_roller, card_link
