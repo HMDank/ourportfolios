@@ -1,8 +1,8 @@
 import reflex as rx
-from typing import List, Dict
+from typing import List, Dict, Any, cast
 import os
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, RealDictRow
 
 from ..components.navbar import navbar
 from ..components.page_roller import card_roller, card_link
@@ -53,6 +53,61 @@ class FrameworkState(rx.State):
     form_source_name: str = ""
     form_source_url: str = ""
 
+    # Metrics management
+    form_metrics: List[
+        Dict
+    ] = []  # [{"name": str, "category": str, "enabled": bool, "order": int}]
+
+    # Available metrics by category (matching financial_statements.py structure)
+    available_categories: List[str] = [
+        "Per Share Value",
+        "Growth Rate",
+        "Profitability",
+        "Valuation",
+        "Leverage & Liquidity",
+        "Efficiency",
+    ]
+
+    # Metrics for each category
+    per_share_metrics: List[str] = [
+        "Earnings",
+        "Book Value",
+        "Free Cash Flow",
+        "Dividend",
+        "Revenues",
+    ]
+    growth_rate_metrics: List[str] = [
+        "Revenues YoY",
+        "Earnings YoY",
+        "Free Cash Flow YoY",
+        "Book Value YoY",
+    ]
+    profitability_metrics: List[str] = [
+        "ROE",
+        "ROIC",
+        "Net Margin",
+        "Gross Margin",
+        "Operating Margin",
+        "EBITDA Margin",
+    ]
+    valuation_metrics: List[str] = ["P/E", "P/B", "P/S", "EV/EBITDA"]
+    leverage_liquidity_metrics: List[str] = [
+        "Debt/Equity",
+        "Current Ratio",
+        "Quick Ratio",
+        "Interest Coverage",
+        "Cash Ratio",
+    ]
+    efficiency_metrics: List[str] = ["ROA", "Asset Turnover", "Dividend Payout %"]
+
+    show_add_metric_dialog: bool = False
+    new_metric_name: str = ""
+    new_metric_category: str = "Per Share Value"
+
+    @rx.var
+    def metrics_count(self) -> int:
+        return len(self.form_metrics)
+
     # Form field setters
     @rx.event
     def set_form_title(self, value: str):
@@ -85,6 +140,97 @@ class FrameworkState(rx.State):
     @rx.event
     def set_form_source_url(self, value: str):
         self.form_source_url = value
+
+    @rx.event
+    def set_new_metric_name(self, value: str):
+        self.new_metric_name = value
+
+    @rx.event
+    def set_new_metric_category(self, value: str):
+        self.new_metric_category = value
+
+    @rx.event
+    def add_metric_to_form(self):
+        """Add a new metric to the framework's metric list"""
+        if not self.new_metric_name:
+            return
+
+        # Check if metric already exists
+        if any(m["name"] == self.new_metric_name for m in self.form_metrics):
+            return
+
+        # Add metric with next order
+        next_order = len(self.form_metrics)
+        self.form_metrics.append(
+            {
+                "name": self.new_metric_name,
+                "category": self.new_metric_category,
+                "enabled": True,
+                "order": next_order,
+            }
+        )
+
+        # Reset form
+        self.new_metric_name = ""
+        self.show_add_metric_dialog = False
+
+    @rx.event
+    def remove_metric(self, metric_name: str):
+        """Remove a metric from the list"""
+        self.form_metrics = [m for m in self.form_metrics if m["name"] != metric_name]
+        # Reorder remaining metrics
+        for i, metric in enumerate(self.form_metrics):
+            metric["order"] = i
+
+    @rx.event
+    def toggle_metric_enabled(self, metric_name: str):
+        """Toggle whether a metric is enabled"""
+        for metric in self.form_metrics:
+            if metric["name"] == metric_name:
+                metric["enabled"] = not metric["enabled"]
+                break
+
+    @rx.event
+    def move_metric_up(self, metric_name: str):
+        """Move a metric up in the order"""
+        for i, metric in enumerate(self.form_metrics):
+            if metric["name"] == metric_name and i > 0:
+                # Swap with previous
+                self.form_metrics[i], self.form_metrics[i - 1] = (
+                    self.form_metrics[i - 1],
+                    self.form_metrics[i],
+                )
+                self.form_metrics[i]["order"] = i
+                self.form_metrics[i - 1]["order"] = i - 1
+                break
+
+    @rx.event
+    def move_metric_down(self, metric_name: str):
+        """Move a metric down in the order"""
+        for i, metric in enumerate(self.form_metrics):
+            if metric["name"] == metric_name and i < len(self.form_metrics) - 1:
+                # Swap with next
+                self.form_metrics[i], self.form_metrics[i + 1] = (
+                    self.form_metrics[i + 1],
+                    self.form_metrics[i],
+                )
+                self.form_metrics[i]["order"] = i
+                self.form_metrics[i + 1]["order"] = i + 1
+                break
+
+    @rx.event
+    def open_add_metric_dialog(self):
+        self.show_add_metric_dialog = True
+        self.new_metric_name = ""
+
+    @rx.event
+    def close_add_metric_dialog(self):
+        self.show_add_metric_dialog = False
+
+    @rx.event
+    def handle_add_metric_dialog_open(self, value: bool):
+        if not value:
+            self.close_add_metric_dialog()
 
     async def on_load(self):
         await self.load_scopes()
@@ -119,10 +265,25 @@ class FrameworkState(rx.State):
     async def load_frameworks(self):
         self.loading_frameworks = True
         try:
+            # Load frameworks with their metrics
             query = """
-                SELECT * FROM frameworks.frameworks_df
-                WHERE scope = %s
-                ORDER BY title
+                SELECT 
+                    f.*,
+                    COALESCE(
+                        json_agg(
+                            json_build_object(
+                                'name', m.metrics,
+                                'type', m.category,
+                                'order', m.display_order
+                            ) ORDER BY m.display_order
+                        ) FILTER (WHERE m.id IS NOT NULL),
+                        '[]'::json
+                    ) as metrics
+                FROM frameworks.frameworks_df f
+                LEFT JOIN frameworks.framework_metrics_df m ON f.id = m.framework_id
+                WHERE f.scope = %s
+                GROUP BY f.id
+                ORDER BY f.title
             """
             frameworks = execute_query(query, (self.active_scope,))
             self.frameworks = frameworks
@@ -159,6 +320,7 @@ class FrameworkState(rx.State):
         self.form_industry = "general"
         self.form_source_name = ""
         self.form_source_url = ""
+        self.form_metrics = []  # Reset metrics
         self.show_add_dialog = True
 
     @rx.event
@@ -175,15 +337,19 @@ class FrameworkState(rx.State):
             return
 
         try:
-            query = """
+            # Insert framework first
+            framework_query = """
                 INSERT INTO frameworks.frameworks_df 
                 (title, description, author, complexity, scope, industry, source_name, source_url)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
             """
+
             with get_db_connection() as conn:
                 with conn.cursor() as cur:
+                    # Insert framework and get its id
                     cur.execute(
-                        query,
+                        framework_query,
                         (
                             self.form_title,
                             self.form_description,
@@ -195,6 +361,31 @@ class FrameworkState(rx.State):
                             self.form_source_url if self.form_source_url else None,
                         ),
                     )
+                    result = cast(Dict[str, Any], cur.fetchone())
+                    framework_id = result["id"]
+
+                    # Insert metrics if any
+                    if self.form_metrics:
+                        metrics_query = """
+                            INSERT INTO frameworks.framework_metrics_df 
+                            (framework_id, category, metrics, display_order)
+                            VALUES (%s, %s, ARRAY[%s], %s)
+                        """
+                        for metric in self.form_metrics:
+                            cur.execute(
+                                metrics_query,
+                                (
+                                    framework_id,
+                                    metric[
+                                        "category"
+                                    ],  # Category name (e.g., "Per Share Value", "Profitability")
+                                    metric[
+                                        "name"
+                                    ],  # Actual metric name (e.g., "ROE", "P/E", "Earnings")
+                                    metric["order"],  # display order
+                                ),
+                            )
+
                     conn.commit()
 
             self.close_add_dialog()
@@ -453,6 +644,195 @@ def framework_dialog():
     )
 
 
+def metric_item(metric: Dict, index: int):
+    """Component for a single metric in the list"""
+    return rx.card(
+        rx.hstack(
+            rx.checkbox(
+                checked=metric["enabled"],
+                on_change=lambda: FrameworkState.toggle_metric_enabled(metric["name"]),
+            ),
+            rx.vstack(
+                rx.text(metric["name"], size="3", weight="medium"),
+                rx.badge(metric["category"], size="1", variant="soft"),
+                spacing="1",
+                align="start",
+            ),
+            rx.spacer(),
+            rx.hstack(
+                rx.icon_button(
+                    rx.icon("arrow-up", size=16),
+                    size="1",
+                    variant="ghost",
+                    on_click=lambda: FrameworkState.move_metric_up(metric["name"]),
+                    disabled=index == 0,
+                ),
+                rx.icon_button(
+                    rx.icon("arrow-down", size=16),
+                    size="1",
+                    variant="ghost",
+                    on_click=lambda: FrameworkState.move_metric_down(metric["name"]),
+                    disabled=index >= FrameworkState.metrics_count - 1,
+                ),
+                rx.icon_button(
+                    rx.icon("trash-2", size=16),
+                    size="1",
+                    variant="ghost",
+                    color_scheme="red",
+                    on_click=lambda: FrameworkState.remove_metric(metric["name"]),
+                ),
+                spacing="1",
+            ),
+            align="center",
+            width="100%",
+            spacing="3",
+        ),
+        size="1",
+        width="100%",
+    )
+
+
+def add_metric_selector():
+    """Dialog for adding a new metric"""
+
+    def get_metrics_for_category(category: str) -> List[str]:
+        """Helper to get metrics based on category"""
+        category_mapping = {
+            "Per Share Value": FrameworkState.per_share_metrics,
+            "Growth Rate": FrameworkState.growth_rate_metrics,
+            "Profitability": FrameworkState.profitability_metrics,
+            "Valuation": FrameworkState.valuation_metrics,
+            "Leverage & Liquidity": FrameworkState.leverage_liquidity_metrics,
+            "Efficiency": FrameworkState.efficiency_metrics,
+        }
+        return category_mapping.get(category, [])
+
+    return rx.cond(
+        FrameworkState.show_add_metric_dialog,
+        rx.dialog.root(
+            rx.dialog.trigger(rx.button("hidden", style={"display": "none"})),
+            rx.dialog.content(
+                rx.vstack(
+                    rx.heading("Add Metric", size="5"),
+                    rx.vstack(
+                        rx.text("Category", size="3", weight="medium"),
+                        rx.select(
+                            FrameworkState.available_categories,
+                            value=FrameworkState.new_metric_category,
+                            on_change=FrameworkState.set_new_metric_category,
+                            size="3",
+                            width="100%",
+                        ),
+                        spacing="2",
+                        width="100%",
+                    ),
+                    rx.vstack(
+                        rx.text("Select Metric", size="3", weight="medium"),
+                        rx.select(
+                            rx.match(
+                                FrameworkState.new_metric_category,
+                                ("Per Share Value", FrameworkState.per_share_metrics),
+                                ("Growth Rate", FrameworkState.growth_rate_metrics),
+                                ("Profitability", FrameworkState.profitability_metrics),
+                                ("Valuation", FrameworkState.valuation_metrics),
+                                (
+                                    "Leverage & Liquidity",
+                                    FrameworkState.leverage_liquidity_metrics,
+                                ),
+                                ("Efficiency", FrameworkState.efficiency_metrics),
+                                FrameworkState.per_share_metrics,  # default
+                            ),
+                            placeholder="Choose a metric...",
+                            value=FrameworkState.new_metric_name,
+                            on_change=FrameworkState.set_new_metric_name,
+                            size="3",
+                            width="100%",
+                        ),
+                        spacing="2",
+                        width="100%",
+                    ),
+                    rx.hstack(
+                        rx.spacer(),
+                        rx.button(
+                            "Cancel",
+                            on_click=FrameworkState.close_add_metric_dialog,
+                            variant="soft",
+                            color_scheme="gray",
+                            size="2",
+                        ),
+                        rx.button(
+                            "Add Metric",
+                            on_click=FrameworkState.add_metric_to_form,
+                            size="2",
+                            disabled=FrameworkState.new_metric_name == "",
+                        ),
+                        spacing="2",
+                        width="100%",
+                        justify="end",
+                    ),
+                    spacing="4",
+                    width="100%",
+                ),
+                style={
+                    "width": "400px",
+                    "padding": "1.5rem",
+                },
+            ),
+            open=True,
+            on_open_change=FrameworkState.handle_add_metric_dialog_open,
+        ),
+        None,
+    )
+
+
+def metrics_management_panel():
+    """Panel for managing framework metrics"""
+    return rx.vstack(
+        rx.hstack(
+            rx.text("Metrics", size="4", weight="medium"),
+            rx.spacer(),
+            rx.button(
+                rx.icon("plus", size=16),
+                "Add Metric",
+                on_click=FrameworkState.open_add_metric_dialog,
+                size="2",
+                variant="soft",
+            ),
+            width="100%",
+            align="center",
+        ),
+        rx.cond(
+            FrameworkState.form_metrics,
+            rx.scroll_area(
+                rx.vstack(
+                    rx.foreach(
+                        FrameworkState.form_metrics,
+                        lambda metric, idx: metric_item(metric, idx),
+                    ),
+                    spacing="2",
+                    width="100%",
+                ),
+                style={
+                    "height": "300px",
+                    "width": "100%",
+                },
+                scrollbars="vertical",
+            ),
+            rx.center(
+                rx.text(
+                    "No metrics added yet. Click 'Add Metric' to get started.",
+                    size="2",
+                    color="gray",
+                ),
+                padding="2rem",
+            ),
+        ),
+        spacing="3",
+        width="100%",
+        height="100%",
+    )
+
+
 def add_framework_dialog():
     return rx.cond(
         FrameworkState.show_add_dialog,
@@ -574,7 +954,7 @@ def add_framework_dialog():
                             ),
                             spacing="3",
                             width="100%",
-                            flex="1",
+                            flex="2",
                         ),
                         rx.vstack(
                             rx.text("Description", size="4", weight="medium"),
@@ -583,9 +963,16 @@ def add_framework_dialog():
                                 value=FrameworkState.form_description,
                                 on_change=FrameworkState.set_form_description,
                                 width="100%",
-                                height="70%",
+                                height="100%",
                                 size="3",
                             ),
+                            spacing="2",
+                            width="100%",
+                            height="100%",
+                            flex="2",
+                        ),
+                        rx.vstack(
+                            metrics_management_panel(),
                             spacing="2",
                             width="100%",
                             height="100%",
@@ -717,6 +1104,7 @@ def frameworks_content():
         ),
         framework_dialog(),
         add_framework_dialog(),
+        add_metric_selector(),
     )
 
 
