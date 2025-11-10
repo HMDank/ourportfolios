@@ -50,19 +50,29 @@ class GlobalFrameworkState(rx.State):
             return
 
         query = """
-            SELECT category, metrics
+            SELECT category, metrics, display_order
             FROM frameworks.framework_metrics_df
             WHERE framework_id = %s
+            ORDER BY display_order
         """
         metrics_data = execute_query(query, (self.selected_framework_id,))
 
+        # Aggregate metrics by category
         self.framework_metrics = {}
         for row in metrics_data:
             category = row["category"]
-            metrics = row["metrics"]
+            metrics = row["metrics"]  # This is already an array from the DB
 
+            # Initialize category if not exists
+            if category not in self.framework_metrics:
+                self.framework_metrics[category] = []
+
+            # Metrics is an array, so extend our list with it
             if isinstance(metrics, list):
-                self.framework_metrics[category] = metrics
+                self.framework_metrics[category].extend(metrics)
+            else:
+                # Fallback if it's a single value
+                self.framework_metrics[category].append(metrics)
 
     @rx.var
     def has_selected_framework(self) -> bool:
