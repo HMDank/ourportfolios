@@ -1,39 +1,9 @@
+"""Financial statement UI component for displaying income statement, balance sheet, and cash flow."""
+
 import reflex as rx
-import io
-import csv
+from ..state import FinancialStatementState
 
 titles = ["Income\nStatement", "Balance\nSheet", "Cash\nFlow"]
-
-
-class State(rx.State):
-    expanded_table: int = -1
-
-    @rx.event
-    def expand(self, idx: int):
-        self.expanded_table = idx
-
-    @rx.event
-    def handle_dialog_open(self, value: bool):
-        if not value:
-            self.expanded_table = -1
-
-    @rx.event
-    def close(self):
-        self.expanded_table = -1
-
-    @rx.event
-    def download_table_csv(self, data: list, idx: int):
-        ticker = self.ticker
-        if not data:
-            return
-        output = io.StringIO()
-        writer = csv.DictWriter(output, fieldnames=list(data[0].keys()))
-        writer.writeheader()
-        for row in data:
-            writer.writerow(row)
-        csv_data = output.getvalue()
-        output.close()
-        return rx.download(data=csv_data, filename=f"{ticker}_{titles[idx]}.csv")
 
 
 def financial_statements(df_list):
@@ -65,7 +35,7 @@ def preview_table(data, idx):
                     rx.hstack(
                         rx.icon(
                             "maximize",
-                            on_click=lambda: State.expand(idx),
+                            on_click=lambda: FinancialStatementState.expand(idx),
                             style={
                                 "cursor": "pointer",
                                 "userSelect": "none",
@@ -75,7 +45,7 @@ def preview_table(data, idx):
                         ),
                         rx.icon(
                             "download",
-                            on_click=lambda: State.download_table_csv(data, idx),
+                            on_click=lambda: FinancialStatementState.download_table_csv(data, idx),
                             style={
                                 "cursor": "pointer",
                                 "userSelect": "none",
@@ -145,7 +115,7 @@ def preview_table(data, idx):
 
 def expanded_dialog(data, idx):
     return rx.cond(
-        State.expanded_table == idx,
+        FinancialStatementState.expanded_table == idx,
         rx.dialog.root(
             rx.dialog.trigger(rx.button("hidden", style={"display": "none"})),
             rx.dialog.content(
@@ -154,7 +124,7 @@ def expanded_dialog(data, idx):
                         rx.dialog.close(
                             rx.text(
                                 rx.icon("x"),
-                                on_click=State.close,
+                                on_click=FinancialStatementState.close,
                                 style={
                                     "cursor": "pointer",
                                     "userSelect": "none",
@@ -227,7 +197,7 @@ def expanded_dialog(data, idx):
                 },
             ),
             open=True,
-            on_open_change=State.handle_dialog_open,
+            on_open_change=FinancialStatementState.handle_dialog_open,
         ),
         None,
     )
