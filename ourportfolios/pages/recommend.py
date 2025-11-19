@@ -7,26 +7,35 @@ from psycopg2.extras import RealDictCursor
 from ..components.navbar import navbar
 from ..components.page_roller import card_roller, card_link
 from ..components.loading import loading_screen
-from ..state.framework_state import GlobalFrameworkState
+from ..state import GlobalFrameworkState
 
 DATABASE_URI = os.getenv("DATABASE_URI")
 
 
 def get_db_connection():
     try:
+        if not DATABASE_URI:
+            print("WARNING: DATABASE_URI environment variable is not set")
+            return None
         return psycopg2.connect(DATABASE_URI, cursor_factory=RealDictCursor)
     except Exception as e:
         print(f"Error connecting to database: {e}")
-        raise
+        return None
 
 
-def execute_query(query: str, params: tuple = None) -> List[Dict]:
+def execute_query(query: str, params: tuple | None = None) -> List[Dict]:
     try:
-        with get_db_connection() as conn:
+        conn = get_db_connection()
+        if conn is None:
+            print("WARNING: Cannot execute query - no database connection")
+            return []
+
+        with conn:
             with conn.cursor() as cur:
                 cur.execute(query, params)
                 if cur.description:
-                    return cur.fetchall()
+                    results = cur.fetchall()
+                    return [dict(row) for row in results] if results else []
                 return []
     except Exception as e:
         print(f"Error executing query: {e}")
@@ -232,6 +241,7 @@ class FrameworkState(rx.State):
         if not value:
             self.close_add_metric_dialog()
 
+    @rx.event
     async def on_load(self):
         await self.load_scopes()
         if self.scopes:
@@ -258,6 +268,7 @@ class FrameworkState(rx.State):
         finally:
             self.loading_scopes = False
 
+    @rx.event
     async def change_scope(self, scope: str):
         self.active_scope = scope
         await self.load_frameworks()
@@ -332,6 +343,7 @@ class FrameworkState(rx.State):
         if not value:
             self.close_add_dialog()
 
+    @rx.event
     async def submit_framework(self):
         if not self.form_title or not self.form_author:
             return
@@ -345,7 +357,12 @@ class FrameworkState(rx.State):
                 RETURNING id
             """
 
-            with get_db_connection() as conn:
+            conn = get_db_connection()
+            if conn is None:
+                print("ERROR: Cannot submit framework - no database connection")
+                return
+
+            with conn:
                 with conn.cursor() as cur:
                     # Insert framework and get its id
                     cur.execute(
@@ -393,9 +410,11 @@ class FrameworkState(rx.State):
         except Exception as e:
             print(f"Error adding framework: {e}")
 
-    def select_and_navigate_framework(self):
+    @rx.event
+    async def select_and_navigate_framework(self):
         """Select the current framework and navigate to ticker selection."""
         if not self.selected_framework:
+            print("Error: No framework selected")
             return
 
         # Get framework id - try different possible key names
@@ -411,15 +430,15 @@ class FrameworkState(rx.State):
             )
             return
 
-        # Set the global framework selection
-
-        # Close dialog
+        # Close dialog first
         self.close_dialog()
 
-        return [
-            GlobalFrameworkState.select_framework(framework_id),
-            rx.redirect("/select"),
-        ]
+        # Get global framework state and select the framework
+        global_state = await self.get_state(GlobalFrameworkState)
+        await global_state.select_framework(framework_id)
+
+        # Navigate to select page
+        return rx.redirect("/select")
 
 
 def scope_button(scope: Dict):

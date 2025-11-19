@@ -7,7 +7,8 @@ from typing import List, Dict, Set
 from ..components.navbar import navbar
 from ..components.drawer import drawer_button
 from ..components.page_roller import card_roller, card_link
-from ..components.ticker_board import TickerBoardState, ticker_board
+from ..components.ticker_board import ticker_board
+from ..state import TickerBoardState
 from ..utils.scheduler import db_settings
 
 

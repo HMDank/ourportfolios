@@ -5,6 +5,7 @@ from ..components.drawer import drawer_button
 from ..components.page_roller import card_roller, card_link
 from ..components.loading import loading_screen
 
+
 def page_selection():
     return rx.box(
         card_roller(
