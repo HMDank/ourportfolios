@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from .utils.scheduler import db_scheduler
 
 # MUST BE IMPORTED!!!
-from .pages import landing, recommend, select, landing_ticker, landing_industry, analyze, compare  # noqa: F401
+from .pages import landing, recommend, select, ticker_analysis, industry_analysis, analyze, compare  # noqa: F401
 
 
 @asynccontextmanager

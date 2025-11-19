@@ -1,9 +1,11 @@
+"""Analyze page - navigation hub for analysis features."""
+
 import reflex as rx
 
-from ..components.navbar import navbar
-from ..components.drawer import drawer_button
-from ..components.page_roller import card_roller, card_link
-from ..components.loading import loading_screen
+from ...components.navbar import navbar
+from ...components.drawer import drawer_button
+from ...components.page_roller import card_roller, card_link
+from ...components.loading import loading_screen
 
 
 def page_selection():

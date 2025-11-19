@@ -1,11 +1,14 @@
+"""Industry landing page - industry-specific ticker view."""
+
 import reflex as rx
-from ..components.navbar import navbar
-from ..components.drawer import drawer_button
-from ..components.loading import loading_screen
+
+from ...components.navbar import navbar
+from ...components.drawer import drawer_button
+from ...components.loading import loading_screen
 
 
 @rx.page(route="/select/[industry]")
-def landing_industry():
+def index():
     return rx.fragment(
         loading_screen(),
         navbar(),

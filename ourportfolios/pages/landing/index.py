@@ -1,9 +1,11 @@
+"""Landing page - main entry point to the application."""
+
 import reflex as rx
 
-from ..components.navbar import navbar
-from ..components.cards import portfolio_card
-from ..components.graph import mini_price_graph
-from ..components.loading import loading_screen
+from ...components.navbar import navbar
+from ...components.cards import portfolio_card
+from ...components.graph import mini_price_graph
+from ...components.loading import loading_screen
 
 cards = [
     {"title": "Recommend", "details": "Card 1 details", "link": "/recommend"},
