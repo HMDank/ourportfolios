@@ -25,7 +25,7 @@ def get_industry(ticker: str) -> str:
                 df = pd.read_sql(query, connection, params={"pattern": ticker})
                 return df["industry"].iloc[0]
 
-        except Exception as e:
+        except Exception:
             retry_count += 1
             if retry_count >= max_retries:
                 return "Unknown"
