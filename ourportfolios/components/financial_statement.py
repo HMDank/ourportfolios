@@ -2,6 +2,7 @@
 
 import reflex as rx
 from ..state import FinancialStatementState
+from .dialog import common_dialog
 
 titles = ["Income\nStatement", "Balance\nSheet", "Cash\nFlow"]
 
@@ -114,90 +115,55 @@ def preview_table(data, idx):
 
 
 def expanded_dialog(data, idx):
-    return rx.cond(
-        FinancialStatementState.expanded_table == idx,
-        rx.dialog.root(
-            rx.dialog.trigger(rx.button("hidden", style={"display": "none"})),
-            rx.dialog.content(
-                rx.vstack(
-                    rx.hstack(
-                        rx.dialog.close(
-                            rx.text(
-                                rx.icon("x"),
-                                on_click=FinancialStatementState.close,
-                                style={
-                                    "cursor": "pointer",
-                                    "userSelect": "none",
-                                    "color": rx.color("accent", 10),
-                                    "_hover": {
-                                        "color": rx.color("accent", 7),
-                                    },
-                                },
-                            ),
-                        ),
-                        rx.text(
-                            ["Income Statement", "Balance Sheet", "Cash Flow"][idx],
-                            weight="medium",
-                            size="6",
-                        ),
-                        width="100%",
-                        padding_bottom="1rem",
-                        align="center",
-                        justify="between",
-                    ),
-                    rx.center(
-                        rx.scroll_area(
-                            rx.table.root(
-                                rx.table.header(
-                                    rx.table.row(
-                                        rx.foreach(
-                                            data[0].keys(),
-                                            lambda h: rx.table.column_header_cell(h),
-                                        )
-                                    )
-                                ),
-                                rx.table.body(
-                                    rx.foreach(
-                                        data,
-                                        lambda row: rx.table.row(
-                                            rx.foreach(
-                                                data[0].keys(),
-                                                lambda h: rx.table.cell(
-                                                    rx.cond(
-                                                        row[h] is not None,
-                                                        rx.text(row[h]),
-                                                        rx.text(""),
-                                                    )
-                                                ),
-                                            )
-                                        ),
-                                    )
-                                ),
-                                size="2",
-                                variant="surface",
-                                style={"fontSize": "12px"},
-                            ),
-                            style={
-                                "height": "67vh",
-                                "width": "90vw",
-                            },
-                            scrollbars="both",
-                        ),
-                        width="100%",
-                    ),
-                    spacing="4",  # Space between elements in vstack
-                    align="center",  # Center align the vstack contents
-                    width="100%",
-                    height="100%",
+    content = rx.center(
+        rx.scroll_area(
+            rx.table.root(
+                rx.table.header(
+                    rx.table.row(
+                        rx.foreach(
+                            data[0].keys(),
+                            lambda h: rx.table.column_header_cell(h),
+                        )
+                    )
                 ),
-                max_width="90vw",
-                style={
-                    "height": "80vh",
-                    "padding": "1.5rem",  # Add padding to the entire dialog content
-                },
+                rx.table.body(
+                    rx.foreach(
+                        data,
+                        lambda row: rx.table.row(
+                            rx.foreach(
+                                data[0].keys(),
+                                lambda h: rx.table.cell(
+                                    rx.cond(
+                                        row[h] is not None,
+                                        rx.text(row[h]),
+                                        rx.text(""),
+                                    )
+                                ),
+                            )
+                        ),
+                    )
+                ),
+                size="2",
+                variant="surface",
+                style={"fontSize": "12px"},
             ),
-            open=True,
-            on_open_change=FinancialStatementState.handle_dialog_open,
+            style={
+                "height": "67vh",
+                "width": "90vw",
+            },
+            scrollbars="both",
         ),
-        None,
+        width="100%",
+    )
+    
+    return common_dialog(
+        content=content,
+        is_open=FinancialStatementState.expanded_table == idx,
+        on_close=FinancialStatementState.close,
+        on_open_change=FinancialStatementState.handle_dialog_open,
+        width="90vw",
+        height="80vh",
+        max_width="90vw",
+        padding="1.5rem",
+        title=["Income Statement", "Balance Sheet", "Cash Flow"][idx],
     )

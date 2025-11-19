@@ -3,53 +3,33 @@
 import reflex as rx
 
 from .state import FrameworkState
+from ...components.dialog import common_dialog
 
 
 def framework_dialog():
-    return rx.cond(
-        FrameworkState.show_dialog,
-        rx.dialog.root(
-            rx.dialog.trigger(rx.button("hidden", style={"display": "none"})),
-            rx.dialog.content(
-                rx.vstack(
-                    rx.hstack(
-                        rx.dialog.close(
-                            rx.text(
-                                rx.icon("x"),
-                                on_click=FrameworkState.close_dialog,
-                                style={
-                                    "cursor": "pointer",
-                                    "userSelect": "none",
-                                    "color": rx.color("accent", 10),
-                                    "_hover": {
-                                        "color": rx.color("accent", 7),
-                                    },
-                                },
-                            ),
-                        ),
-                        rx.spacer(),
-                        rx.vstack(
-                            rx.heading(
-                                FrameworkState.selected_framework["title"],
-                                size="7",
-                                weight="bold",
-                                text_align="right",
-                            ),
-                            rx.text(
-                                FrameworkState.selected_framework["author"],
-                                size="2",
-                                color="gray",
-                                text_align="right",
-                            ),
-                            align="end",
-                            spacing="1",
-                        ),
-                        width="100%",
-                        align="start",
-                        justify="between",
-                        padding_bottom="1rem",
-                    ),
-                    rx.hstack(
+    content = rx.vstack(
+        rx.hstack(
+            rx.vstack(
+                rx.heading(
+                    FrameworkState.selected_framework["title"],
+                    size="7",
+                    weight="bold",
+                    text_align="right",
+                ),
+                rx.text(
+                    FrameworkState.selected_framework["author"],
+                    size="2",
+                    color="gray",
+                    text_align="right",
+                ),
+                align="end",
+                spacing="1",
+            ),
+            width="100%",
+            align="start",
+            justify="end",
+        ),
+        rx.hstack(
                         rx.cond(
                             FrameworkState.selected_framework.get("source_name"),
                             rx.hstack(
@@ -135,20 +115,18 @@ def framework_dialog():
                         justify="end",
                         padding_top="1rem",
                     ),
-                    spacing="4",
-                    align="start",
-                    width="100%",
-                    height="100%",
-                ),
-                style={
-                    "width": "60vw",
-                    "height": "58vh",
-                    "maxWidth": "60vw",
-                    "padding": "2rem",
-                },
-            ),
-            open=True,
-            on_open_change=FrameworkState.handle_dialog_open,
-        ),
-        None,
+        spacing="4",
+        align="start",
+        width="100%",
+        height="100%",
+    )
+    
+    return common_dialog(
+        content=content,
+        is_open=FrameworkState.show_dialog,
+        on_close=FrameworkState.close_dialog,
+        on_open_change=FrameworkState.handle_dialog_open,
+        width="60vw",
+        height="58vh",
+        max_width="60vw",
     )
