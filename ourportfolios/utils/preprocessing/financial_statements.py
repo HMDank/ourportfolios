@@ -1,17 +1,36 @@
 from vnstock import Vnstock
 import pandas as pd
 import asyncio
+from datetime import datetime, timedelta
+
+# Simple in-memory cache with timestamp
+_cache = {}
+_cache_duration = timedelta(minutes=30)  # Cache for 30 minutes
 
 
 async def get_transformed_dataframes(ticker_symbol, period="year"):
+    # Check cache first
+    cache_key = f"{ticker_symbol}_{period}"
+    if cache_key in _cache:
+        cached_data, cached_time = _cache[cache_key]
+        if datetime.now() - cached_time < _cache_duration:
+            print(f"Using cached data for {ticker_symbol} ({period})")
+            return cached_data
+
     def calculate_yoy_growth(series):
         if len(series) < 2:
             return pd.Series(dtype=float, index=series.index)
         series_sorted = series.sort_index()
         return series_sorted.pct_change() * 100
 
+    print(f"Fetching fresh data from API for {ticker_symbol} ({period})")
     try:
-        income_statement, balance_sheet, cash_flow, key_ratios_raw = await asyncio.gather(
+        (
+            income_statement,
+            balance_sheet,
+            cash_flow,
+            key_ratios_raw,
+        ) = await asyncio.gather(
             asyncio.to_thread(
                 lambda: Vnstock()
                 .stock(symbol=ticker_symbol, source="VCI")
@@ -602,7 +621,7 @@ async def get_transformed_dataframes(ticker_symbol, period="year"):
 
         efficiency["Cash Conversion Cycle"] = key_ratios["Cash Cycle"]
 
-    return {
+    result = {
         # Transformed statements
         "transformed_income_statement": transformed_income.to_dict(orient="records"),
         "transformed_balance_sheet": transformed_balance.to_dict(orient="records"),
@@ -617,6 +636,13 @@ async def get_transformed_dataframes(ticker_symbol, period="year"):
             "Efficiency": efficiency.to_dict(orient="records"),
         },
     }
+
+    # Cache the result
+    cache_key = f"{ticker_symbol}_{period}"
+    _cache[cache_key] = (result, datetime.now())
+    print(f"Cached data for {ticker_symbol} ({period})")
+
+    return result
 
 
 def format_quarter_data(data_list):
