@@ -81,7 +81,6 @@ class State(rx.State):
     @rx.event
     async def toggle_switch(self, value: bool):
         self.switch_value = "year" if value else "quarter"
-        # Clear cached data to force reload with new period
         self.transformed_dataframes = {}
         self.available_metrics_by_category = {}
         self.selected_metrics = {}
