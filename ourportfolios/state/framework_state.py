@@ -1,25 +1,38 @@
 """Global framework state management for cross-page framework selection."""
 
 import reflex as rx
-from typing import Dict, List, Optional
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from typing import Dict, List, Optional
 
 DATABASE_URI = os.getenv("DATABASE_URI")
 
 
 def get_db_connection():
+    if not DATABASE_URI:
+        print("WARNING: DATABASE_URI environment variable is not set")
+        return None
     return psycopg2.connect(DATABASE_URI, cursor_factory=RealDictCursor)
 
 
-def execute_query(query: str, params: tuple = None) -> List[Dict]:
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(query, params)
-            if cur.description:
-                return cur.fetchall()
+def execute_query(query: str, params: tuple | None = None) -> List[Dict]:
+    try:
+        conn = get_db_connection()
+        if conn is None:
+            print("WARNING: Cannot execute query - no database connection")
             return []
+
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(query, params)
+                if cur.description:
+                    results = cur.fetchall()
+                    return [dict(row) for row in results] if results else []
+                return []
+    except Exception as e:
+        print(f"Database query error: {e}")
+        return []
 
 
 class GlobalFrameworkState(rx.State):
@@ -45,34 +58,39 @@ class GlobalFrameworkState(rx.State):
             self.selected_framework = framework_data[0]
             await self.load_framework_metrics()
 
+    @rx.event
     async def load_framework_metrics(self):
         if not self.selected_framework_id:
             return
 
-        query = """
-            SELECT category, metrics, display_order
-            FROM frameworks.framework_metrics_df
-            WHERE framework_id = %s
-            ORDER BY display_order
-        """
-        metrics_data = execute_query(query, (self.selected_framework_id,))
+        try:
+            query = """
+                SELECT category, metrics, display_order
+                FROM frameworks.framework_metrics_df
+                WHERE framework_id = %s
+                ORDER BY display_order
+            """
+            metrics_data = execute_query(query, (self.selected_framework_id,))
 
-        # Aggregate metrics by category
-        self.framework_metrics = {}
-        for row in metrics_data:
-            category = row["category"]
-            metrics = row["metrics"]  # This is already an array from the DB
+            # Aggregate metrics by category
+            self.framework_metrics = {}
+            for row in metrics_data:
+                category = row["category"]
+                metrics = row["metrics"]  # This is already an array from the DB
 
-            # Initialize category if not exists
-            if category not in self.framework_metrics:
-                self.framework_metrics[category] = []
+                # Initialize category if not exists
+                if category not in self.framework_metrics:
+                    self.framework_metrics[category] = []
 
-            # Metrics is an array, so extend our list with it
-            if isinstance(metrics, list):
-                self.framework_metrics[category].extend(metrics)
-            else:
-                # Fallback if it's a single value
-                self.framework_metrics[category].append(metrics)
+                # Metrics is an array, so extend our list with it
+                if isinstance(metrics, list):
+                    self.framework_metrics[category].extend(metrics)
+                else:
+                    # Fallback if it's a single value
+                    self.framework_metrics[category].append(metrics)
+        except Exception as e:
+            print(f"Error loading framework metrics: {e}")
+            self.framework_metrics = {}
 
     @rx.var
     def has_selected_framework(self) -> bool:

@@ -1,9 +1,11 @@
+"""Landing page - main entry point to the application."""
+
 import reflex as rx
 
-from ..components.navbar import navbar
-from ..components.cards import portfolio_card
-from ..components.graph import mini_price_graph
-from ..components.loading import loading_screen
+from ...components.navbar import navbar
+from ...components.cards import portfolio_card
+from ...components.graph import mini_price_graph
+from ...components.loading import loading_screen
 
 cards = [
     {"title": "Recommend", "details": "Card 1 details", "link": "/recommend"},
@@ -35,7 +37,9 @@ def index() -> rx.Component:
         rx.vstack(
             rx.center(
                 rx.vstack(
-                    rx.heading("OurPortfolios", size="9", font_size="5rem", weight="medium"),
+                    rx.heading(
+                        "OurPortfolios", size="9", font_size="5rem", weight="medium"
+                    ),
                     rx.text("Build your portfolios. We'll build ours", size="4"),
                     spacing="5",
                     align="center",
