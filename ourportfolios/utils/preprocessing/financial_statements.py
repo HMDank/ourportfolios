@@ -14,7 +14,6 @@ async def get_transformed_dataframes(ticker_symbol, period="year"):
     if cache_key in _cache:
         cached_data, cached_time = _cache[cache_key]
         if datetime.now() - cached_time < _cache_duration:
-            print(f"Using cached data for {ticker_symbol} ({period})")
             return cached_data
 
     def calculate_yoy_growth(series):
@@ -640,7 +639,6 @@ async def get_transformed_dataframes(ticker_symbol, period="year"):
     # Cache the result
     cache_key = f"{ticker_symbol}_{period}"
     _cache[cache_key] = (result, datetime.now())
-    print(f"Cached data for {ticker_symbol} ({period})")
 
     return result
 
