@@ -1,6 +1,6 @@
 [project]
 name = "ourportfolios"
-version = "0.5.0"
+version = "0.1.0"
 description = "An investment strategy analyzing platform"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -50,7 +50,7 @@ mask_initial_release = true
 
 [tool.semantic_release.commit_parser_options]
 minor_tags = ["feat"]
-patch_tags = ["fix",  "ci"]
+patch_tags = ["fix",  "ci", "perf"]
 other_allowed_tags = ["build", "chore", "docs", "style", "refactor", "test"]
 allowed_tags = ["feat", "fix", "perf", "build", "chore", "ci", "docs", "style", "refactor", "test"]
 default_bump_level = 0
