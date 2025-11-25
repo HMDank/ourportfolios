@@ -1,52 +1,7 @@
+"""Cart drawer UI component."""
+
 import reflex as rx
-import pandas as pd
-from sqlalchemy import text
-from ..utils.scheduler import db_settings
-
-
-def get_industry(ticker: str) -> str:
-    with db_settings.conn.connect() as connection:
-        if connection.in_transaction():
-            try:
-                db_settings.conn.rollback()
-            except Exception:
-                pass
-
-    query = text("""
-        SELECT industry
-        FROM comparison.comparison_df
-        WHERE ticker = :pattern
-    """)
-    df = pd.read_sql(query, db_settings.conn, params={"pattern": ticker})
-    return df["industry"].iloc[0]
-
-
-class CartState(rx.State):
-    cart_items: list[dict] = []
-    is_open: bool = False
-
-    @rx.var
-    def should_scroll(self) -> bool:
-        return len(self.cart_items) >= 6
-
-    @rx.event
-    def toggle_cart(self):
-        self.is_open = not self.is_open
-
-    @rx.event
-    def remove_item(self, index: int):
-        self.cart_items.pop(index)
-
-    @rx.event
-    def add_item(self, ticker: str):
-        if any(item["name"] == ticker for item in self.cart_items):
-            yield rx.toast.error(
-                f"{ticker} already in cart!",
-            )
-        else:
-            industry = get_industry(ticker)
-            self.cart_items.append({"name": ticker, "industry": industry})
-            yield rx.toast(f"{ticker} added to cart!")
+from ..state import CartState
 
 
 def cart_drawer_content():

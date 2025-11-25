@@ -1,37 +1,73 @@
 from vnstock import Vnstock
 import pandas as pd
 import asyncio
+from datetime import datetime, timedelta
+
+# Simple in-memory cache with timestamp
+_cache = {}
+_cache_duration = timedelta(minutes=30)  # Cache for 30 minutes
 
 
 async def get_transformed_dataframes(ticker_symbol, period="year"):
+    # Check cache first
+    cache_key = f"{ticker_symbol}_{period}"
+    if cache_key in _cache:
+        cached_data, cached_time = _cache[cache_key]
+        if datetime.now() - cached_time < _cache_duration:
+            return cached_data
+
     def calculate_yoy_growth(series):
         if len(series) < 2:
             return pd.Series(dtype=float, index=series.index)
         series_sorted = series.sort_index()
         return series_sorted.pct_change() * 100
 
-    income_statement, balance_sheet, cash_flow, key_ratios_raw = await asyncio.gather(
-        asyncio.to_thread(
-            lambda: Vnstock()
-            .stock(symbol=ticker_symbol, source="VCI")
-            .finance.income_statement(period=period, lang="en")
-        ),
-        asyncio.to_thread(
-            lambda: Vnstock()
-            .stock(symbol=ticker_symbol, source="VCI")
-            .finance.balance_sheet(period=period, lang="en")
-        ),
-        asyncio.to_thread(
-            lambda: Vnstock()
-            .stock(symbol=ticker_symbol, source="VCI")
-            .finance.cash_flow(period=period, lang="en")
-        ),
-        asyncio.to_thread(
-            lambda: Vnstock()
-            .stock(symbol=ticker_symbol, source="VCI")
-            .finance.ratio(period=period, lang="en")
-        ),
-    )
+    print(f"Fetching fresh data from API for {ticker_symbol} ({period})")
+    try:
+        (
+            income_statement,
+            balance_sheet,
+            cash_flow,
+            key_ratios_raw,
+        ) = await asyncio.gather(
+            asyncio.to_thread(
+                lambda: Vnstock()
+                .stock(symbol=ticker_symbol, source="VCI")
+                .finance.income_statement(period=period, lang="en")
+            ),
+            asyncio.to_thread(
+                lambda: Vnstock()
+                .stock(symbol=ticker_symbol, source="VCI")
+                .finance.balance_sheet(period=period, lang="en")
+            ),
+            asyncio.to_thread(
+                lambda: Vnstock()
+                .stock(symbol=ticker_symbol, source="VCI")
+                .finance.cash_flow(period=period, lang="en")
+            ),
+            asyncio.to_thread(
+                lambda: Vnstock()
+                .stock(symbol=ticker_symbol, source="VCI")
+                .finance.ratio(period=period, lang="en")
+            ),
+        )
+    except Exception as e:
+        print(f"Error fetching financial data for {ticker_symbol}: {e}")
+        # Return empty data structure
+        return {
+            "transformed_income_statement": [],
+            "transformed_balance_sheet": [],
+            "transformed_cash_flow": [],
+            "categorized_ratios": {
+                "Per Share Value": [],
+                "Growth Rate": [],
+                "Profitability": [],
+                "Valuation": [],
+                "Leverage & Liquidity": [],
+                "Efficiency": [],
+            },
+            "error": str(e),
+        }
 
     if isinstance(key_ratios_raw.columns, pd.MultiIndex):
         key_ratios = key_ratios_raw.copy()
@@ -564,7 +600,9 @@ async def get_transformed_dataframes(ticker_symbol, period="year"):
 
         # Efficiency
         efficiency["Asset Turnover"] = key_ratios["Asset Turnover"]
-        efficiency["Inventory Turnover"] = key_ratios["Inventory Turnover"]
+        # Inventory Turnover is optional (not available for all companies)
+        if "Inventory Turnover" in key_ratios.columns:
+            efficiency["Inventory Turnover"] = key_ratios["Inventory Turnover"]
         efficiency["ROA"] = key_ratios["ROA (%)"]
 
         # Dividend Payout %
@@ -582,7 +620,7 @@ async def get_transformed_dataframes(ticker_symbol, period="year"):
 
         efficiency["Cash Conversion Cycle"] = key_ratios["Cash Cycle"]
 
-    return {
+    result = {
         # Transformed statements
         "transformed_income_statement": transformed_income.to_dict(orient="records"),
         "transformed_balance_sheet": transformed_balance.to_dict(orient="records"),
@@ -597,6 +635,12 @@ async def get_transformed_dataframes(ticker_symbol, period="year"):
             "Efficiency": efficiency.to_dict(orient="records"),
         },
     }
+
+    # Cache the result
+    cache_key = f"{ticker_symbol}_{period}"
+    _cache[cache_key] = (result, datetime.now())
+
+    return result
 
 
 def format_quarter_data(data_list):

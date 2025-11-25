@@ -1,37 +1,279 @@
+"""Load and preprocess stock and company data.
+
+This module provides utilities to fetch company data via vnstock (overview,
+shareholders, events, news, profile, officers), preprocess those datasets,
+load price boards and historical quotes, and populate the database on a
+scheduled interval using the configured scheduler and database settings.
+"""
+
+import time
+import warnings
+from datetime import date, datetime, timedelta
+
+import numpy as np
+import pandas as pd
+from sqlalchemy import text
+from vnstock import Screener, Trading, Vnstock
+
 from .preprocess_texts import process_events_for_display
 from .scheduler import db_scheduler, db_settings
-from sqlalchemy import text
-import pandas as pd
-import numpy as np
-from datetime import date, timedelta
-from vnstock import Vnstock, Screener, Trading
-import asyncio
-import warnings
 
 warnings.filterwarnings("ignore")
 
 
 @db_scheduler.scheduled_job(
-    trigger="interval", seconds=db_settings.interval, id="populate_db"
+    trigger="interval",
+    seconds=db_settings.interval,
+    id="populate_db",
+    start_date=datetime.now() + timedelta(seconds=db_settings.interval),
 )
-def populate_db():
+def populate_db() -> None:
     with db_settings.conn.connect() as connection:
-        connection.execute(text("CREATE SCHEMA IF NOT EXISTS comparison"))
+        connection.execute(text("CREATE SCHEMA IF NOT EXISTS tickers"))
         connection.commit()
 
-    stock_df = load_comparison_table()
-    price_board_df = load_price_board(tickers=stock_df["ticker"].tolist())
+    stats_df = fetch_stats_df()
+    ticker_list = stats_df["ticker"].to_list()
 
-    result = pd.merge(
-        left=stock_df, right=price_board_df, left_on="ticker", right_on="symbol"
+    overview_list = []
+    shareholders_list = []
+    events_list = []
+    news_list = []
+    profile_list = []
+    officers_list = []
+
+    for ticker in ticker_list:
+        try:
+            company = Vnstock().stock(symbol=ticker, source="TCBS").company
+
+            overview = company.overview()
+            shareholders = company.shareholders()
+            events = company.events()
+            news = company.news()
+            profile = company.profile()
+            officers_info = company.officers()
+
+            if overview is not None and not overview.empty:
+                market_cap_value = stats_df.loc[
+                    stats_df["ticker"] == ticker,
+                    "market_cap",
+                ].squeeze()
+                overview["market_cap"] = market_cap_value
+                overview_list.append(overview)
+
+            if shareholders is not None and not shareholders.empty:
+                shareholders["symbol"] = ticker
+                shareholders_list.append(shareholders)
+
+            if events is not None and not events.empty:
+                events["symbol"] = ticker
+                events_list.append(events)
+
+            if news is not None and not news.empty:
+                news["symbol"] = ticker
+                news_list.append(news)
+
+            if profile is not None and not profile.empty:
+                profile_list.append(profile)
+
+            if officers_info is not None and not officers_info.empty:
+                officers_info["symbol"] = ticker
+                officers_list.append(officers_info)
+
+            time.sleep(1)
+        except Exception as e:
+            print(f"Error fetching data for {ticker}: {e}")  # noqa: T201
+            continue
+
+    overview_df = preprocess_overview(overview_list)
+    shareholders_df = preprocess_shareholders(shareholders_list)
+    events_df = preprocess_events(events_list)
+    news_df = preprocess_news(news_list)
+    profile_df = preprocess_profile(profile_list)
+    officers_df = preprocess_officers(officers_list)
+
+    overview_df.to_sql(
+        "overview_df",
+        db_settings.conn,
+        schema="tickers",
+        if_exists="replace",
+        index=False,
     )
 
-    result.to_sql("comparison_df", db_settings.conn, schema="comparison", if_exists="replace", index=False)
+    shareholders_df.to_sql(
+        "shareholders_df",
+        db_settings.conn,
+        schema="tickers",
+        if_exists="replace",
+        index=False,
+    )
+
+    events_df.to_sql(
+        "events_df",
+        db_settings.conn,
+        schema="tickers",
+        if_exists="replace",
+        index=False,
+    )
+
+    news_df.to_sql(
+        "news_df",
+        db_settings.conn,
+        schema="tickers",
+        if_exists="replace",
+        index=False,
+    )
+
+    profile_df.to_sql(
+        "profile_df",
+        db_settings.conn,
+        schema="tickers",
+        if_exists="replace",
+        index=False,
+    )
+
+    officers_df.to_sql(
+        "officers_df",
+        db_settings.conn,
+        schema="tickers",
+        if_exists="replace",
+        index=False,
+    )
+
+    stats_df.to_sql(
+        "stats_df",
+        db_settings.conn,
+        schema="tickers",
+        if_exists="replace",
+        index=False,
+    )
+
+    price_df = load_price_df(ticker_list)
+    price_df.to_sql(
+        "price_df",
+        db_settings.conn,
+        schema="tickers",
+        if_exists="replace",
+        index=False,
+    )
 
 
-def load_price_board(tickers: list[str]) -> pd.DataFrame:
+def preprocess_overview(overview_list: list) -> pd.DataFrame:
+    df = pd.concat(overview_list, ignore_index=True)
+    df["website"] = (
+        df["website"].str.removeprefix("https://").str.removeprefix("http://")
+    )
+    df["foreign_percent"] = round(df["foreign_percent"] * 100, 2)
+    df = df.drop(
+        [
+            "industry_id",
+            "industry_id_v2",
+            "delta_in_year",
+            "delta_in_month",
+            "delta_in_week",
+            "stock_rating",
+            "company_type",
+        ],
+        axis=1,
+    )
+
+    return df
+
+
+def preprocess_shareholders(shareholders_list: list) -> pd.DataFrame:
+    df = pd.concat(shareholders_list, ignore_index=True)
+    df["share_own_percent"] = (df["share_own_percent"] * 100).round(2)
+    return df
+
+
+def preprocess_profile(profile_list: list) -> pd.DataFrame:
+    df = pd.concat(profile_list, ignore_index=True)
+    return df
+
+
+def preprocess_events(events_list: list) -> pd.DataFrame:
+    df = pd.concat(events_list, ignore_index=True)
+    df["price_change_ratio"] = df["price_change_ratio"].fillna(np.nan)
+    df["price_change_ratio"] = (df["price_change_ratio"] * 100).round(2)
+
+    df = pd.DataFrame(process_events_for_display(df.to_dict("records")))
+    df = df[["symbol", "event_name", "price_change_ratio", "event_desc"]]
+    return df
+
+
+def preprocess_news(news_list: list) -> pd.DataFrame:
+    df = pd.concat(news_list, ignore_index=True)
+
+    df["price_change_ratio"] = pd.to_numeric(df["price_change_ratio"], errors="coerce")
+    df = df[~df["title"].str.contains("insider", case=False, na=False)]
+    df["price_change_ratio"] = (df["price_change_ratio"] * 100).round(2)
+    df = df[["symbol", "title", "publish_date", "price_change_ratio"]]
+    return df
+
+
+def preprocess_officers(officers_list: list) -> pd.DataFrame:
+    df = pd.concat(officers_list, ignore_index=True)
+    df = df.dropna(subset=["officer_name"])
+    df = df.fillna("")
+    df = (
+        df.groupby(["symbol", "officer_name"])
+        .agg(
+            {
+                "officer_position": lambda x: ", ".join(
+                    sorted(
+                        {
+                            pos.strip()
+                            for pos in x
+                            if isinstance(pos, str) and pos.strip()
+                        },
+                    ),
+                ),
+                "officer_own_percent": "first",
+            }
+        )
+        .reset_index()
+    )
+    df["officer_own_percent"] = pd.to_numeric(
+        df["officer_own_percent"], errors="coerce"
+    )
+    df["officer_own_percent"] = (df["officer_own_percent"] * 100).round(2)
+    df = df.sort_values(by="officer_own_percent", ascending=False)
+
+    return df
+
+
+def fetch_stats_df() -> list:
+    screener = Screener(source="TCBS")
+    default_params = {
+        "exchangeName": "HOSE,HNX",
+        "marketCap": (2000, 99999999999),
+    }
+    df = screener.stock(default_params, limit=1700, lang="en")
+    return df[
+        [
+            "ticker",
+            "roe",
+            "roa",
+            "ev_ebitda",
+            "dividend_yield",
+            "gross_margin",
+            "net_margin",
+            "doe",
+            "alpha",
+            "beta",
+            "pe",
+            "pb",
+            "eps",
+            "ps",
+            "ev",
+            "rsi14",
+        ]
+    ]
+
+
+def load_price_df(tickers: list[str]) -> pd.DataFrame:
     df = Trading(source="vci", symbol="ACB").price_board(symbols_list=tickers)
-    df.columns = df.columns.droplevel(0)  # Flatten columns
+    df.columns = df.columns.droplevel(0)
     df = df.drop("exchange", axis=1)
     df = df.loc[:, ~df.columns.duplicated()]
 
@@ -51,21 +293,15 @@ def load_price_board(tickers: list[str]) -> pd.DataFrame:
     df["price_change"] = round(df["price_change"] * 1e-3, 2)
     df["pct_price_change"] = round(df["pct_price_change"], 2)
 
-    return df
-
-
-def load_comparison_table():
-    screener = Screener(source="TCBS")
-    default_params = {
-        "exchangeName": "HOSE,HNX",
-        "marketCap": (2000, 99999999999),
-    }
-    df = screener.stock(default_params, limit=1700, lang="en")
-
-    # Remove unstable columns
-    df = df.drop([x for x in df.columns if x.startswith("price_vs")], axis=1)
-
-    return df
+    return df[
+        [
+            "symbol",
+            "current_price",
+            "price_change",
+            "pct_price_change",
+            "accumulated_volume",
+        ]
+    ]
 
 
 def load_historical_data(
@@ -79,185 +315,39 @@ def load_historical_data(
     return df.drop_duplicates(keep="last")
 
 
-def get_mini_graph_data(df):
-    if not np.issubdtype(df["time"].dtype, np.datetime64):
-        df["time"] = pd.to_datetime(df["time"])
+def fetch_company_data(symbol: str) -> dict[dict]:
+    """Fetch all company data tables for a given ticker from the tickers schema.
 
-    time_rev = df["time"].values[::-1]
-    latest_date = time_rev[0]
-    prev_date = next(t for t in time_rev if t != latest_date)
-
-    latest_mask = df["time"].values == latest_date
-    prev_mask = df["time"].values == prev_date
-
-    latest_df = df[latest_mask]
-    prev_df = df[prev_mask]
-
-    close_vals = latest_df["close"].values
-    min_close = close_vals.min()
-    max_close = close_vals.max()
-
-    if max_close != min_close:
-        normalized_close = (close_vals - min_close) / (max_close - min_close)
-    else:
-        normalized_close = np.zeros_like(close_vals)
-
-    latest_df = latest_df.assign(normalized_close=normalized_close).to_dict("records")
-
-    last_close_today = close_vals[-1]
-    last_close_prev = prev_df["close"].values[-1]
-    percent_diff = round(
-        (last_close_today - last_close_prev) / last_close_prev * 100, 2
-    )
-
-    return latest_df, percent_diff
-
-
-def fetch_data_for_symbols(symbols: list[str]):
-    graph_data = []
-    for symbol in symbols:
-        df = load_historical_data(symbol)
-        scaled_data, percent_diff = get_mini_graph_data(df)
-        graph_data.append(
-            {"label": symbol, "data": scaled_data, "percent_diff": percent_diff}
-        )
-    return graph_data
-
-
-def load_company_overview(ticker: str):
-    stock = Vnstock().stock(symbol=ticker, source="TCBS")
-    company = stock.company
-    overview = company.overview().iloc[0].to_dict()
-    overview["website"] = (
-        overview["website"].removeprefix("https://").removeprefix("http://")
-    )
-    overview["foreign_percent"] = round(overview["foreign_percent"] * 100, 2)
-    return overview
-
-
-def load_company_shareholders(ticker: str):
-    stock = Vnstock().stock(symbol=ticker, source="TCBS")
-    company = stock.company
-    shareholders_df = company.shareholders()
-    shareholders_df["share_own_percent"] = (
-        shareholders_df["share_own_percent"] * 100
-    ).round(2)
-    shareholders = shareholders_df.to_dict("records")
-    return shareholders
-
-
-def load_company_profile(ticker: str):
-    stock = Vnstock().stock(symbol=ticker, source="TCBS")
-    company = stock.company
-    profile = company.profile()
-    profile = profile.to_dict("records")[0]
-    return profile
-
-
-def load_company_events(ticker: str):
-    stock = Vnstock().stock(symbol=ticker, source="TCBS")
-    company = stock.company
-    events = company.events()
-    events["price_change_ratio"] = (events["price_change_ratio"] * 100).round(2)
-    events = events.to_dict("records")
-    processed_events = process_events_for_display(events)
-    return processed_events
-
-
-def load_company_news(ticker: str):
-    stock = Vnstock().stock(symbol=ticker, source="TCBS")
-    company = stock.company
-    news = company.news()
-    news = news[~news["title"].str.contains("insider", case=False, na=False)]
-    news["price_change_ratio"] = (news["price_change_ratio"] * 100).round(2)
-    news = news.to_dict("records")
-    return news
-
-
-def load_officers_info(ticker: str):
-    stock = Vnstock().stock(symbol=ticker, source="TCBS")
-    company = stock.company
-    officers = (
-        company.officers()
-        .dropna(subset=["officer_name"])
-        .fillna("")
-        .groupby("officer_name")
-        .agg(
-            {
-                "officer_position": lambda x: ", ".join(
-                    sorted(
-                        set(
-                            pos.strip()
-                            for pos in x
-                            if isinstance(pos, str) and pos.strip()
-                        )
-                    )
-                ),
-                "officer_own_percent": "first",
-            }
-        )
-        .reset_index()
-        .sort_values(by="officer_own_percent", ascending=False)
-    )
-    officers["officer_own_percent"] = (officers["officer_own_percent"] * 100).round(2)
-
-    officers = officers.sort_values(by="officer_own_percent", ascending=False).to_dict(
-        "records"
-    )
-
-    return officers
-
-
-def load_income_statement(ticker: str):
-    stock = Vnstock().stock(symbol=ticker, source="TCBS")
-    finance = stock.finance
-    income_statement = finance.income_statement(period="year").reset_index()
-    return income_statement.to_dict("records")
-
-
-def load_balance_sheet(ticker: str):
-    stock = Vnstock().stock(symbol=ticker, source="TCBS")
-    finance = stock.finance
-    balance_sheet = finance.balance_sheet(period="year").reset_index()
-    return balance_sheet.to_dict("records")
-
-
-def load_cash_flow(ticker: str):
-    stock = Vnstock().stock(symbol=ticker, source="TCBS")
-    finance = stock.finance
-    cash_flow = finance.cash_flow(period="year").reset_index()
-    return cash_flow.to_dict("records")
-
-
-async def load_company_data_async(ticker: str):
-    tasks = [
-        asyncio.to_thread(load_company_overview, ticker),
-        asyncio.to_thread(load_company_shareholders, ticker),
-        asyncio.to_thread(load_company_events, ticker),
-        asyncio.to_thread(load_company_news, ticker),
-        asyncio.to_thread(load_company_profile, ticker),
-        asyncio.to_thread(load_officers_info, ticker),
-        asyncio.to_thread(load_historical_data, ticker),
+    Returns a dict with dataframes for each data type.
+    """
+    tables = [
+        "overview",
+        "shareholders",
+        "events",
+        "news",
+        "profile",
+        "officers",
+        "price",
     ]
-    (
-        overview,
-        shareholders,
-        events,
-        news,
-        profile,
-        officers,
-        price_data,
-    ) = await asyncio.gather(*tasks)
-    return {
-        "overview": overview,
-        "shareholders": shareholders,
-        "events": events,
-        "profile": profile,
-        "news": news,
-        "officers": officers,
-        "price_data": price_data,
-    }
 
+    result = {}
 
-if __name__ == "__main__":
-    populate_db()
+    try:
+        for table in tables:
+            try:
+                df = pd.read_sql(
+                    text(f"SELECT * FROM tickers.{table}_df WHERE symbol = :symbol"),
+                    db_settings.conn,
+                    params={"symbol": symbol},
+                )
+                result[table] = df if not df.empty else pd.DataFrame()
+            except Exception as e:
+                print(f"Error fetching {table} data for {symbol}: {e}")
+                result[table] = pd.DataFrame()
+    except Exception as e:
+        print(f"Error fetching company data for {symbol}: {e}")
+        # Return empty dataframes for all tables
+        for table in tables:
+            result[table] = pd.DataFrame()
+
+    return result
